@@ -1,0 +1,253 @@
+version: 1
+compose:
+  files:
+    - path: docker-compose.yml
+      description: Unified AMI Orchestrator Compose File
+services:
+  data-postgres:
+    summary: PostgreSQL with pgvector extension for structured storage.
+    compose:
+      file: docker-compose.yml
+      service: postgres
+    module: base
+    tags:
+      - security:internal-only
+      - data:postgres
+  data-redis:
+    summary: Redis cache backing local development flows.
+    compose:
+      file: docker-compose.yml
+      service: redis
+    module: base
+    tags:
+      - security:internal-only
+      - data:redis
+  data-dgraph:
+    summary: Dgraph graph database used by DataOps experiments.
+    compose:
+      file: docker-compose.yml
+      service: dgraph
+    module: base
+    tags:
+      - security:internal-only
+      - data:dgraph
+  data-mongo:
+    summary: MongoDB instance from the data stack compose file.
+    compose:
+      file: docker-compose.yml
+      service: mongo
+    module: base
+    tags:
+      - security:internal-only
+      - data:mongo
+  integration-mongo:
+    summary: MongoDB instance for integration tests only.
+    compose:
+      file: docker-compose.yml
+      service: mongo
+    module: base
+    tags:
+      - security:internal-only
+      - data:mongo
+      - testing:integration
+  data-prometheus:
+    summary: Prometheus time series database for metrics collection.
+    compose:
+      file: docker-compose.yml
+      service: prometheus
+    module: base
+    tags:
+      - security:internal-only
+      - data:prometheus
+      - monitoring:metrics
+  openbao:
+    summary: OpenBao development secrets store.
+    compose:
+      file: docker-compose.yml
+      service: openbao
+    module: base
+    tags:
+      - security:internal-only
+      - secrets:openbao
+
+  searxng-redis:
+    summary: Redis for SearXNG meta-search engine.
+    compose:
+      file: docker-compose.yml
+      service: searxng-redis
+    module: base
+    tags:
+      - security:internal-only
+      - data:redis
+
+  searxng:
+    summary: SearXNG meta-search engine.
+    compose:
+      file: docker-compose.yml
+      service: searxng
+    module: base
+    depends_on:
+      - searxng-redis
+    tags:
+      - security:internal-only
+      - tools:search
+
+  vaultwarden:
+    summary: Vaultwarden password manager.
+    compose:
+      file: docker-compose.yml
+      service: vaultwarden
+    module: base
+    tags:
+      - security:internal-only
+      - tools:vault
+
+  openvpn:
+    summary: OpenVPN Access Server.
+    compose:
+      file: docker-compose.yml
+      service: openvpn
+    module: base
+    tags:
+      - security:vpn
+      - infrastructure:networking
+
+  secrets-broker:
+    summary: Secrets broker service for managing credentials.
+    execution:
+      docker:
+        enabled: false
+      local:
+        enabled: true
+        kind: command
+        command: "../scripts/ami-run uv run --python 3.12 scripts/run_secrets_broker.py"
+        cwd: "base"
+        environment:
+          SECRETS_BROKER_HOST: "0.0.0.0"
+          SECRETS_BROKER_PORT: "8700"
+    module: base
+    tags:
+      - security:secrets
+    health:
+      tcp:
+        host: 127.0.0.1
+        port: 8700
+      interval: 5.0
+      timeout: 2.0
+      success_threshold: 1
+      failure_threshold: 3
+
+  ux-cms:
+    summary: AMI Data Portal (Next.js CMS).
+    execution:
+      docker:
+        enabled: false
+      local:
+        enabled: true
+        kind: command
+        command: "../../scripts/ami-run npm run dev"
+        cwd: "ux/cms"
+        environment:
+          NODE_ENV: "development"
+    module: ux
+    tags:
+      - ui:cms
+
+  git-sshd:
+    summary: OpenSSH server for git repository access.
+    execution:
+      docker:
+        enabled: false
+      local:
+        enabled: true
+        kind: command
+        command: ".venv/bin/sshd-venv start"
+        cwd: "."
+        environment:
+          SSH_PORT: "2222"
+    module: base
+    tags:
+      - git:server
+      - git:ssh
+    health:
+      tcp:
+        host: 127.0.0.1
+        port: 2222
+      interval: 5.0
+      timeout: 2.0
+      success_threshold: 1
+      failure_threshold: 3
+      initial_delay: 2.0
+      startup_grace_period: 30.0
+
+  git-daemon:
+    summary: Git daemon for public repository access.
+    execution:
+      docker:
+        enabled: false
+      local:
+        enabled: true
+        kind: command
+        command: ".venv/bin/git daemon --reuseaddr --export-all --enable=receive-pack --verbose"
+        cwd: "."
+    module: base
+    env:
+      GIT_EXEC_PATH: ".venv/git/libexec/git-core"
+      GIT_DAEMON_PORT: "9418"
+      # git-daemon uses --base-path, but we can't easily interpolate here without shell.
+      # However, we can use a wrapper script if needed.
+      # For now, let's try just the base command if it supports defaults.
+      # Actually, the previous command used a complex bash -c. 
+      # Let's use a simpler bash wrapper that doesn't trigger the regex.
+    tags:
+      - git:server
+      - git:daemon
+
+profiles:
+  data-stack:
+    description: Data persistence services required for orchestrator modules.
+    services:
+      - data-postgres
+      - data-redis
+      - data-dgraph
+      - data-mongo
+  integration-mongo:
+    description: MongoDB for integration tests.
+    services:
+      - integration-mongo
+  openbao:
+    description: Secrets store for credentials and tokens.
+    services:
+      - openbao
+  dev:
+    description: Full development environment with CMS and all services.
+    autostart: true
+    services:
+      - data-postgres
+      - data-redis
+      - data-dgraph
+      - openbao
+      - secrets-broker
+      - searxng
+      - vaultwarden
+      - openvpn
+      - ux-cms
+      - data-prometheus
+  git-server:
+    description: Git repository server (SSH + git-daemon).
+    services:
+      - git-sshd
+      - git-daemon
+  vpn:
+    description: VPN services for secure network access.
+    services:
+      - openvpn
+  default:
+    description: Complete development stack for orchestrator services.
+    services:
+      - data-postgres
+      - data-redis
+      - data-dgraph
+      - data-mongo
+      - integration-mongo
+      - openbao

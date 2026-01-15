@@ -1,0 +1,8 @@
+# Hook Definitions
+# Ref: https://docs.claude.com/en/docs/claude-code/hooks.md
+
+version: "2.0.0"
+
+hooks:
+  # Minimal hooks if any are needed for the Bootstrap agent.
+  # Currently, BootloaderAgent implements its own guards natively.

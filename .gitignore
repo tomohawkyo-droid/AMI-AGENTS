@@ -1,0 +1,142 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Node.js
+.node_modules/
+
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+!ux/
+!ux/cms/
+!ux/cms/app/
+!ux/cms/app/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+venv/
+ENV/
+.venv/
+# Platform-specific venv copies
+.venv-windows/
+
+# Chrome/Selenium
+*.log
+chromedriver*
+geckodriver*
+screenshots/
+videos/
+sessions/
+chromium-win/
+chromium/
+chrome-mac-arm64/
+chrome-*.zip
+*.zip
+*.tar.zst
+drivers/
+
+# Browser profiles and test data
+browser_profiles/
+test_profiles/
+profiles/
+**/DevToolsActivePort
+**/saved_cookies.json
+test_downloads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+/data/
+/logs/
+/temp/
+/uploads/
+/metadata/
+*.pid
+*.pdf
+config.yaml
+config.local.yaml
+config.test.yaml
+.coverage
+htmlcov/
+.pytest_cache/
+package-lock.json
+.cache/
+
+# Metadata artifacts (managed via metadata system)
+progress-*.md
+feedback-*.md
+*.meta
+
+# Metadata storage (separate git repos)
+.ami-metadata/
+
+# Local gcloud CLI installation
+.gcloud/
+
+nul
+
+.claude
+
+ami-customers
+
+# Noqa report files
+*noqa_report*.txt
+critical_noqa*.md
+critical_noqa*.txt
+
+# Runtime state
+.runtime/
+
+# Client-specific work (gitignored development area)
+/clients/
+
+# Logo processing scripts (not part of migration)
+scripts/process_tech_logos.py
+docs/tech-logos/
+
+# Git repos working directory
+git-repos/repos/
+commit*
+COMMIT*
+tmp*
+tmp/
+.tmp/
+
+# Credentials and secrets
+credentials.json
+token.pickle
+user_app_token.pickle
+
+
+# Bootstrapped node environment
+.boot-linux/node-env
+
+# Forecasting directory
+learning/forecasting/
+learning/forecasting/
+.env.bot
+agents/

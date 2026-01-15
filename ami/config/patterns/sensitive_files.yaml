@@ -1,0 +1,27 @@
+# Sensitive File Patterns
+# Files and directories that are forbidden from direct shell modification (sed, echo, redirection, etc.)
+
+version: "1.0.0"
+
+sensitive_patterns:
+  - pattern: "scripts/config/patterns/"
+    description: "Security configuration patterns"
+  
+  - pattern: "agents/core/guards.py"
+    description: "Security guard implementation"
+
+  - pattern: ".env"
+    description: "Environment secrets"
+
+  - pattern: "inventory/"
+    description: "Ansible inventory files"
+
+  - pattern: "vars.yml"
+    description: "Global variables and secrets"
+
+  - pattern: "admin_token.txt"
+    description: "Admin authentication tokens"
+
+  - pattern: "credentials.*.json"
+    description: "Service credentials"
+
