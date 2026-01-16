@@ -27,7 +27,7 @@ if [[ ! -f "$EXT_CONFIG" ]]; then
     if [[ -f "$EXT_TEMPLATE" ]]; then
         cp "$EXT_TEMPLATE" "$EXT_CONFIG"
         echo "✅ Created $EXT_CONFIG from template"
-    else:
+    else
         echo "⚠️  Template $EXT_TEMPLATE not found, creating empty config"
         echo "extensions: []" > "$EXT_CONFIG"
     fi
@@ -62,9 +62,8 @@ if [[ -n "$EXTENSIONS" ]]; then
             # We run it from the project root
             SETUP_CMD=$(eval "$cmd")
             if [[ -n "$SETUP_CMD" ]]; then
-                NEW_BLOCK+="$SETUP_CMD"
-
-'            fi
+                NEW_BLOCK+="$SETUP_CMD"$'\n'
+            fi
         fi
     done <<< "$EXTENSIONS"
 
