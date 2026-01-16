@@ -11,37 +11,29 @@ from ami.cli.mode_handlers import get_user_confirmation, mode_interactive_editor
 class TestInteractiveHelpers:
     """Tests for interactive helper functions."""
 
-    @patch("ami.cli.mode_handlers.getchar")
-    def test_get_user_confirmation_yes(self, mock_getchar):
-        """Test confirmation with 'y'."""
-        mock_getchar.return_value = 'y'
-        with patch.object(sys.stdout, 'write') as mock_write:
-            assert get_user_confirmation() is True
-            mock_write.assert_called_with("y\n")
+    @patch("ami.cli.mode_handlers.confirm")
+    def test_get_user_confirmation_yes(self, mock_confirm):
+        """Test confirmation with 'y' (True)."""
+        mock_confirm.return_value = True
+        assert get_user_confirmation("test command") is True
+        mock_confirm.assert_called_once()
+        args, kwargs = mock_confirm.call_args
+        assert "Request to execute" in args[0]
+        assert "test command" in args[0]
 
-    @patch("ami.cli.mode_handlers.getchar")
-    def test_get_user_confirmation_no(self, mock_getchar):
-        """Test confirmation with 'n'."""
-        mock_getchar.return_value = 'n'
-        with patch.object(sys.stdout, 'write') as mock_write:
-            assert get_user_confirmation() is False
-            mock_write.assert_called_with("n\n")
+    @patch("ami.cli.mode_handlers.confirm")
+    def test_get_user_confirmation_no(self, mock_confirm):
+        """Test confirmation with 'n' (False)."""
+        mock_confirm.return_value = False
+        assert get_user_confirmation("test command") is False
+        mock_confirm.assert_called_once()
 
-    @patch("ami.cli.mode_handlers.getchar")
-    def test_get_user_confirmation_cancel(self, mock_getchar):
-        """Test confirmation with Ctrl+C."""
-        mock_getchar.return_value = '\x03'
+    @patch("ami.cli.mode_handlers.confirm")
+    def test_get_user_confirmation_cancel(self, mock_confirm):
+        """Test confirmation cancellation (exception propagation)."""
+        mock_confirm.side_effect = KeyboardInterrupt()
         with pytest.raises(KeyboardInterrupt):
-            get_user_confirmation()
-
-    @patch("ami.cli.mode_handlers.getchar")
-    def test_get_user_confirmation_loop(self, mock_getchar):
-        """Test confirmation ignores invalid keys."""
-        # 'a' (invalid), 'b' (invalid), 'y' (valid)
-        mock_getchar.side_effect = ['a', 'b', 'y']
-        with patch.object(sys.stdout, 'write') as mock_write:
-            assert get_user_confirmation() is True
-            assert mock_getchar.call_count == 3
+            get_user_confirmation("test command")
 
 
 class TestModeInteractiveEditor:

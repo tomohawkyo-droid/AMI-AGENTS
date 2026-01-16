@@ -147,6 +147,7 @@ def mode_interactive_editor() -> int:
         
         # Initial input (from first editor run)
         current_instruction = content
+        current_session_id = None
         
         while True:
             # Prepare initial text for next editor run (defaults to empty unless cancelled)
@@ -155,8 +156,9 @@ def mode_interactive_editor() -> int:
             try:
                 # Run agent loop (ReAct: Think -> Act -> Loop)
                 # The agent maintains state via session_id passed to the provider
-                agent.run(
+                _, current_session_id = agent.run(
                     instruction=current_instruction,
+                    session_id=current_session_id,
                     input_func=get_user_confirmation
                 )
             except KeyboardInterrupt:
