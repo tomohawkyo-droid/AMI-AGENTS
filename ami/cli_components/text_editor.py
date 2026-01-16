@@ -5,7 +5,7 @@ from typing import Any
 
 from ami.cli_components.cursor_manager import CursorManager
 from ami.cli_components.editor_display import EditorDisplay
-from ami.cli_components.text_input_utils import BRACKETED_PASTE_DISABLE, BRACKETED_PASTE_ENABLE, read_key_sequence
+from ami.cli_components.text_input_utils import BRACKETED_PASTE_DISABLE, BRACKETED_PASTE_ENABLE, read_key_sequence, Colors
 
 
 class TextEditor:
@@ -20,7 +20,148 @@ class TextEditor:
         # Ctrl+C state management
         self.ctrl_c_pressed_count = 0
 
-    # ... (handlers remain same) ...
+    def handle_key_navigation(self, key: str) -> None:
+        """Handle all cursor navigation keys."""
+        if key == "UP":
+            self.cursor_manager.move_cursor_up()
+        elif key == "DOWN":
+            self.cursor_manager.move_cursor_down()
+        elif key == "LEFT":
+            self.cursor_manager.move_cursor_left()
+        elif key == "RIGHT":
+            self.cursor_manager.move_cursor_right()
+        elif key == "CTRL_LEFT":  # Ctrl+Left - move to previous word
+            self.cursor_manager.move_to_previous_word()
+        elif key == "CTRL_RIGHT":  # Ctrl+Right - move to next word
+            self.cursor_manager.move_to_next_word()
+        elif key == "CTRL_UP":  # Ctrl+Up - move to previous paragraph (empty line)
+            self.cursor_manager.move_to_previous_paragraph()
+        elif key == "CTRL_DOWN":  # Ctrl+Down - move to next paragraph (empty line)
+            self.cursor_manager.move_to_next_paragraph()
+
+    def process_enter_key(self) -> None:
+        """Process the Enter key by splitting the current line."""
+        # Split the current line at the cursor position
+        current_line_content = self.lines[self.cursor_manager.current_line]
+        before_cursor = current_line_content[: self.cursor_manager.current_col]
+        after_cursor = current_line_content[self.cursor_manager.current_col :]
+
+        # Update current line and insert new line
+        self.lines[self.cursor_manager.current_line] = before_cursor
+        self.lines.insert(self.cursor_manager.current_line + 1, after_cursor)
+
+        # Move to the new line
+        self.cursor_manager.current_line += 1
+        self.cursor_manager.current_col = 0
+
+    def process_backspace_key(self) -> None:
+        """Process the Backspace key by deleting character or joining lines."""
+        if self.cursor_manager.current_col > 0:
+            # Delete character before cursor
+            current_line_content = self.lines[self.cursor_manager.current_line]
+            before_cursor = current_line_content[: self.cursor_manager.current_col - 1]
+            after_cursor = current_line_content[self.cursor_manager.current_col :]
+            self.lines[self.cursor_manager.current_line] = before_cursor + after_cursor
+            self.cursor_manager.current_col -= 1
+        elif self.cursor_manager.current_line > 0:
+            # Join with previous line
+            prev_line = self.lines[self.cursor_manager.current_line - 1]
+            current_line_content = self.lines[self.cursor_manager.current_line]
+
+            # Combine lines
+            self.lines[self.cursor_manager.current_line - 1] = prev_line + current_line_content
+
+            # Remove current line
+            del self.lines[self.cursor_manager.current_line]
+
+            # Move to previous line and set column to end of that line
+            self.cursor_manager.current_line -= 1
+            self.cursor_manager.current_col = len(self.lines[self.cursor_manager.current_line])
+
+    def process_home_key(self) -> None:
+        """Process the Home key (Ctrl+A) to move cursor to beginning of line."""
+        # Ctrl+A pressed - go to beginning of current line
+        self.cursor_manager.current_col = 0
+
+    def process_delete_word(self) -> None:
+        """Process Ctrl+W or Ctrl+Backspace to delete the word before the cursor."""
+        current_line_content = self.lines[self.cursor_manager.current_line]
+
+        # Find the start of the word to delete
+        start_pos = self.cursor_manager.current_col
+        pos = start_pos
+
+        # Skip any whitespace before the cursor
+        while pos > 0 and current_line_content[pos - 1].isspace():
+            pos -= 1
+
+        # Delete backward until we hit a word boundary (whitespace or beginning of line)
+        word_start = pos
+        while word_start > 0 and not current_line_content[word_start - 1].isspace():
+            word_start -= 1
+
+        # If we're deleting something
+        if word_start < start_pos:
+            # Remove the characters from word_start to start_pos
+            before_word = current_line_content[:word_start]
+            after_word = current_line_content[start_pos:]
+            self.lines[self.cursor_manager.current_line] = before_word + after_word
+
+            # Move cursor to the start of the deleted word
+            self.cursor_manager.current_col = word_start
+
+    def _insert_pasted_content(self, content: str) -> None:
+        """Insert pasted content into the editor, handling newlines properly."""
+        if not content:
+            return  # Nothing to insert
+
+        # Split the pasted content by newlines
+        lines = content.split("\n")
+
+        if len(lines) == 1:
+            # Single-line paste - insert at cursor position
+            current_line_content = self.lines[self.cursor_manager.current_line]
+            before_cursor = current_line_content[: self.cursor_manager.current_col]
+            after_cursor = current_line_content[self.cursor_manager.current_col :]
+
+            self.lines[self.cursor_manager.current_line] = before_cursor + content + after_cursor
+            self.cursor_manager.current_col += len(content)
+        else:
+            # Multi-line paste - split the current line and insert multiple lines
+            current_line_content = self.lines[self.cursor_manager.current_line]
+            before_cursor = current_line_content[: self.cursor_manager.current_col]
+            after_cursor = current_line_content[self.cursor_manager.current_col :]
+
+            # First line goes at current position (combine with text before cursor)
+            first_line = before_cursor + lines[0]
+            self.lines[self.cursor_manager.current_line] = first_line
+
+            # Middle lines (if any) are inserted as new lines
+            min_lines_for_middle = 2
+            middle_lines = lines[1:-1] if len(lines) > min_lines_for_middle else []
+            for i, line in enumerate(middle_lines):
+                insert_pos = self.cursor_manager.current_line + i + 1
+                self.lines.insert(insert_pos, line)
+
+            # Last line is combined with text after cursor
+            last_line = lines[-1] + after_cursor
+            insert_pos = self.cursor_manager.current_line + len(middle_lines) + 1
+            self.lines.insert(insert_pos, last_line)
+
+            # Update cursor position: move to end of the last inserted line
+            self.cursor_manager.current_line = insert_pos
+            self.cursor_manager.current_col = len(lines[-1])
+
+    def handle_text_modification(self, key: str) -> None:
+        """Handle text modification keys (enter, backspace, etc)."""
+        if key == "ENTER":
+            self.process_enter_key()
+        elif key == "BACKSPACE":
+            self.process_backspace_key()
+        elif key == "HOME":
+            self.process_home_key()
+        elif key in ["DELETE_WORD", "BACKSPACE_WORD"]:
+            self.process_delete_word()
 
     def run(self, clear_on_submit: bool = True) -> str | None:
         """Run the main editor loop."""
