@@ -13,22 +13,15 @@ from ami.utils.helpers import (
     validate_path_and_return_code,
 )
 from ami.core.bootloader_agent import BootloaderAgent
-from ami.cli_components.text_input_utils import display_final_output, getchar
+from ami.cli_components.text_input_utils import display_final_output
 from ami.cli_components.text_editor import TextEditor
+from ami.cli_components.dialogs import confirm
 
 
-def get_user_confirmation() -> bool:
-    """Get Y/N confirmation from user."""
-    while True:
-        ch = getchar().lower()
-        if ch == 'y':
-            sys.stdout.write("y\n")
-            return True
-        if ch == 'n':
-            sys.stdout.write("n\n")
-            return False
-        if ch == '\x03': # Ctrl+C
-            raise KeyboardInterrupt
+def get_user_confirmation(command: str) -> bool:
+    """Get Y/N confirmation from user via TUI dialog."""
+    message = f"Request to execute:\n\n{command}"
+    return confirm(message, title="Execute Command?")
 
 
 def mode_query(query: str) -> int:

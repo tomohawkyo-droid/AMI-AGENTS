@@ -86,25 +86,22 @@ class BootloaderAgent:
             sys.stderr.write(f"Error loading extensions: {e}\n")
             return ""
 
-    def execute_shell(self, script: str, input_func: Optional[Callable[[], bool]] = None, stream_callback: Optional[Any] = None, guard_rules_path: Optional[Path] = None) -> str:
+    def execute_shell(self, script: str, input_func: Optional[Callable[[str], bool]] = None, stream_callback: Optional[Any] = None, guard_rules_path: Optional[Path] = None) -> str:
         """Execute validated shell commands on the host."""
         # Static Check
         is_safe, error = check_command_safety(script, guard_rules_path)
         if not is_safe:
             return f"🛑 BLOCKED: {error}"
 
-        # Confirmation Step
-        confirmation_msg = f"\n⚠️ **CONFIRMATION REQUIRED**\nRequest to execute:\n```bash\n{script}\n```\nReply 'y' to confirm, 'n' to cancel.\n"
+        # Confirmation Step (Delegated to UI)
         if input_func:
-            if stream_callback:
-                stream_callback(confirmation_msg)
-            else:
-                print(confirmation_msg)
-                
             try:
-                confirmed = input_func()
+                # Pass the script to the input function for rendering the dialog
+                confirmed = input_func(script)
                 if not confirmed:
                     return "🛑 EXECUTION CANCELLED BY USER."
+                
+                # Feedback after confirmation
                 success_msg = "\n✅ Confirmed. Executing...\n"
                 if stream_callback:
                     stream_callback(success_msg)
@@ -166,7 +163,7 @@ class BootloaderAgent:
             return f"EXEC ERR: {e}"
 
 
-    def run(self, instruction: str, session_id: Optional[str] = None, stream_callback: Optional[Any] = None, stop_event: Optional[Any] = None, input_func: Optional[Callable[[], bool]] = None, allowed_tools: Optional[List[str]] = None, timeout: int = 300, guard_rules_path: Optional[Path] = None) -> Tuple[str, str]:
+    def run(self, instruction: str, session_id: Optional[str] = None, stream_callback: Optional[Any] = None, stop_event: Optional[Any] = None, input_func: Optional[Callable[[str], bool]] = None, allowed_tools: Optional[List[str]] = None, timeout: int = 300, guard_rules_path: Optional[Path] = None) -> Tuple[str, str]:
         """
         Run the agent loop.
         

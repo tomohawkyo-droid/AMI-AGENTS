@@ -309,8 +309,8 @@ def _process_line_with_provider(
                 for line in complete_lines:
                     display_line = line
                     # Display-only replacements to make output clearer
-                    if "```run" in display_line:
-                        display_line = display_line.replace("```run", "</>")
+                    if "```run" in display_line or "```bash" in display_line:
+                        display_line = display_line.replace("```run", "</>").replace("```bash", "</>")
                         display_context["in_run_block"] = True
                     
                     if "```" in display_line and display_context.get("in_run_block"):

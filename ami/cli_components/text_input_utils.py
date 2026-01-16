@@ -303,7 +303,11 @@ def display_final_output(lines: list[str], message: str) -> None:
     sys.stdout.write("\n")
     sys.stdout.flush()
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-    sys.stdout.write(f"{message} at {timestamp}\n")
+    # Clean output: just emoji and time, similar to the query mode style
+    if "Sent" in message:
+        sys.stdout.write(f"💬 {timestamp}\n")
+    else:
+        sys.stdout.write(f"{message} {timestamp}\n")
     sys.stdout.flush()
     # Add one more newline before returning so the prompt appears on a new line
     sys.stdout.write("\n")
