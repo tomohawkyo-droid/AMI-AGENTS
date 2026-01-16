@@ -19,7 +19,7 @@ class EditorDisplay:
         self.previous_display_lines: int = 0  # Track how many lines were displayed in the previous render
         self.show_help: bool = False  # Toggle help legend display
 
-    def display_editor(self, lines: list[str], current_line: int, current_col: int) -> None:
+    def display_editor(self, lines: list[str], current_line: int, current_col: int, status_override: str | None = None) -> None:
         """Display the current state of the editor."""
 
         # Calculate the total display lines before making changes
@@ -79,13 +79,16 @@ class EditorDisplay:
         sys.stdout.flush()
 
         # Print status area with color (keep it compact)
-        status_line = (
-            f"{Colors.GREEN}Ln {current_line + 1}, "
-            f"Col {current_col + 1}{Colors.RESET} | "
-            f"{Colors.BLUE}{len(lines)} lines{Colors.RESET} | "
-            f"{Colors.YELLOW}F1: help{Colors.RESET} | "
-            f"{Colors.GREEN}Enter to send{Colors.RESET}"
-        )
+        if status_override:
+            status_line = status_override
+        else:
+            status_line = (
+                f"{Colors.GREEN}Ln {current_line + 1}, "
+                f"Col {current_col + 1}{Colors.RESET} | "
+                f"{Colors.BLUE}{len(lines)} lines{Colors.RESET} | "
+                f"{Colors.YELLOW}F1: help{Colors.RESET} | "
+                f"{Colors.GREEN}Enter to send{Colors.RESET}"
+            )
         sys.stdout.write(f"{status_line}\n")
         sys.stdout.flush()
 

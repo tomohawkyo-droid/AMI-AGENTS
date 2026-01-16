@@ -16,11 +16,34 @@ from ami.core.bootloader_agent import BootloaderAgent
 from ami.cli_components.text_input_utils import display_final_output
 from ami.cli_components.text_editor import TextEditor
 from ami.cli_components.dialogs import confirm
+from ami.core.config import get_config
 
 
 def get_user_confirmation(command: str) -> bool:
     """Get Y/N confirmation from user via TUI dialog."""
     return confirm(command, title="Execute Command?")
+
+
+def get_latest_session_id() -> str | None:
+    """Find the most recent session ID from transcript logs."""
+    try:
+        config = get_config()
+        transcripts_dir = config.root / "logs" / "transcripts"
+        if not transcripts_dir.exists():
+            return None
+            
+        # Find all jsonl files recursively
+        files = list(transcripts_dir.rglob("*.jsonl"))
+        if not files:
+            return None
+            
+        # Sort by modification time, newest first
+        files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+        
+        # Return the stem (filename without extension) of the newest file
+        return files[0].stem
+    except Exception:
+        return None
 
 
 def mode_query(query: str) -> int:
@@ -146,7 +169,10 @@ def mode_interactive_editor() -> int:
         
         # Initial input (from first editor run)
         current_instruction = content
-        current_session_id = None
+        # Resume last session if available
+        current_session_id = get_latest_session_id()
+        if current_session_id:
+            sys.stdout.write(f"🔄 Resuming session: {current_session_id}\n")
         
         while True:
             # Prepare initial text for next editor run (defaults to empty unless cancelled)
