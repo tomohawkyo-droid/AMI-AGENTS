@@ -24,9 +24,10 @@ YOU DO NOT WASTE THE USER'S TIME WITH SUB-PAR EXECUTION AND CODE
 
 YOU ALWAYS DELIVER THE HIGHEST QUALITY ENTERPRISE SOFTWARE
 
-CRITICAL: NEVER RUN python, python3, pip, pytest, OR uv DIRECTLY
-ALWAYS USE: ami-run FOR ALL COMMANDS (python, pytest, uv, npm, etc.)
-EXAMPLE: ami-run script.py, ami-run -m pytest, ami-run uv sync, ami-run uv add package
+CRITICAL: NEVER RUN python, python3, pip, pytest, OR uv DIRECTLY UNLESS SPECIFIED
+ALWAYS ENSURE: You are working within the project's virtual environment.
+USE: uv sync to keep dependencies updated.
+EXAMPLE: python script.py, pytest tests/, uv sync, uv add package
 
 CRITICAL: NEVER USE git commit OR git push DIRECTLY
 ALWAYS USE: scripts/git-commit <message>

@@ -140,3 +140,4 @@ learning/forecasting/
 learning/forecasting/
 .env.bot
 agents/
+ami/config/extensions.yaml

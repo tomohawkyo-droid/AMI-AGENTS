@@ -1,0 +1,6 @@
+# AMI Agent Shell Extensions Registry
+# Commands defined here will be executed and their output EVALUATED (sourced) 
+# into the agent's shell environment.
+
+extensions:
+  - "./ami-agent -i"

@@ -24,9 +24,8 @@ def get_latest_npm_version(package_name: str) -> Optional[str]:
         Latest version string or None if error
     """
     try:
-        # Use the npm from our bootstrapped environment
-        boot_npm = Path.cwd() / ".boot-linux" / "node-env" / "bin" / "npm"
-        npm_cmd = str(boot_npm) if boot_npm.exists() else "npm"
+        # Use system npm
+        npm_cmd = "npm"
         
         # Query npm for the latest version
         result = subprocess.run(
@@ -197,7 +196,7 @@ def main() -> int:
         else:
             print("\nAnalysis complete. No changes made.")
             print("To apply these updates, run with --auto-update flag:")
-            print(f"  ami-run {__file__} --auto-update")
+            print(f"  python {__file__} --auto-update")
             return 0
     else:
         print("All packages are already at latest versions")

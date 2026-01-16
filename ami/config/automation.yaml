@@ -44,43 +44,27 @@ agent:
 
   # Claude Code CLI settings
   claude:
-    command: "{root}/.venv/node_modules/.bin/claude"  # Use venv Claude, not system
+    command: "claude"
     model_default: "claude-sonnet-4-5"
-    model_audit: "claude-sonnet-4-5"  # 100% accuracy requirement
+    model_audit: "claude-sonnet-4-5"
 
   # Gemini CLI settings
   gemini:
-    command: "gemini"  # Or: "{root}/.venv/node_modules/.bin/gemini"
-    model_default: "gemini-2.5-pro"
-    model_audit: "gemini-2.5-flash"  # Faster for hooks
+    command: "gemini"
+    model_default: "gemini-3-pro"
+    model_audit: "gemini-3-flash"
 
   # Qwen CLI settings
   qwen:
-    command: "{root}/scripts/qwen"
+    command: "qwen"
     model_default: "qwen-coder"
-    model_audit: "qwen-coder"  # Faster for hooks
+    model_audit: "qwen-coder"
 
 # Legacy claude_cli config (for backward compatibility - will be deprecated)
 claude_cli:
-  command: "{root}/.venv/node_modules/.bin/claude"
+  command: "claude"
   model_default: "claude-sonnet-4-5"
   model_audit: "claude-sonnet-4-5"
-
-# MCP Servers (Model Context Protocol)
-mcp:
-  enabled: true
-  servers:
-    browser:
-      command: "ami-run"
-      args:
-        - "{root}/browser/scripts/run_chrome.py"
-        - "--data-root"
-        - "{root}/browser/data"
-    # Future: add more MCP servers as needed
-    # database:
-    #   command: "python3"
-    #   args:
-    #     - "{root}/database/scripts/mcp_server.py"
 
 # Prompts
 prompts:

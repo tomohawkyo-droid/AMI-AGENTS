@@ -140,8 +140,7 @@ def get_systemd_services():
     return services
 
 def get_podman_containers():
-    podman_bin = os.path.expanduser("~/Projects/AMI-ORCHESTRATOR/.boot-linux/bin/podman")
-    if not os.path.exists(podman_bin): podman_bin = "podman"
+    podman_bin = "podman"
     raw = run_cmd(f"{podman_bin} ps -a --format json")
     if not raw: return {{}}
     try:

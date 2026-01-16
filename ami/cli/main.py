@@ -1,40 +1,21 @@
-#!/usr/bin/env bash
-""":'
-exec "$(dirname "$0")/../../ami-run" "$0" "$@"
-"""
+#!/usr/bin/env python3
 
 from __future__ import annotations
 
 
 """AMI Agent - Unified automation entry point.
 
-Replaces multiple bash scripts (claude-agent.sh, claude-audit.sh, etc.)
-with a single Python entry point supporting multiple non-interactive modes.
-
-Called via ami-run wrapper (scripts/ami-agent).
-
 Usage:
     ami-agent --print <instruction>     # Non-interactive mode
-    ami-agent --audit <directory>       # Batch audit mode
-    ami-agent --tasks <directory>       # Task execution mode
-    ami-agent --sync <module>           # Git sync mode
-    ami-agent --docs <directory>        # Documentation maintenance mode
+    ami-agent --query <query>           # Non-interactive query mode
+    ami-agent --interactive-editor      # Interactive editor mode (default)
 
 Examples:
-    # Non-interactive audit from stdin
-    cat file.py | ami-agent --print config/prompts/audit.txt
+    # Non-interactive print
+    ami-agent --print config/prompts/agent.txt
 
-    # Batch audit
-    ami-agent --audit base/
-
-    # Task execution
-    ami-agent --tasks tasks/
-
-    # Documentation maintenance
-    ami-agent --docs docs/
-
-    # Git synchronization
-    ami-agent --sync base/
+    # Interactive session
+    ami-agent
 """
 
 import argparse

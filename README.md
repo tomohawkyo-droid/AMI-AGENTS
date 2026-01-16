@@ -34,30 +34,29 @@ agents/
 Launch the **Bootloader Agent** in interactive mode. This provides a persistent session where the agent can explore, read files, and execute commands.
 
 ```bash
-# Via the orchestrator wrapper
-scripts/ami-agent
+./ami-agent
 
-# Direct invocation (if installed)
-python -m agents.ami.cli.main
+# Direct invocation
+python -m ami.cli.main
 ```
 
 ### 2. Query Mode
 Run a single instruction and get a response without entering the interactive editor.
 
 ```bash
-scripts/ami-agent --query "Check the status of the postgres service"
+./ami-agent --query "Check the status of the postgres service"
 ```
 
 ### 3. Print Mode
 Run an instruction from a file (e.g., a prompt template).
 
 ```bash
-scripts/ami-agent --print path/to/instruction.txt
+./ami-agent --print path/to/instruction.txt
 ```
 
 ## ⚙️ Configuration
 
-Configuration is managed via `agents/ami/config/automation.yaml`.
+Configuration is managed via `ami/config/automation.yaml`.
 
 | Environment Variable | Description | Default |
 |----------------------|-------------|---------|
@@ -68,7 +67,7 @@ Configuration is managed via `agents/ami/config/automation.yaml`.
 
 The framework implements a robust security model for agent execution:
 
-- **Command Guard**: Validates all shell commands against forbidden patterns (e.g., blocking direct `git commit`, requiring `ami-run`).
+- **Command Guard**: Validates all shell commands against forbidden patterns (e.g., blocking direct `git commit`, requiring use of approved scripts).
 - **Confirmation Guard**: Requires user confirmation ('y/n') before executing any shell command on the host.
 - **Sensitive File Guard**: Blocks direct modification of security-critical configuration files via shell commands.
 

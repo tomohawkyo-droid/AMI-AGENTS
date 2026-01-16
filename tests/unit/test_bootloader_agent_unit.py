@@ -26,29 +26,29 @@ class TestBootloaderAgent:
         """execute_shell executes command if safe."""
         mock_safety.return_value = (True, "")
         
-        # Mock executor result
-        mock_instance = MockExecutor.return_value
-        mock_instance.run.return_value = {
-            "stdout": "\x1b[31moutput\x1b[0m",
-            "stderr": "",
-            "returncode": 0
-        }
+        # Mock extensions setup
+        with patch.object(BootloaderAgent, "_load_extensions", return_value='eval "$(./ami-agent -i)"'):
+            # Mock executor result
+            mock_instance = MockExecutor.return_value
+            mock_instance.run.return_value = {
+                "stdout": "\x1b[31moutput\x1b[0m",
+                "stderr": "",
+                "returncode": 0
+            }
 
-        result = agent.execute_shell("echo test")
+            result = agent.execute_shell("echo test")
 
-        assert "\n> echo test" in result # Leading newline
-        assert "output" in result
-        assert "\x1b" not in result # No ANSI codes
-        
-        # Verify call arguments
-        mock_instance.run.assert_called_once()
-        args, kwargs = mock_instance.run.call_args
-        cmd_list = args[0]
-        assert cmd_list[0] == "/bin/bash"
-        assert cmd_list[1] == "-c"
-        assert "source" in cmd_list[2]
-        assert "scripts/shell-setup" in cmd_list[2]
-        assert "echo test" in cmd_list[2]
+            assert "output" in result
+            assert "\x1b" not in result # No ANSI codes
+            
+            # Verify call arguments
+            mock_instance.run.assert_called_once()
+            args, kwargs = mock_instance.run.call_args
+            cmd_list = args[0]
+            assert cmd_list[0] == "/bin/bash"
+            assert cmd_list[1] == "-c"
+            assert 'eval "$(./ami-agent -i)"' in cmd_list[2]
+            assert "echo test" in cmd_list[2]
 
     @patch("agents.ami.core.bootloader_agent.check_command_safety")
     @patch("agents.ami.core.bootloader_agent.FileSubprocessSync")

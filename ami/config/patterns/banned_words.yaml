@@ -193,8 +193,6 @@ ignored_files:
   - "backend/scheduling/SPEC-SCHEDULING.md"  # Architecture spec uses stub terminology
   # Root-level scripts with architectural comments
   - "scripts/backup_to_gdrive.py"  # Documents fallback authentication methods
-  - "scripts/ami-run"  # Comments explain .venv fallback logic
-  - "scripts/ami-uv"  # Comments explain .venv fallback logic
   - "agents/ami/agent_cli.py"  # Has legitimate placeholder comments for future work
   - "agents/ami/hooks.py"  # Contains error messages explaining forbidden parent.parent patterns
   - "agents/ami/validators.py"  # Contains error messages explaining forbidden parent.parent patterns

@@ -9,22 +9,13 @@ version: "1.0.0"
 deny_patterns:
   # Inline python execution - BLOCK FIRST (more specific than general python block)
   - pattern: '\bpython3?\s+-c\b'
-    message: "Inline python execution forbidden - bypasses code quality validation. Write scripts and use ami-run instead"
+    message: "Inline python execution forbidden - bypasses code quality validation. Write scripts instead"
 
   - pattern: '\|\s*python3?\b'
-    message: "Piping to python forbidden - bypasses code quality validation. Write scripts and use ami-run instead"
-
-  - pattern: '\bpython3?\b'
-    message: "Use ami-run instead of direct python"
+    message: "Piping to python forbidden - bypasses code quality validation. Write scripts instead"
 
   - pattern: '\bpip3?\b'
-    message: "Add to pyproject.toml and use ami-run uv sync"
-
-  - pattern: '(?<!ami-run\s)\buv\s+'
-    message: "Use ami-run uv wrapper"
-
-  - pattern: '(?<![/\w])pytest\s+'
-    message: "Use ami-run scripts/run_tests.py instead of direct pytest"
+    message: "Add to pyproject.toml and use uv sync"
 
   - pattern: '(?<!ami-)\bruff\b'
     message: "Use scripts/git-commit with --fix instead of direct ruff - pre-commit checks handle linting"
@@ -132,9 +123,6 @@ deny_patterns:
   # System security
   - pattern: '\bami\s+'
     message: "Direct use of ami command forbidden"
-
-  - pattern: '\bami-run\s+'
-    message: "Direct use of ami-run command forbidden"
 
   - pattern: '\bsudo\b'
     message: "Sudo commands not allowed (except in approved scripts)"

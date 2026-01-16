@@ -8,6 +8,7 @@ import subprocess
 import os
 from pathlib import Path
 from typing import List, Optional, Tuple, Any, Callable
+import yaml
 
 from base.backend.workers.file_subprocess import FileSubprocessSync
 from agents.ami.cli.config import AgentConfig
@@ -31,6 +32,7 @@ class BootloaderAgent:
     def __init__(self):
         self.project_root = PROJECT_ROOT
         self.prompt_template = self.project_root / "agents" / "ami" / "config" / "prompts" / "bootloader_agent.txt"
+        self.extensions_config = self.project_root / "agents" / "ami" / "config" / "extensions.yaml"
         
         # Consolidated environment setup
         setup_agent_env()
@@ -61,6 +63,28 @@ class BootloaderAgent:
         except Exception as e:
             return f"Error loading context: {e}"
 
+    def _load_extensions(self) -> str:
+        """Generate shell setup command from extensions registry."""
+        if not self.extensions_config.exists():
+            return ""
+            
+        try:
+            with open(self.extensions_config) as f:
+                data = yaml.safe_load(f)
+                
+            extensions = data.get("extensions", [])
+            if not extensions:
+                return ""
+                
+            # Build eval chain: eval "$(<cmd1>)" && eval "$(<cmd2>)"
+            # We run this from project root
+            cmds = [f'eval "$({ext})"' for ext in extensions]
+            return " && ".join(cmds)
+        except Exception as e:
+            # Fallback safe: log error to stderr but don't crash
+            sys.stderr.write(f"Error loading extensions: {e}\n")
+            return ""
+
     def execute_shell(self, script: str, input_func: Optional[Callable[[], bool]] = None, stream_callback: Optional[Any] = None, guard_rules_path: Optional[Path] = None) -> str:
         """Execute validated shell commands on the host."""
         # Static Check
@@ -89,9 +113,14 @@ class BootloaderAgent:
                 return f"🛑 CONFIRMATION ERROR: {e}"
 
         try:
-            # Source shell setup to ensure aliases/functions like ami-mail work
-            setup_script = self.project_root / "scripts" / "shell-setup"
-            full_command = f"source {setup_script} && {script}"
+            # Build setup command from extensions
+            setup_cmd = self._load_extensions()
+            
+            # Combine: setup && script
+            if setup_cmd:
+                full_command = f"{setup_cmd} && {script}"
+            else:
+                full_command = script
             
             # Use FileSubprocessSync for reliable I/O and kill-switch capability
             executor = FileSubprocessSync(work_dir=self.project_root)

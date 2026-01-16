@@ -48,7 +48,7 @@ class GeminiAgentCLI(BaseProvider, AgentCLI):
     def _get_default_config(self) -> AgentConfig:
         """Get default agent configuration."""
         return AgentConfig(
-            model="gemini-2.5-pro",
+            model="gemini-3-pro",
             session_id=uuid7(),
             provider=ProviderType.GEMINI,
             allowed_tools=None,

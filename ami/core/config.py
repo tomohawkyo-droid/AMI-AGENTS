@@ -150,25 +150,23 @@ class Config:
 
     def get_provider_command(self, provider: ProviderType) -> str:
         """Get the command for a specific provider."""
-        # Map provider to the actual executable path
-        root = self.root
-
+        # Map provider to default system command
         provider_to_command = {
-            ProviderType.CLAUDE: f"{root}/.node_modules/bin/claude",
-            ProviderType.QWEN: f"{root}/.node_modules/bin/qwen",
-            ProviderType.GEMINI: f"{root}/.venv/node_modules/.bin/gemini",
+            ProviderType.CLAUDE: "claude",
+            ProviderType.QWEN: "qwen",
+            ProviderType.GEMINI: "gemini",
         }
 
         if provider not in provider_to_command:
-            raise ValueError(f"CRITICAL: Unknown provider or missing binary path for: {provider}")
+            raise ValueError(f"CRITICAL: Unknown provider: {provider}")
 
-        # Get the actual command path
-        return provider_to_command[provider]
+        # Get the configured command or default
+        return self.get(f"agent.{provider.value}.command", provider_to_command[provider])
 
     def get_provider_default_model(self, provider: ProviderType) -> str:
         """Get the default model for a specific provider."""
         # Map provider to default model
-        provider_to_model = {ProviderType.CLAUDE: "claude-sonnet-4-5", ProviderType.QWEN: "qwen-coder", ProviderType.GEMINI: "gemini-2.5-pro"}
+        provider_to_model = {ProviderType.CLAUDE: "claude-sonnet-4-5", ProviderType.QWEN: "qwen-coder", ProviderType.GEMINI: "gemini-3-pro"}
 
         # Get the default model, defaulting to Claude if provider not found
         return provider_to_model.get(provider, "claude-sonnet-4-5")
@@ -176,7 +174,7 @@ class Config:
     def get_provider_audit_model(self, provider: ProviderType) -> str:
         """Get the audit model for a specific provider."""
         # Map provider to audit model
-        provider_to_model = {ProviderType.CLAUDE: "claude-sonnet-4-5", ProviderType.QWEN: "qwen-coder", ProviderType.GEMINI: "gemini-2.5-flash"}
+        provider_to_model = {ProviderType.CLAUDE: "claude-sonnet-4-5", ProviderType.QWEN: "qwen-coder", ProviderType.GEMINI: "gemini-3-flash"}
 
         # Get the audit model, defaulting to Claude if provider not found
         return provider_to_model.get(provider, "claude-sonnet-4-5")

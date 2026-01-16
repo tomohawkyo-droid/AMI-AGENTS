@@ -1,7 +1,4 @@
-#!/usr/bin/env bash
-""":"
-exec "$(dirname "$0")/scripts/ami-run" "$(dirname "$0")/text_input_cli.py" "$@"
-"""
+#!/usr/bin/env python3
 
 import sys
 from typing import Any

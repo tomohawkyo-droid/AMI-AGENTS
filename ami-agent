@@ -5,6 +5,12 @@ set -e
 # Find the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Handle installation mode
+if [[ "$1" == "-i" || "$1" == "--install" ]]; then
+    echo "alias ami-agent='$SCRIPT_DIR/ami-agent'"
+    exit 0
+fi
+
 # Define the local venv python path
 VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python"
 

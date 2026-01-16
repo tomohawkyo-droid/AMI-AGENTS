@@ -23,7 +23,7 @@ deny_patterns:
 
 **Examples**:
 - Block `docker` → require `setup_service.py`
-- Block `python3` → require `ami-run`
+- Block `python3` → require use of local environment python
 - Block pipes `|` → require dedicated tools (Read/Grep)
 - Block operators `&&`, `;`, `||` → require separate Bash calls
 

@@ -34,4 +34,4 @@ incorrect_patterns:
     description: "Direct .venv python"
 
   - pattern: "#!/usr/bin/env sh"
-    description: "Incorrect shell shebang (use bash or ami-run)"
+    description: "Incorrect shell shebang (use bash)"
