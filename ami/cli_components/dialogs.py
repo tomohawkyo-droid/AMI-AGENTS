@@ -20,7 +20,7 @@ ESC = "ESC"
 class BaseDialog:
     """Base class for dialogs."""
     
-    def __init__(self, title: str = "Dialog", width: int = 60):
+    def __init__(self, title: str = "Dialog", width: int = 80):
         self.title = title
         self.width = width
         self._last_render_lines = 0
@@ -34,11 +34,36 @@ class BaseDialog:
         """Render the dialog. Must update self._last_render_lines."""
         raise NotImplementedError
 
+    def _format_shortcut(self, label: str, shortcut: str, selected: bool) -> str:
+        """Format label with shortcut underlined or appended."""
+        lower_label = label.lower()
+        lower_shortcut = shortcut.lower()
+        
+        # Find shortcut in label
+        idx = lower_label.find(lower_shortcut)
+        
+        style = f"{Colors.REVERSE}" if selected else ""
+        reset = f"{Colors.RESET}"
+        underline = "\033[4m"
+        no_underline = "\033[24m"
+        
+        if idx != -1:
+            # Underline the char in label
+            prefix = label[:idx]
+            char = label[idx]
+            suffix = label[idx+1:]
+            formatted = f"{style}{prefix}{underline}{char}{no_underline}{suffix}{reset}"
+        else:
+            # Append shortcut
+            formatted = f"{style}{label} ({underline}{shortcut}{no_underline}){reset}"
+            
+        return formatted
+
 
 class AlertDialog(BaseDialog):
     """Simple alert/message dialog."""
     
-    def __init__(self, message: str, title: str = "Alert", width: int = 60):
+    def __init__(self, message: str, title: str = "Alert", width: int = 80):
         super().__init__(title, width)
         self.message = message
         
@@ -81,7 +106,7 @@ class AlertDialog(BaseDialog):
 class ConfirmationDialog(BaseDialog):
     """Yes/No confirmation dialog."""
     
-    def __init__(self, message: str, title: str = "Confirmation", width: int = 60):
+    def __init__(self, message: str, title: str = "Confirmation", width: int = 80):
         super().__init__(title, width)
         self.message = message
         self.selected_yes = True
@@ -116,30 +141,27 @@ class ConfirmationDialog(BaseDialog):
         lines = TUI.wrap_text(self.message, inner_width)
         centered_lines = [line.center(inner_width) for line in lines]
         
-        # Buttons
-        yes_btn = "  Yes  "
-        no_btn = "  No   "
-        
-        if self.selected_yes:
-            y_disp = f"{Colors.REVERSE}{yes_btn}{Colors.RESET}"
-            n_disp = no_btn
-        else:
-            y_disp = yes_btn
-            n_disp = f"{Colors.REVERSE}{no_btn}{Colors.RESET}"
+        # Buttons with shortcuts
+        yes_disp = self._format_shortcut("  Yes  ", "Y", self.selected_yes)
+        no_disp = self._format_shortcut("  No   ", "N", not self.selected_yes)
             
         # Calculate spacing
         # Just simple spacing:  [Yes]      [No]
-        # Total raw width = len(yes_btn) + 6 + len(no_btn)
-        # Center this block
+        # We need raw length for centering logic
+        raw_yes = "  Yes  "
+        raw_no = "  No   "
         
-        buttons_raw = f"{yes_btn}      {no_btn}"
-        pad_len = (inner_width - len(buttons_raw)) // 2
+        buttons_raw_len = len(raw_yes) + 6 + len(raw_no)
+        pad_len = (inner_width - buttons_raw_len) // 2
         
         # Construct line with colors
-        buttons_line = " " * pad_len + y_disp + "      " + n_disp
+        # Note: Padding calculation relies on ANSI codes NOT being counted in raw length
+        # TUI.draw_box handles basic color codes but sophisticated cursor positioning might drift if we aren't careful
+        # But here we construct a single string line
+        
+        buttons_line = " " * pad_len + yes_disp + "      " + no_disp
         # Pad right side to fill line so box border aligns
-        # Use existing length of buttons_raw for calc
-        current_len = pad_len + len(buttons_raw)
+        current_len = pad_len + buttons_raw_len
         buttons_line += " " * (inner_width - current_len)
         
         content = centered_lines + ["", buttons_line]
@@ -147,7 +169,7 @@ class ConfirmationDialog(BaseDialog):
         self._last_render_lines = TUI.draw_box(
             content=content,
             title=self.title,
-            footer=f"{Colors.GREEN}Use ←/→ to navigate, Enter to confirm{Colors.RESET}",
+            footer=f"{Colors.GREEN}Use ←/→ to navigate, y/n shortcuts{Colors.RESET}",
             width=self.width,
             center_content=False
         )
@@ -156,7 +178,7 @@ class ConfirmationDialog(BaseDialog):
 class SelectionDialog(BaseDialog):
     """Menu selection dialog."""
     
-    def __init__(self, items: List[Any], title: str = "Select", width: int = 60, multi: bool = False):
+    def __init__(self, items: List[Any], title: str = "Select", width: int = 80, multi: bool = False):
         super().__init__(title, width)
         # Handle string items or objects with labels
         self.items = []
