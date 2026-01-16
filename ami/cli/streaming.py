@@ -15,17 +15,17 @@ import tty
 
 from loguru import logger
 
-from agents.ami.cli.env_utils import get_unprivileged_env
-from agents.ami.cli.exceptions import (
+from ami.cli.env_utils import get_unprivileged_env
+from ami.cli.exceptions import (
     AgentCommandNotFoundError,
     AgentExecutionError,
     AgentTimeoutError,
 )
-from agents.ami.core.config import get_config
-from agents.ami.cli.process_utils import handle_process_completion, start_streaming_process, read_streaming_line
-from agents.ami.cli.streaming_utils import calculate_timeout
-from agents.ami.cli.timer_utils import TimerDisplay
-from agents.ami.core.logic import parse_completion_marker
+from ami.core.config import get_config
+from ami.cli.process_utils import handle_process_completion, start_streaming_process, read_streaming_line
+from ami.cli.streaming_utils import calculate_timeout
+from ami.cli.timer_utils import TimerDisplay
+from ami.core.logic import parse_completion_marker
 
 
 if TYPE_CHECKING:

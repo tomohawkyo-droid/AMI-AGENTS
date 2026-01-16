@@ -1,26 +1,23 @@
 """Integration tests for the unified CLI Agent loop."""
 
 import sys
-import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Setup path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from ami.core.bootloader_agent import BootloaderAgent
+from ami.cli.mode_handlers import mode_interactive_editor
 
-from agents.ami.core.bootloader_agent import BootloaderAgent
-from agents.ami.cli.mode_handlers import mode_interactive_editor
+# Get project root for finding binaries
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 @pytest.mark.integration
 class TestCLIAgentLoop:
     """Tests for the agentic loop in the CLI."""
 
-    @patch("agents.ami.cli.mode_handlers.TextEditor")
-    @patch("agents.ami.cli.mode_handlers.get_user_confirmation")
+    @patch("ami.cli.mode_handlers.TextEditor")
+    @patch("ami.cli.mode_handlers.get_user_confirmation")
     def test_agent_loop_with_tool_execution(self, mock_confirm, MockTextEditor):
         """
         Verify that ami-agent can:
@@ -47,7 +44,7 @@ class TestCLIAgentLoop:
 
         # 4. Run the editor mode (REPL)
         # We catch SystemExit or return code
-        with patch("agents.ami.cli.mode_handlers.display_final_output"):
+        with patch("ami.cli.mode_handlers.display_final_output"):
             # mode_interactive_editor will loop until editor.run returns None
             exit_code = mode_interactive_editor()
             

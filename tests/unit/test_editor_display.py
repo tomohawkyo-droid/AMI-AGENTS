@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from agents.ami.cli_components.editor_display import EditorDisplay
+from ami.cli_components.editor_display import EditorDisplay
 
 
 def strip_ansi(text: str) -> str:

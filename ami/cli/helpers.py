@@ -6,7 +6,7 @@ from typing import Any
 
 from loguru import logger
 
-from agents.ami.cli.exceptions import AgentExecutionError
+from ami.cli.exceptions import AgentExecutionError
 
 
 def calculate_streaming_timeout(timeout: int | None, elapsed_time: float) -> float:

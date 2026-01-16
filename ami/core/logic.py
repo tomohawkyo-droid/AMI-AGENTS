@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 import yaml
 
-from agents.ami.core.config import get_config
+from ami.core.config import get_config
 
 
 # Code fence parsing constants

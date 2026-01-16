@@ -7,7 +7,7 @@ Tests the "Second Layer of Defense":
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from agents.ami.core.bootloader_agent import BootloaderAgent
+from ami.core.bootloader_agent import BootloaderAgent
 
 
 @pytest.fixture

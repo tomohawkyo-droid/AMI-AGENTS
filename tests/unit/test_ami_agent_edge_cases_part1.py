@@ -5,26 +5,26 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from agents.ami.cli.config import AgentConfig, AgentConfigPresets
-from agents.ami.core.config import Config, get_config
-from agents.ami.cli.exceptions import AgentError, AgentTimeoutError
-from agents.ami.cli.mode_handlers import (
+from ami.cli.config import AgentConfig, AgentConfigPresets
+from ami.core.config import Config, get_config
+from ami.cli.exceptions import AgentError, AgentTimeoutError
+from ami.cli.mode_handlers import (
     mode_interactive_editor,
     mode_print,
     mode_query,
 )
-from agents.ami.cli.streaming import (
+from ami.cli.streaming import (
     _handle_timeout,
     _process_line_with_provider,
     run_streaming_loop_with_display,
 )
-from agents.ami.cli.timer_utils import TimerDisplay
+from ami.cli.timer_utils import TimerDisplay
 
 
 class TestModeHandlerErrorConditions:
     """Test error conditions in mode handlers."""
 
-    @patch("agents.ami.cli.mode_handlers.TextEditor")
+    @patch("ami.cli.mode_handlers.TextEditor")
     def test_mode_interactive_editor_keyboard_interrupt(self, mock_text_editor):
         """Test interactive editor mode when interrupted by keyboard."""
         mock_editor = Mock()
@@ -35,8 +35,8 @@ class TestModeHandlerErrorConditions:
         result = mode_interactive_editor()
         assert result == 0  # Success because cancellation is expected behavior
 
-    @patch("agents.ami.cli.mode_handlers.get_agent_cli")
-    @patch("agents.ami.cli.mode_handlers.TextEditor")
+    @patch("ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.TextEditor")
     def test_mode_interactive_editor_with_whitespace_content(self, mock_editor, mock_get_cli):
         """Test interactive editor mode with whitespace-only content."""
         # Mock the text editor to return whitespace content
@@ -53,8 +53,8 @@ class TestModeHandlerErrorConditions:
         mock_get_cli.assert_not_called()
 
     @patch("sys.stdin.read", return_value="")  # Mock stdin to avoid issues in test environment
-    @patch("agents.ami.cli.mode_handlers.validate_path_and_return_code")
-    @patch("agents.ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.validate_path_and_return_code")
+    @patch("ami.cli.mode_handlers.get_agent_cli")
     def test_mode_print_empty_stdin(self, mock_get_cli, mock_validate, mock_stdin_read):
         """Test print mode when stdin is empty."""
         mock_validate.return_value = 0  # Valid path
@@ -66,7 +66,7 @@ class TestModeHandlerErrorConditions:
         assert result == 0  # Empty response is valid
 
     @patch("sys.stdin.read", return_value="")  # Mock stdin to avoid issues in test environment
-    @patch("agents.ami.cli.mode_handlers.validate_path_and_return_code")
+    @patch("ami.cli.mode_handlers.validate_path_and_return_code")
     def test_mode_print_invalid_path(self, mock_validate, mock_stdin_read):
         """Test print mode with invalid path."""
         mock_validate.return_value = 1  # Invalid path
@@ -75,8 +75,8 @@ class TestModeHandlerErrorConditions:
         assert result == 1  # Should return error code
 
     @patch("sys.stdin.read", return_value="")  # Mock stdin to avoid issues in test environment
-    @patch("agents.ami.cli.mode_handlers.validate_path_and_return_code")
-    @patch("agents.ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.validate_path_and_return_code")
+    @patch("ami.cli.mode_handlers.get_agent_cli")
     def test_mode_print_cli_error(self, mock_get_cli, mock_validate, mock_stdin_read):
         """Test print mode when CLI call fails."""
         mock_validate.return_value = 0  # Valid path
@@ -102,7 +102,7 @@ class TestConfigurationErrorConditions:
         # Note: This depends on how the code handles invalid providers
         # The factory should handle this properly
 
-    @patch("agents.ami.core.config.yaml.safe_load")
+    @patch("ami.core.config.yaml.safe_load")
     @patch("builtins.open")
     def test_config_file_not_found(self, mock_open, mock_yaml_load):
         """Test config service when config file doesn't exist."""
@@ -155,7 +155,7 @@ class TestStreamingErrorConditions:
     """Test streaming error conditions."""
 
     @pytest.mark.skip(reason="Causes segmentation fault due to threading race condition in test environment")
-    @patch("agents.ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.streaming.TimerDisplay")
     def test_run_streaming_loop_with_display_timeout(self, mock_timer_class):
         """Test streaming with timeout."""
         # Create a mock process that simulates timeout behavior
@@ -172,7 +172,7 @@ class TestStreamingErrorConditions:
                 return "", None
 
         # Test with a process that never returns data - should timeout
-        with patch("agents.ami.cli.streaming.read_streaming_line") as mock_read:
+        with patch("ami.cli.streaming.read_streaming_line") as mock_read:
             # Make read_streaming_line return timeout continuously to trigger the timeout logic
             mock_read.return_value = (None, True)  # No data, timeout
             mock_process.stdout = Mock()

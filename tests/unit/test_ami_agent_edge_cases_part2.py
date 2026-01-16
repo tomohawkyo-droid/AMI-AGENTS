@@ -5,27 +5,27 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from agents.ami.cli.claude_cli import ClaudeAgentCLI
-from agents.ami.cli.config import AgentConfig
-from agents.ami.cli.exceptions import AgentCommandNotFoundError, AgentExecutionError, AgentTimeoutError
-from agents.ami.cli.mode_handlers import (
+from ami.cli.claude_cli import ClaudeAgentCLI
+from ami.cli.config import AgentConfig
+from ami.cli.exceptions import AgentCommandNotFoundError, AgentExecutionError, AgentTimeoutError
+from ami.cli.mode_handlers import (
     mode_print,
 )
-from agents.ami.cli.process_utils import (
+from ami.cli.process_utils import (
     handle_first_output_timeout,
     handle_process_completion,
     read_streaming_line,
     start_streaming_process,
 )
-from agents.ami.cli.provider_type import ProviderType
-from agents.ami.cli.qwen_cli import QwenAgentCLI
+from ami.cli.provider_type import ProviderType
+from ami.cli.qwen_cli import QwenAgentCLI
 
 
 class TestProcessUtilsErrorConditions:
     """Test error conditions in process utilities."""
 
     @patch("subprocess.Popen")
-    @patch("agents.ami.cli.process_utils.get_unprivileged_env")
+    @patch("ami.cli.process_utils.get_unprivileged_env")
     def test_start_streaming_process_with_stdin(self, mock_get_env, mock_popen):
         """Test starting process with stdin data."""
         mock_get_env.return_value = {"ENV": "VAR"}
@@ -102,7 +102,7 @@ class TestClaudeCLIErrorConditions:
         # Should handle gracefully (skip session arg or use as is depending on impl)
         # The implementation uses UUID(session_id) which raises ValueError
         # But it catches it and skips the flag
-        with patch("agents.ami.cli.claude_cli.get_config") as mock_get_config:
+        with patch("ami.cli.claude_cli.get_config") as mock_get_config:
             mock_get_config.return_value.get_provider_command.return_value = "claude"
             
             cmd = cli._build_command("instruction", None, config)
@@ -155,8 +155,8 @@ class TestQwenCLIErrorConditions:
 class TestHelperErrorConditions:
     """Test error conditions in helper functions."""
 
-    @patch("agents.ami.cli.mode_handlers.validate_path_and_return_code")
-    @patch("agents.ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.validate_path_and_return_code")
+    @patch("ami.cli.mode_handlers.get_agent_cli")
     def test_mode_print_with_instruction_file_and_content(self, mock_get_cli, mock_validate):
         """Test print mode with both file and content (should be impossible via CLI but good for coverage)."""
         # This is hard to test via mode_print directly as it takes one or the other arg logic

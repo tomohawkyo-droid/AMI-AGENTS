@@ -7,7 +7,7 @@ import pytest
 
 # Import the utils module
 try:
-    from agents.ami.core.utils import detect_language
+    from ami.core.utils import detect_language
 except ImportError:
     detect_language = None
 

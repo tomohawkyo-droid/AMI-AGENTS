@@ -10,15 +10,16 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Any, Callable
 import yaml
 
-from base.backend.workers.file_subprocess import FileSubprocessSync
-from agents.ami.cli.config import AgentConfig
-from agents.ami.cli.factory import get_agent_cli
-from agents.ami.cli.provider_type import ProviderType
-from agents.ami.core.guards import check_command_safety
-from agents.ami.core.env import setup_agent_env
+from ami.utils.process import ProcessExecutor
+from ami.utils.uuid_utils import uuid7
+from ami.cli.config import AgentConfig
+from ami.cli.factory import get_agent_cli
+from ami.cli.provider_type import ProviderType
+from ami.core.guards import check_command_safety
+from ami.core.env import setup_agent_env
 
 # Setup import path for project root
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 class BootloaderAgent:
     """Core logic for the Agent with session support and ReAct loop."""
@@ -31,8 +32,8 @@ class BootloaderAgent:
     
     def __init__(self):
         self.project_root = PROJECT_ROOT
-        self.prompt_template = self.project_root / "agents" / "ami" / "config" / "prompts" / "bootloader_agent.txt"
-        self.extensions_config = self.project_root / "agents" / "ami" / "config" / "extensions.yaml"
+        self.prompt_template = self.project_root / "ami/config/prompts/bootloader_agent.txt"
+        self.extensions_config = self.project_root / "ami/config/extensions.template.yaml"
         
         # Consolidated environment setup
         setup_agent_env()
@@ -122,8 +123,8 @@ class BootloaderAgent:
             else:
                 full_command = script
             
-            # Use FileSubprocessSync for reliable I/O and kill-switch capability
-            executor = FileSubprocessSync(work_dir=self.project_root)
+            # Use ProcessExecutor for reliable I/O
+            executor = ProcessExecutor(work_dir=self.project_root)
             
             # Run with bash
             result = executor.run(

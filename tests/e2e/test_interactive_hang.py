@@ -1,15 +1,10 @@
-import sys
-import os
-from pathlib import Path
 import time
+from pathlib import Path
+import sys
+import pytest
 
-# Add project root to path
-sys.path.insert(0, os.getcwd())
+from ami.core.bootloader_agent import BootloaderAgent
 
-# Ensure we use the real config
-os.environ["AMIBOT_ROOT"] = os.getcwd()
-
-from agents.ami.core.bootloader_agent import BootloaderAgent
 
 def test_interactive_hang():
     print("\n--> Starting E2E test for interactive session hang...")

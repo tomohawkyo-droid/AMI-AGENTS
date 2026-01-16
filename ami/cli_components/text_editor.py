@@ -3,9 +3,9 @@
 import sys
 from typing import Any
 
-from agents.ami.cli_components.cursor_manager import CursorManager
-from agents.ami.cli_components.editor_display import EditorDisplay
-from agents.ami.cli_components.text_input_utils import BRACKETED_PASTE_DISABLE, BRACKETED_PASTE_ENABLE, read_key_sequence
+from ami.cli_components.cursor_manager import CursorManager
+from ami.cli_components.editor_display import EditorDisplay
+from ami.cli_components.text_input_utils import BRACKETED_PASTE_DISABLE, BRACKETED_PASTE_ENABLE, read_key_sequence
 
 
 class TextEditor:

@@ -6,11 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agents.ami.cli.claude_cli import ClaudeAgentCLI
-from agents.ami.cli.config import AgentConfig, AgentConfigPresets
-from agents.ami.cli.factory import get_agent_cli
-from agents.ami.cli.provider_type import ProviderType
-from agents.ami.cli.qwen_cli import QwenAgentCLI
+from ami.cli.claude_cli import ClaudeAgentCLI
+from ami.cli.config import AgentConfig, AgentConfigPresets
+from ami.cli.factory import get_agent_cli
+from ami.cli.provider_type import ProviderType
+from ami.cli.qwen_cli import QwenAgentCLI
 
 
 # Test constants
@@ -60,7 +60,7 @@ class TestAgentConfigPresets:
     @pytest.fixture(autouse=True)
     def mock_config(self):
         """Mock configuration for all tests in this class."""
-        with patch("agents.ami.cli.config.get_config") as mock_get_config:
+        with patch("ami.cli.config.get_config") as mock_get_config:
             mock_config_instance = MagicMock()
             mock_get_config.return_value = mock_config_instance
             
@@ -150,7 +150,7 @@ class TestClaudeAgentCLI:
 
         try:
             # Use the utility function directly since ClaudeAgentCLI doesn't have _load_instruction
-            from agents.ami.cli.streaming_utils import load_instruction_with_replacements
+            from ami.cli.streaming_utils import load_instruction_with_replacements
 
             result = load_instruction_with_replacements(temp_path)
 
@@ -167,7 +167,7 @@ class TestClaudeAgentCLI:
 
         try:
             # Use the utility function directly since ClaudeAgentCLI doesn't have _load_instruction
-            from agents.ami.cli.streaming_utils import load_instruction_with_replacements
+            from ami.cli.streaming_utils import load_instruction_with_replacements
 
             result = load_instruction_with_replacements(temp_path)
 
@@ -179,7 +179,7 @@ class TestClaudeAgentCLI:
             if temp_path.exists():
                 temp_path.unlink()
 
-    @patch("agents.ami.cli.factory.get_config")
+    @patch("ami.cli.factory.get_config")
     def test_get_agent_cli_returns_claude(self, mock_get_config):
         """get_agent_cli() returns ClaudeAgentCLI."""
         mock_config = MagicMock()

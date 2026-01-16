@@ -2,9 +2,9 @@
 
 from unittest.mock import patch
 
-from agents.ami.cli_components.cursor_manager import CursorManager
-from agents.ami.cli_components.editor_saving import save_content
-from agents.ami.cli_components.text_editor import TextEditor
+from ami.cli_components.cursor_manager import CursorManager
+from ami.cli_components.editor_saving import save_content
+from ami.cli_components.text_editor import TextEditor
 
 
 class TestEdgeCasesAndErrorConditions:

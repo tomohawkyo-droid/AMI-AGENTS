@@ -5,10 +5,10 @@ import tempfile
 
 import pytest
 
-from agents.ami.cli.config import AgentConfig
-from agents.ami.cli.provider_type import ProviderType
-from agents.ami.cli.qwen_cli import QwenAgentCLI
-from agents.ami.cli.streaming_utils import load_instruction_with_replacements
+from ami.cli.config import AgentConfig
+from ami.cli.provider_type import ProviderType
+from ami.cli.qwen_cli import QwenAgentCLI
+from ami.cli.streaming_utils import load_instruction_with_replacements
 
 
 class TestQwenAgentCLI:

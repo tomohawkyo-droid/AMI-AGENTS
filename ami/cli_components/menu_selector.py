@@ -1,10 +1,10 @@
 """
 Reusable menu selector with arrow key navigation and scrolling support.
-Proxies to agents.ami.cli_components.dialogs.SelectionDialog.
+Proxies to ami.cli_components.dialogs.SelectionDialog.
 """
 
 from typing import List, Optional, Any
-from agents.ami.cli_components.dialogs import SelectionDialog
+from ami.cli_components.dialogs import SelectionDialog
 
 class MenuItem:
     """Represents a single menu item."""

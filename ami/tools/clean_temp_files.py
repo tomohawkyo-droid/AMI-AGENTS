@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple, Set
 
-from agents.ami.cli_components.confirmation_dialog import confirm
+from ami.cli_components.confirmation_dialog import confirm
 
 def get_size(path: Path) -> int:
     """Calculate the size of a file or directory in bytes safely."""

@@ -7,15 +7,15 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from agents.ami.cli.claude_cli import ClaudeAgentCLI
-from agents.ami.cli.config import AgentConfigPresets
-from agents.ami.cli.factory import get_agent_cli
-from agents.ami.cli.mode_handlers import mode_interactive_editor, mode_query
-from agents.ami.cli.provider_type import ProviderType
-from agents.ami.cli.qwen_cli import QwenAgentCLI
-from agents.ami.cli.streaming import run_streaming_loop_with_display
-from agents.ami.cli.timer_utils import TimerDisplay, wrap_text_in_box
-from agents.ami.cli_components.text_editor import TextEditor
+from ami.cli.claude_cli import ClaudeAgentCLI
+from ami.cli.config import AgentConfigPresets
+from ami.cli.factory import get_agent_cli
+from ami.cli.mode_handlers import mode_interactive_editor, mode_query
+from ami.cli.provider_type import ProviderType
+from ami.cli.qwen_cli import QwenAgentCLI
+from ami.cli.streaming import run_streaming_loop_with_display
+from ami.cli.timer_utils import TimerDisplay, wrap_text_in_box
+from ami.cli_components.text_editor import TextEditor
 
 
 class TestMainIntegration:
@@ -23,7 +23,7 @@ class TestMainIntegration:
 
     @patch("sys.argv", ["ami-agent", "--interactive-editor"])
     @patch("sys.exit")
-    @patch("agents.ami.cli.mode_handlers.mode_interactive_editor", return_value=0)
+    @patch("ami.cli.mode_handlers.mode_interactive_editor", return_value=0)
     def test_main_with_interactive_editor_arg(self, mock_mode_handler, mock_exit):
         """Test main function with --interactive-editor argument."""
         # Setup paths
@@ -41,7 +41,7 @@ class TestMainIntegration:
 
     @patch("sys.argv", ["ami-agent", "--query", "test query"])
     @patch("sys.exit")
-    @patch("agents.ami.cli.mode_handlers.mode_query", return_value=0)
+    @patch("ami.cli.mode_handlers.mode_query", return_value=0)
     def test_main_with_query_arg(self, mock_mode_handler, mock_exit):
         """Test main function with --query argument."""
         agents_root = Path(__file__).resolve().parent.parent.parent
@@ -59,8 +59,8 @@ class TestMainIntegration:
 class TestModeHandlersIntegration:
     """Integration tests for mode handlers."""
 
-    @patch("agents.ami.cli.mode_handlers.TextEditor")
-    @patch("agents.ami.cli.mode_handlers.BootloaderAgent")
+    @patch("ami.cli.mode_handlers.TextEditor")
+    @patch("ami.cli.mode_handlers.BootloaderAgent")
     def test_mode_interactive_editor_end_to_end(self, mock_agent_class, mock_text_editor):
         """End-to-end test of interactive editor mode."""
         # Mock the text editor to return content then None to exit loop
@@ -79,7 +79,7 @@ class TestModeHandlersIntegration:
         assert result == 0
         assert mock_agent.run.called
 
-    @patch("agents.ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.get_agent_cli")
     def test_mode_query_end_to_end(self, mock_get_cli):
         """End-to-end test of query mode."""
         mock_cli = Mock()
@@ -106,7 +106,7 @@ class TestConfigurationIntegration:
 class TestCLIIntegration:
     """Integration tests for CLI factory."""
 
-    @patch("agents.ami.cli.factory.get_config")
+    @patch("ami.cli.factory.get_config")
     def test_cli_factory_default(self, mock_get_config):
         """Test CLI factory returns Claude when configured."""
         mock_get_config.return_value.get.return_value = "claude"

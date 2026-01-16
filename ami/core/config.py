@@ -8,16 +8,10 @@ from typing import Any
 
 import yaml
 
+from ami.cli.provider_type import ProviderType
 
-# Standard /base imports pattern
-sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "base").exists())))
-from base.scripts.env.paths import setup_imports
-
-
-ORCHESTRATOR_ROOT, MODULE_ROOT = setup_imports()
-
-
-from agents.ami.cli.provider_type import ProviderType
+# Project root is the directory containing the 'ami' package
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Config:
@@ -34,8 +28,8 @@ class Config:
             ValueError: If config file is malformed or invalid
             PermissionError: If config file cannot be read
         """
-        self.root = ORCHESTRATOR_ROOT
-        self.config_file = config_file or self.root / "agents/ami/config/automation.yaml"
+        self.root = PROJECT_ROOT
+        self.config_file = config_file or self.root / "ami/config/automation.yaml"
         self._data = self._load()
 
     def _load(self) -> dict[str, Any]:

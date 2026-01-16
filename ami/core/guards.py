@@ -7,7 +7,7 @@ without relying on external CLI sidecars.
 import re
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
-from agents.ami.core.logic import load_bash_patterns, load_sensitive_patterns, PROHIBITED_PATTERNS, API_LIMIT_PATTERNS
+from ami.core.logic import load_bash_patterns, load_sensitive_patterns, PROHIBITED_PATTERNS, API_LIMIT_PATTERNS
 
 
 def check_command_safety(command: str, guard_rules_path: Optional[Path] = None) -> Tuple[bool, str]:

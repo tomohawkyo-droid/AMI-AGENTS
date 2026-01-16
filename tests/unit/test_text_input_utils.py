@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agents.ami.cli_components.text_input_utils import (
+from ami.cli_components.text_input_utils import (
     BRACKETED_PASTE_DISABLE,
     BRACKETED_PASTE_ENABLE,
     BRACKETED_PASTE_END,

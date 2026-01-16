@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agents.ami.cli.mode_handlers import get_user_confirmation, mode_interactive_editor
+from ami.cli.mode_handlers import get_user_confirmation, mode_interactive_editor
 
 
 class TestInteractiveHelpers:
     """Tests for interactive helper functions."""
 
-    @patch("agents.ami.cli.mode_handlers.getchar")
+    @patch("ami.cli.mode_handlers.getchar")
     def test_get_user_confirmation_yes(self, mock_getchar):
         """Test confirmation with 'y'."""
         mock_getchar.return_value = 'y'
@@ -19,7 +19,7 @@ class TestInteractiveHelpers:
             assert get_user_confirmation() is True
             mock_write.assert_called_with("y\n")
 
-    @patch("agents.ami.cli.mode_handlers.getchar")
+    @patch("ami.cli.mode_handlers.getchar")
     def test_get_user_confirmation_no(self, mock_getchar):
         """Test confirmation with 'n'."""
         mock_getchar.return_value = 'n'
@@ -27,14 +27,14 @@ class TestInteractiveHelpers:
             assert get_user_confirmation() is False
             mock_write.assert_called_with("n\n")
 
-    @patch("agents.ami.cli.mode_handlers.getchar")
+    @patch("ami.cli.mode_handlers.getchar")
     def test_get_user_confirmation_cancel(self, mock_getchar):
         """Test confirmation with Ctrl+C."""
         mock_getchar.return_value = '\x03'
         with pytest.raises(KeyboardInterrupt):
             get_user_confirmation()
 
-    @patch("agents.ami.cli.mode_handlers.getchar")
+    @patch("ami.cli.mode_handlers.getchar")
     def test_get_user_confirmation_loop(self, mock_getchar):
         """Test confirmation ignores invalid keys."""
         # 'a' (invalid), 'b' (invalid), 'y' (valid)
@@ -47,11 +47,11 @@ class TestInteractiveHelpers:
 class TestModeInteractiveEditor:
     """Tests for mode_interactive_editor."""
 
-    @patch("agents.ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.streaming.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
-    @patch("agents.ami.cli.mode_handlers.TextEditor")
-    @patch("agents.ami.cli.mode_handlers.BootloaderAgent")
-    @patch("agents.ami.cli.mode_handlers.display_final_output")
+    @patch("ami.cli.mode_handlers.TextEditor")
+    @patch("ami.cli.mode_handlers.BootloaderAgent")
+    @patch("ami.cli.mode_handlers.display_final_output")
     def test_interactive_editor_success(self, mock_display, MockBootloaderAgent, MockTextEditor, mock_isatty, MockTimerDisplay):
         """Test successful execution flow."""
         # Setup mocks
@@ -75,10 +75,10 @@ class TestModeInteractiveEditor:
         assert kwargs["instruction"] == "Do something"
         assert kwargs["input_func"] == get_user_confirmation
 
-    @patch("agents.ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.streaming.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
-    @patch("agents.ami.cli.mode_handlers.TextEditor")
-    @patch("agents.ami.cli.mode_handlers.BootloaderAgent")
+    @patch("ami.cli.mode_handlers.TextEditor")
+    @patch("ami.cli.mode_handlers.BootloaderAgent")
     def test_interactive_editor_cancel(self, MockBootloaderAgent, MockTextEditor, mock_isatty, MockTimerDisplay):
         """Test user cancellation in editor."""
         mock_editor = MockTextEditor.return_value
@@ -89,10 +89,10 @@ class TestModeInteractiveEditor:
         assert exit_code == 0
         MockBootloaderAgent.assert_not_called()
 
-    @patch("agents.ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.streaming.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
-    @patch("agents.ami.cli.mode_handlers.TextEditor")
-    @patch("agents.ami.cli.mode_handlers.BootloaderAgent")
+    @patch("ami.cli.mode_handlers.TextEditor")
+    @patch("ami.cli.mode_handlers.BootloaderAgent")
     def test_interactive_editor_empty(self, MockBootloaderAgent, MockTextEditor, mock_isatty, MockTimerDisplay):
         """Test empty input."""
         mock_editor = MockTextEditor.return_value
@@ -103,10 +103,10 @@ class TestModeInteractiveEditor:
         assert exit_code == 0
         MockBootloaderAgent.assert_not_called()
 
-    @patch("agents.ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.streaming.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
-    @patch("agents.ami.cli.mode_handlers.TextEditor")
-    @patch("agents.ami.cli.mode_handlers.BootloaderAgent")
+    @patch("ami.cli.mode_handlers.TextEditor")
+    @patch("ami.cli.mode_handlers.BootloaderAgent")
     def test_interactive_editor_agent_error(self, MockBootloaderAgent, MockTextEditor, mock_isatty, MockTimerDisplay):
         """Test exception during agent execution."""
         mock_editor = MockTextEditor.return_value

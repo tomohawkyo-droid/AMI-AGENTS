@@ -9,9 +9,9 @@ import sys
 
 from loguru import logger
 
-from agents.ami.cli_components.text_input_utils import Colors
-from agents.ami.cli_components.menu_selector import MenuSelector, MenuItem
-from agents.ami.cli_components.format_utils import format_file_size
+from ami.cli_components.text_input_utils import Colors
+from ami.cli_components.menu_selector import MenuSelector, MenuItem
+from ami.cli_components.format_utils import format_file_size
 
 
 def select_backup_interactive(backup_files: List[Dict[str, Any]]) -> Optional[str]:

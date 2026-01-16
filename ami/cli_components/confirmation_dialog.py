@@ -1,9 +1,9 @@
 """
 Confirmation dialog proxy.
-DEPRECATED: Use agents.ami.cli_components.dialogs instead.
+DEPRECATED: Use ami.cli_components.dialogs instead.
 """
 
-from agents.ami.cli_components.dialogs import confirm as _confirm, ConfirmationDialog as _CD
+from ami.cli_components.dialogs import confirm as _confirm, ConfirmationDialog as _CD
 
 # Re-export for compatibility
 ConfirmationDialog = _CD

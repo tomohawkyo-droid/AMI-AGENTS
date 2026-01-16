@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from launcher.backend.git.git_server.service_ops import GitServiceOps
-from agents.ami.core.config import get_config
+from ami.core.config import get_config
 
 
 def execute_command(args: Any, manager: Any) -> None:

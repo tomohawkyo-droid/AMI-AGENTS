@@ -7,8 +7,8 @@ import tempfile
 import pytest
 import yaml
 
-from agents.ami.core.config import Config, get_config
-import agents.ami.core.config as config_module
+from ami.core.config import Config, get_config
+import ami.core.config as config_module
 
 
 @pytest.fixture

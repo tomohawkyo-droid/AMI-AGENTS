@@ -20,30 +20,15 @@ Examples:
 
 import argparse
 from collections.abc import Callable
-from pathlib import Path
 import sys
+import os
+from pathlib import Path
 
-
-# Standard /base imports pattern to find orchestrator root
-_root = next(p for p in Path(__file__).resolve().parents if (p / "base").exists())
-sys.path.insert(0, str(_root))
-from base.scripts.env.paths import setup_imports
-
-
-ORCHESTRATOR_ROOT, MODULE_ROOT = setup_imports()
-
-# Additional imports after path setup
-
-# Load .env file before importing automation modules (ensures env vars available for Config)
+# Load .env file
 from dotenv import load_dotenv
+load_dotenv(Path.cwd() / ".env")
 
-
-load_dotenv(ORCHESTRATOR_ROOT / ".env")
-
-# Ensure scripts.automation is importable
-sys.path.insert(0, str(ORCHESTRATOR_ROOT))
-
-from agents.ami.cli.mode_handlers import (
+from ami.cli.mode_handlers import (
     mode_interactive_editor,
     mode_print,
     mode_query,

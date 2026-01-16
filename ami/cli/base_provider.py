@@ -11,13 +11,13 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from .config import AgentConfig
 
-from base.backend.utils.uuid_utils import uuid7
+from ami.utils.uuid_utils import uuid7
 from .streaming import (
     execute_streaming,
     run_streaming_loop_with_display,
 )
 from .streaming_utils import load_instruction_with_replacements
-from agents.ami.core.config import get_config
+from ami.core.config import get_config
 from .agent_logging import TranscriptLogger
 
 

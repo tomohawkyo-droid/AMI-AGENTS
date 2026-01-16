@@ -4,17 +4,17 @@ from datetime import datetime
 from pathlib import Path
 import sys
 
-from base.backend.utils.uuid_utils import uuid7
-from agents.ami.cli.config import AgentConfigPresets
-from agents.ami.cli.exceptions import AgentError, AgentExecutionError
-from agents.ami.cli.factory import get_agent_cli
-from agents.ami.cli.timer_utils import wrap_text_in_box
-from agents.ami.utils.helpers import (
+from ami.utils.uuid_utils import uuid7
+from ami.cli.config import AgentConfigPresets
+from ami.cli.exceptions import AgentError, AgentExecutionError
+from ami.cli.factory import get_agent_cli
+from ami.cli.timer_utils import wrap_text_in_box
+from ami.utils.helpers import (
     validate_path_and_return_code,
 )
-from agents.ami.core.bootloader_agent import BootloaderAgent
-from agents.ami.cli_components.text_input_utils import display_final_output, getchar
-from agents.ami.cli_components.text_editor import TextEditor
+from ami.core.bootloader_agent import BootloaderAgent
+from ami.cli_components.text_input_utils import display_final_output, getchar
+from ami.cli_components.text_editor import TextEditor
 
 
 def get_user_confirmation() -> bool:

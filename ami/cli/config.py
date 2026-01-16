@@ -2,8 +2,8 @@
 
 from typing import Any, Optional
 
-from agents.ami.cli.provider_type import ProviderType as CLIProvider
-from agents.ami.core.config import get_config
+from ami.cli.provider_type import ProviderType as CLIProvider
+from ami.core.config import get_config
 
 
 class AgentConfig:
@@ -88,7 +88,7 @@ class AgentConfigPresets:
     @staticmethod
     def interactive(session_id: str, mcp_servers: dict[str, Any] | None = None) -> AgentConfig:
         """Interactive agent."""
-        from agents.ami.core.config import get_config
+        from ami.core.config import get_config
         
         provider, model = AgentConfigPresets._get_defaults("worker")
         config = get_config()

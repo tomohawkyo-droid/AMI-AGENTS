@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Optional
 
-from agents.ami.cli_components.confirmation_dialog import confirm
+from ami.cli_components.confirmation_dialog import confirm
 
 
 def get_latest_npm_version(package_name: str) -> Optional[str]:

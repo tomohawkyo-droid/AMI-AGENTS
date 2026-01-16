@@ -6,7 +6,7 @@ Now leverages consolidated logic from logic.py.
 from pathlib import Path
 from typing import Any
 
-from agents.ami.core.logic import (
+from ami.core.logic import (
     parse_json_block
 )
 

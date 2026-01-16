@@ -4,13 +4,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from agents.ami.cli_components.text_input_cli import create_text_editor, main
+from ami.cli_components.text_input_cli import create_text_editor, main
 
 
 class TestTextInputCLI:
     """Test the text_input_cli module functionality."""
 
-    @patch("agents.ami.cli_components.text_input_cli.TextEditor")
+    @patch("ami.cli_components.text_input_cli.TextEditor")
     def test_create_text_editor_with_initial_text(self, mock_text_editor):
         """Test create_text_editor with initial text."""
         mock_editor_instance = Mock()
@@ -26,7 +26,7 @@ class TestTextInputCLI:
         # Verify the result
         assert result == "Test content"
 
-    @patch("agents.ami.cli_components.text_input_cli.TextEditor")
+    @patch("ami.cli_components.text_input_cli.TextEditor")
     def test_create_text_editor_empty_initial_text(self, mock_text_editor):
         """Test create_text_editor with empty initial text."""
         mock_editor_instance = Mock()
@@ -38,7 +38,7 @@ class TestTextInputCLI:
         mock_text_editor.assert_called_once_with("")
         assert result == ""
 
-    @patch("agents.ami.cli_components.text_input_cli.TextEditor")
+    @patch("ami.cli_components.text_input_cli.TextEditor")
     def test_create_text_editor_none_initial_text(self, mock_text_editor):
         """Test create_text_editor with None initial text."""
         mock_editor_instance = Mock()
@@ -51,7 +51,7 @@ class TestTextInputCLI:
         mock_text_editor.assert_called_once_with(None)
         assert result == "Some content"
 
-    @patch("agents.ami.cli_components.text_input_cli.TextEditor")
+    @patch("ami.cli_components.text_input_cli.TextEditor")
     def test_create_text_editor_long_initial_text(self, mock_text_editor):
         """Test create_text_editor with long initial text."""
         long_text = "A" * 1000
@@ -65,7 +65,7 @@ class TestTextInputCLI:
         assert result == long_text + " edited"
 
     @patch("sys.argv", ["text_input_cli.py", "arg1", "arg2"])
-    @patch("agents.ami.cli_components.text_input_cli.create_text_editor")
+    @patch("ami.cli_components.text_input_cli.create_text_editor")
     def test_main_with_command_line_args(self, mock_create_editor):
         """Test main function with command line arguments."""
         mock_create_editor.return_value = "Test result"
@@ -76,7 +76,7 @@ class TestTextInputCLI:
         mock_create_editor.assert_called_once_with("arg1 arg2")
 
     @patch("sys.argv")
-    @patch("agents.ami.cli_components.text_input_cli.create_text_editor")
+    @patch("ami.cli_components.text_input_cli.create_text_editor")
     def test_main_with_no_args(self, mock_create_editor, mock_argv):
         """Test main function with no command line arguments."""
         mock_argv.__getitem__ = lambda _, idx: "text_input_cli.py" if idx == 0 else ""
@@ -89,7 +89,7 @@ class TestTextInputCLI:
         mock_create_editor.assert_called_once_with("")
 
     @patch("sys.argv", ["text_input_cli.py", "single_arg"])
-    @patch("agents.ami.cli_components.text_input_cli.create_text_editor")
+    @patch("ami.cli_components.text_input_cli.create_text_editor")
     def test_main_with_single_arg(self, mock_create_editor):
         """Test main function with single command line argument."""
         mock_create_editor.return_value = "Result"

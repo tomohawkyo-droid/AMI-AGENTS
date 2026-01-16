@@ -3,7 +3,7 @@
 import sys
 from typing import Any
 
-from agents.ami.cli_components.text_editor import TextEditor
+from ami.cli_components.text_editor import TextEditor
 
 
 """

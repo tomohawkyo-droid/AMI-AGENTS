@@ -11,7 +11,7 @@ except ImportError:
     psutil = None
 from datetime import datetime
 
-from agents.ami.cli_components.text_input_utils import Colors
+from ami.cli_components.text_input_utils import Colors
 
 # Icons
 I_OK = "🟢"

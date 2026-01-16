@@ -1,12 +1,12 @@
 """Factory function to get agent CLI instances."""
 
-from agents.ami.cli.claude_cli import ClaudeAgentCLI
-from agents.ami.cli.config import AgentConfig
-from agents.ami.core.config import get_config
-from agents.ami.cli.gemini_cli import GeminiAgentCLI
-from agents.ami.cli.interface import AgentCLI
-from agents.ami.cli.provider_type import ProviderType
-from agents.ami.cli.qwen_cli import QwenAgentCLI
+from ami.cli.claude_cli import ClaudeAgentCLI
+from ami.cli.config import AgentConfig
+from ami.core.config import get_config
+from ami.cli.gemini_cli import GeminiAgentCLI
+from ami.cli.interface import AgentCLI
+from ami.cli.provider_type import ProviderType
+from ami.cli.qwen_cli import QwenAgentCLI
 
 
 def get_agent_cli(agent_config: AgentConfig | None = None) -> AgentCLI:

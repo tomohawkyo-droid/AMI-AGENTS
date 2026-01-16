@@ -10,13 +10,13 @@ from typing import Any
 
 from loguru import logger
 
-from agents.ami.cli.env_utils import get_unprivileged_env
-from agents.ami.cli.exceptions import (
+from ami.cli.env_utils import get_unprivileged_env
+from ami.cli.exceptions import (
     AgentCommandNotFoundError,
     AgentExecutionError,
     AgentTimeoutError,
 )
-from agents.ami.core.config import get_config
+from ami.core.config import get_config
 
 
 def start_streaming_process(

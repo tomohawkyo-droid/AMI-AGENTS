@@ -4,7 +4,7 @@ Terminal User Interface (TUI) primitives for drawing dialogs and boxes.
 
 import sys
 from typing import List, Optional
-from agents.ami.cli_components.text_input_utils import Colors
+from ami.cli_components.text_input_utils import Colors
 
 class TUI:
     """Shared TUI drawing utilities."""

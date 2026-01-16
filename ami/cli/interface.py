@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 
 if TYPE_CHECKING:
-    from agents.ami.cli.config import AgentConfig
+    from ami.cli.config import AgentConfig
 
 
 class AgentCLI(ABC):

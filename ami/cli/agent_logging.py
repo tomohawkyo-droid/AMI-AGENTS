@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from agents.ami.core.config import get_config
+from ami.core.config import get_config
 
 
 class TranscriptLogger:

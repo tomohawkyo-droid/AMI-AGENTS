@@ -2,7 +2,7 @@
 
 import sys
 
-from agents.ami.cli_components.text_input_utils import Colors, display_final_output
+from ami.cli_components.text_input_utils import Colors, display_final_output
 
 
 """

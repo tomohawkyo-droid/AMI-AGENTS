@@ -1,7 +1,7 @@
 # AMI Agents Framework
 
 **Version**: 3.0.0
-**Package**: `agents.ami`
+**Package**: `ami`
 
 The **AMI Agents Framework** is a minimal, high-performance orchestration layer for building and running autonomous AI agents. It provides a unified interface for multiple AI providers (Claude, Qwen, Gemini) and a safe runtime for interactive technical tasks.
 

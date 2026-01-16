@@ -11,13 +11,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from base.backend.utils.uuid_utils import uuid7
-from agents.ami.cli.base_provider import CLIProvider as BaseProvider
-from agents.ami.cli.config import AgentConfig
-from agents.ami.core.config import get_config
-from agents.ami.cli.interface import AgentCLI
-from agents.ami.cli.provider_type import ProviderType
-from agents.ami.cli.streaming_utils import load_instruction_with_replacements
+from ami.utils.uuid_utils import uuid7
+from ami.cli.base_provider import CLIProvider as BaseProvider
+from ami.cli.config import AgentConfig
+from ami.core.config import get_config
+from ami.cli.interface import AgentCLI
+from ami.cli.provider_type import ProviderType
+from ami.cli.streaming_utils import load_instruction_with_replacements
 
 
 class QwenAgentCLI(BaseProvider, AgentCLI):

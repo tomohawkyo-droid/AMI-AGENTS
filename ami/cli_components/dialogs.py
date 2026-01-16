@@ -5,8 +5,8 @@ Common ASCII dialog components for CLI interactions.
 import sys
 from typing import List, Optional, Any, Union
 
-from agents.ami.cli_components.text_input_utils import read_key_sequence, Colors
-from agents.ami.cli_components.tui import TUI
+from ami.cli_components.text_input_utils import read_key_sequence, Colors
+from ami.cli_components.tui import TUI
 
 # Key constants
 UP = "UP"
