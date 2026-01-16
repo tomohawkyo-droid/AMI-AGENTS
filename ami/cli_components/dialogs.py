@@ -56,6 +56,7 @@ class AlertDialog(BaseDialog):
             self.clear()
 
     def _render(self):
+        self.clear()
         # Wrap text
         inner_width = self.width - 4
         lines = TUI.wrap_text(self.message, inner_width)
@@ -96,11 +97,9 @@ class ConfirmationDialog(BaseDialog):
                     self.selected_yes = not self.selected_yes
                 elif key in ["y", "Y"]:
                     self.selected_yes = True
-                    self._render()
                     return True
                 elif key in ["n", "N"]:
                     self.selected_yes = False
-                    self._render()
                     return False
                 elif key == ENTER:
                     return self.selected_yes
@@ -112,6 +111,7 @@ class ConfirmationDialog(BaseDialog):
             self.clear()
 
     def _render(self):
+        self.clear()
         inner_width = self.width - 4
         lines = TUI.wrap_text(self.message, inner_width)
         centered_lines = [line.center(inner_width) for line in lines]
@@ -219,6 +219,7 @@ class SelectionDialog(BaseDialog):
             self.scroll_offset = self.cursor - self.max_height + 1
 
     def _render(self):
+        self.clear()
         content = []
         
         visible_items = self.items[self.scroll_offset : self.scroll_offset + self.max_height]
