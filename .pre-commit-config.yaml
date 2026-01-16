@@ -1,0 +1,60 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff-format
+        pass_filenames: false
+        always_run: true
+        args: [ --config, res/config/ruff.toml, . ]
+      - id: ruff
+        pass_filenames: false
+        always_run: true
+        args: [ --config, res/config/ruff.toml, --fix, --exit-non-zero-on-fix, . ]
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        args: [ --config-file, pyproject.toml, . ]
+        files: \.py$
+      - id: check-dependency-versions
+        name: Check Dependency Versions
+        entry: ./scripts/ci/check_dependency_versions.py
+        language: system
+        pass_filenames: false
+        files: res/config/pyproject\.base\.toml$
+      - id: check-banned-words
+        name: Check Banned Words
+        entry: ./scripts/ci/check_banned_words.py
+        language: python
+        additional_dependencies: [PyYAML]
+        pass_filenames: false
+      - id: block-coauthored
+        name: Block Co-authored Commits
+        entry: ./scripts/ci/block_coauthored.py
+        language: system
+        stages: [commit-msg]
+      - id: check-init-files
+        name: Forbid Logic in __init__.py
+        entry: ./scripts/ci/check_init_files.py
+        language: system
+        files: __init__\.py$
+      - id: frontend-preflight
+        name: Frontend Preflight
+        entry: bash -c 'cd frontend && npm run preflight'
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+  - repo: local
+    hooks:
+      - id: verify-coverage
+        name: Verify Test Coverage (Unit >90%, Integration >75%)
+        entry: ./scripts/ci/verify_coverage.py
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+
+
+
