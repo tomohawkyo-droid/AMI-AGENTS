@@ -20,8 +20,7 @@ from ami.cli_components.dialogs import confirm
 
 def get_user_confirmation(command: str) -> bool:
     """Get Y/N confirmation from user via TUI dialog."""
-    message = f"Request to execute:\n\n{command}"
-    return confirm(message, title="Execute Command?")
+    return confirm(command, title="Execute Command?")
 
 
 def mode_query(query: str) -> int:

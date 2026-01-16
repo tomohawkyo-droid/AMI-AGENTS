@@ -18,8 +18,8 @@ class TestInteractiveHelpers:
         assert get_user_confirmation("test command") is True
         mock_confirm.assert_called_once()
         args, kwargs = mock_confirm.call_args
-        assert "Request to execute" in args[0]
-        assert "test command" in args[0]
+        assert args[0] == "test command"
+        assert kwargs["title"] == "Execute Command?"
 
     @patch("ami.cli.mode_handlers.confirm")
     def test_get_user_confirmation_no(self, mock_confirm):

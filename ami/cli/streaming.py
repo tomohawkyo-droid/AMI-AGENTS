@@ -313,13 +313,17 @@ def _process_line_with_provider(
                         display_line = display_line.replace("```run", "</>").replace("```bash", "</>")
                         display_context["in_run_block"] = True
                     
-                    if "```" in display_line and display_context.get("in_run_block"):
-                        # Replace the closing fence with empty string
-                        display_line = display_line.replace("```", "")
-                        display_context["in_run_block"] = False
-                        # If the line is empty after removing the fence, skip printing it
-                        if not display_line.strip():
-                            continue
+                    # Check for closing fence
+                    if display_context.get("in_run_block"):
+                        if "```" in display_line:
+                            # If the line is just the closing fence (ignoring whitespace), skip it
+                            if display_line.strip() == "```":
+                                display_context["in_run_block"] = False
+                                continue
+                            
+                            # If it's inline (unlikely for block), replace it
+                            display_line = display_line.replace("```", "")
+                            display_context["in_run_block"] = False
                     
                     # Print the line with indentation to match the text bubble style
                     print(f"  {display_line}")
