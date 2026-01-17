@@ -45,8 +45,8 @@ def load_bash_patterns(patterns_path: Path | None = None) -> List[Dict[str, str]
         patterns_file = patterns_path
     else:
         config = get_config()
-        patterns_dir = config.root / "scripts/config/patterns"
-        patterns_file = patterns_dir / "bash_commands.yaml"
+        patterns_dir = config.root / "ami/config/policies"
+        patterns_file = patterns_dir / "default.yaml"
 
     if not patterns_file.exists():
         return []

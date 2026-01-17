@@ -21,7 +21,7 @@ def interactive_guard_rules():
     # We need the REAL project root to find the config, not the mocked one
     # tests/integration/test... -> agents/tests/integration -> agents/tests -> agents
     agents_root = Path(__file__).resolve().parent.parent.parent
-    return agents_root / "ami/config/patterns/interactive_agent_commands.yaml"
+    return agents_root / "ami/config/policies/interactive.yaml"
 
 def test_static_command_guard_blocks_dangerous_commands(agent_fixture, interactive_guard_rules):
     """Test that static regex guards block dangerous commands like 'rm'."""

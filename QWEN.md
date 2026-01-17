@@ -1,0 +1,4 @@
+## Qwen Added Memories
+- The AMI-ORCHESTRATOR project needs a Playwright integration specification document that follows security protocols. Direct file creation with 'cat >' is blocked, as is using 'ami' commands directly. The system has multiple running containers including databases, monitoring tools, and web services. Playwright integration should follow the existing MCP server architecture pattern.
+- The AMI-ORCHESTRATOR project needs a Playwright integration specification document that follows security protocols and aligns with the existing MCP server architecture pattern.
+- Tasks needed for Playwright integration specification: 1. Research existing MCP server architecture 2. Define security protocols for Playwright integration 3. Outline the integration architecture 4. Specify API endpoints and data flow 5. Document security measures 6. Create deployment guidelines

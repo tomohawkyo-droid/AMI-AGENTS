@@ -57,7 +57,7 @@ class AgentConfigPresets:
         
         provider, model = AgentConfigPresets._get_defaults("worker")
         config = get_config()
-        guard_rules_path = config.root / "scripts/config/patterns/interactive_agent_commands.yaml"
+        guard_rules_path = config.root / "ami/config/policies/interactive.yaml"
 
         return AgentConfig(
             model=model,
