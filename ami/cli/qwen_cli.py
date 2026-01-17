@@ -98,22 +98,7 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
         stdin: str | None = None,
         audit_log_path: Path | None = None,
     ) -> tuple[str, dict[str, Any] | None]:
-        """Run agent in print mode with Qwen-specific settings.
-
-        Args:
-            instruction: Natural language instruction for the agent (or use instruction_file)
-            cwd: Working directory for agent execution (defaults to current)
-            agent_config: Configuration for agent execution
-            instruction_file: Path to instruction file (alternative to instruction string)
-            stdin: Data to provide to stdin
-            audit_log_path: Path for audit logging (not used in base implementation but accepted for interface compatibility)
-
-        Returns:
-            Tuple of (output, metadata) where metadata includes session info
-
-        Raises:
-            AgentError: If agent execution fails
-        """
+        """Run agent in print mode with Qwen-specific settings."""
         # Handle instruction vs instruction_file
         if instruction_file is not None:
             if instruction is not None:
@@ -122,16 +107,31 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
             if cwd is None:
                 cwd = instruction_file.parent
         elif isinstance(instruction, Path):
-            # Security restriction: Path should only be passed as instruction_file parameter
-            raise ValueError("Path objects should be passed as instruction_file parameter, not instruction parameter")
+            raise ValueError("Path objects should be passed as instruction_file parameter")
         else:
-            # instruction is a string (not None since first condition handled instruction_file case)
-            if instruction is None:
-                raise ValueError("instruction cannot be None when instruction_file is not provided")
-            instruction_content = instruction
+            instruction_content = instruction if instruction is not None else ""
 
         config = agent_config or self._get_default_config()
-        return self._execute_with_timeout(instruction_content, cwd, config, stdin_data=stdin, audit_log_path=audit_log_path)
+        
+        # Qwen Optimization: Pass large instructions via stdin to avoid argv limits/parsing issues
+        # We combine instruction and existing stdin
+        combined_stdin = ""
+        if instruction_content:
+            combined_stdin += instruction_content
+        if stdin:
+            if combined_stdin:
+                combined_stdin += "\n"
+            combined_stdin += stdin
+            
+        # Pass empty instruction to _execute_with_timeout so _build_command sees empty string
+        # and doesn't add it to args. We pass the real content via stdin_data.
+        return self._execute_with_timeout(
+            "", 
+            cwd, 
+            config, 
+            stdin_data=combined_stdin if combined_stdin else None, 
+            audit_log_path=audit_log_path
+        )
 
     def _build_command(
         self,
@@ -169,8 +169,10 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
         # Qwen uses -y/--yolo for non-interactive tools
         cmd.append("--yolo")
         
-        # Positional prompt is the default and preferred way
-        cmd.append(instruction)
+        # Positional prompt is the default and preferred way, BUT if we passed it via stdin
+        # (indicated by empty instruction here due to run_print override), skip it.
+        if instruction:
+            cmd.append(instruction)
 
         return cmd
 

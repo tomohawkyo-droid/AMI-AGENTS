@@ -159,10 +159,9 @@ class Config:
         
         # Resolve to absolute path if relative
         if cmd and not Path(cmd).is_absolute():
-            # Check if it exists relative to root
+            # Resolve relative to root
             abs_cmd = (self.root / cmd).resolve()
-            if abs_cmd.exists():
-                return str(abs_cmd)
+            return str(abs_cmd)
         
         return cmd
 
