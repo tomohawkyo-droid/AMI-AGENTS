@@ -163,9 +163,10 @@ def run_streaming_loop_with_display(
         # Restore terminal settings
         if old_settings:
             termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
+        # Ensure renderer is finished and timer is stopped
+        metadata = renderer.finish()
 
-    output, metadata = renderer.full_output, renderer.finish()
-    return output, metadata
+    return renderer.full_output, metadata
 
 
 def _handle_read_iteration(

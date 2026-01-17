@@ -64,35 +64,50 @@ class TimerDisplay:
 
     def _update_timer_display(self) -> None:
         """Internal method to continuously update the timer display."""
-        while not self.stop_event.is_set():
-            elapsed = time.time() - self.start_time
-            minutes = int(elapsed // 60)
-            seconds = int(elapsed % 60)
-            timer_text = f"⌛ {minutes:02d}:{seconds:02d}"
+        try:
+            while not self.stop_event.is_set() and self.is_running:
+                elapsed = time.time() - self.start_time
+                minutes = int(elapsed // 60)
+                seconds = int(elapsed % 60)
+                timer_text = f"⌛ {minutes:02d}:{seconds:02d}"
 
-            # Move cursor to beginning of line and clear the line
-            sys.stdout.write(f"\r{timer_text}")
-            sys.stdout.flush()
+                # Move cursor to beginning of line and clear the line
+                try:
+                    sys.stdout.write(f"\r{timer_text}")
+                    sys.stdout.flush()
+                except Exception:
+                    break
 
-            # Wait 1 second or until stop event
-            if self.stop_event.wait(1.0):
-                break
+                # Wait 1 second or until stop event
+                if self.stop_event.wait(1.0):
+                    break
+        finally:
+            # Ensure we don't leave a hanging line if we crash
+            pass
 
     def start(self) -> None:
         """Start the timer display."""
         if not self.is_running:
             self.start_time = time.time()
             self.stop_event.clear()
+            self.is_running = True
             self.timer_thread = threading.Thread(target=self._update_timer_display, daemon=True)
             self.timer_thread.start()
-            self.is_running = True
 
     def stop(self) -> None:
         """Stop the timer display."""
-        if self.is_running and self.timer_thread:
-            self.stop_event.set()
-            self.timer_thread.join(timeout=0.1)  # Wait up to 0.1s for thread to finish
+        if self.is_running:
+            self.is_running = False  # Signal loop to stop
+            self.stop_event.set()    # Wake up wait()
+            
+            if self.timer_thread and self.timer_thread.is_alive():
+                self.timer_thread.join(timeout=0.5)
+            
             # Move to next line after stopping timer
-            sys.stdout.write("\n")
-            sys.stdout.flush()
-            self.is_running = False
+            try:
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+            except Exception:
+                pass
+            
+            self.timer_thread = None
