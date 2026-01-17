@@ -37,18 +37,22 @@ def test_static_command_guard_blocks_dangerous_commands(agent_fixture, interacti
 def test_static_command_guard_allows_whitelisted_commands(agent_fixture, interactive_guard_rules):
     """Test that sed/echo/awk are ALLOWED."""
     test_file = agent_fixture.project_root / "test.txt"
-    test_file.write_text("hello")
-    
-    script = f"sed -i 's/hello/world/' {test_file}"
-    
-    with patch("base.backend.workers.file_subprocess.FileSubprocessSync.run") as mock_run:
-        mock_run.return_value = {"stdout": "", "stderr": "", "returncode": 0}
+    try:
+        test_file.write_text("hello")
         
-        # Pass the interactive rules path
-        result = agent_fixture.execute_shell(script, guard_rules_path=interactive_guard_rules)
+        script = f"sed -i 's/hello/world/' {test_file}"
         
-        assert "🛑 BLOCKED" not in result
-        assert ">" in result
+        with patch("base.backend.workers.file_subprocess.FileSubprocessSync.run") as mock_run:
+            mock_run.return_value = {"stdout": "", "stderr": "", "returncode": 0}
+            
+            # Pass the interactive rules path
+            result = agent_fixture.execute_shell(script, guard_rules_path=interactive_guard_rules)
+            
+            assert "🛑 BLOCKED" not in result
+            assert ">" in result
+    finally:
+        if test_file.exists():
+            test_file.unlink()
 
 def test_interactive_mode_awk_allowed(agent_fixture, interactive_guard_rules):
     """Verify specifically that AWK is allowed."""
