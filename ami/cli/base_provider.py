@@ -142,20 +142,19 @@ class CLIProvider(ABC):
         cmd = self._build_command(instruction, cwd, agent_config)
 
         # Use streaming execution for better timeout handling
-        # Note: audit_log_path is accepted but not currently used by execute_streaming
         config = get_config()
 
-        # If streaming mode is enabled, provide a callback to enable real-time display
-        parse_stream_callback = None
-        if agent_config.enable_streaming:
-            # Create a closure that captures self to access the _parse_stream_message method
-            def streaming_callback(process: subprocess.Popen[str], cmd: list[str], agent_config_param: Any) -> tuple[str, dict[str, Any]]:
-                return run_streaming_loop_with_display(process, cmd, agent_config_param, self, capture_content=agent_config_param.capture_content)
-
-            parse_stream_callback = streaming_callback
-
         try:
-            output, metadata = execute_streaming(cmd=cmd, stdin_data=stdin_data, cwd=cwd, agent_config=agent_config, config=config, parse_stream_callback=parse_stream_callback)
+            # The simplified execute_streaming now handles its own internal rendering 
+            # if agent_config.enable_streaming is True
+            output, metadata = execute_streaming(
+                cmd=cmd, 
+                stdin_data=stdin_data, 
+                cwd=cwd, 
+                agent_config=agent_config, 
+                config=config,
+                provider=self
+            )
             
             # Log Assistant Response
             logger.log_assistant_message(output, metadata)

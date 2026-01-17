@@ -34,10 +34,12 @@ class StreamObserver(Protocol):
 class StreamProcessor:
     """Orchestrates the lifecycle of a streaming command execution."""
 
-    def __init__(self, cmd: List[str], cwd: Optional[Path] = None, timeout: Optional[int] = None):
+    def __init__(self, cmd: List[str], cwd: Optional[Path] = None, timeout: Optional[int] = None, provider: Optional[Any] = None, agent_config: Optional[Any] = None):
         self.cmd = cmd
         self.cwd = cwd
         self.timeout = timeout
+        self.provider = provider
+        self.agent_config = agent_config
         self.observers: List[StreamObserver] = []
         self.full_output: List[str] = []
         self.metadata: Dict[str, Any] = {}
@@ -82,9 +84,21 @@ class StreamProcessor:
                         break
                     continue
 
+                # Process the line through provider if available
+                chunk_text = line
+                if self.provider and hasattr(self.provider, "_parse_stream_message"):
+                    parsed_text, parsed_metadata = self.provider._parse_stream_message(
+                        line, self.cmd, line_count, self.agent_config
+                    )
+                    chunk_text = parsed_text
+                    if parsed_metadata:
+                        self._notify(StreamEvent(type='metadata', data=parsed_metadata))
+
                 # Notify observers of new chunk
-                self.full_output.append(line + "\n")
-                self._notify(StreamEvent(type='chunk', data=line))
+                if chunk_text:
+                    self.full_output.append(chunk_text if chunk_text.endswith("\n") else chunk_text + "\n")
+                    self._notify(StreamEvent(type='chunk', data=chunk_text))
+                
                 line_count += 1
 
             # Finalize
