@@ -7,7 +7,7 @@ without relying on external CLI sidecars.
 import re
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
-from ami.core.logic import load_bash_patterns, load_sensitive_patterns, PROHIBITED_PATTERNS, API_LIMIT_PATTERNS
+from ami.core.logic import load_bash_patterns, load_sensitive_patterns, load_communication_patterns, load_api_limit_patterns
 
 
 def check_command_safety(command: str, guard_rules_path: Optional[Path] = None) -> Tuple[bool, str]:
@@ -52,7 +52,8 @@ def check_content_safety(content: str) -> Tuple[bool, str]:
     """
     Check for prohibited communication patterns in agent output.
     """
-    for pattern_config in PROHIBITED_PATTERNS:
+    prohibited_patterns = load_communication_patterns()
+    for pattern_config in prohibited_patterns:
         pattern = pattern_config.get("pattern", "")
         desc = pattern_config.get("description", "")
         

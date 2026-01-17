@@ -46,6 +46,16 @@ def load_sensitive_patterns() -> List[Dict[str, str]]:
     return get_policy_engine().load_sensitive_patterns()
 
 
+def load_communication_patterns() -> List[Dict[str, str]]:
+    """Load prohibited communication patterns."""
+    return get_policy_engine().load_communication_patterns()
+
+
+def load_api_limit_patterns() -> List[str]:
+    """Load API limit patterns."""
+    return get_policy_engine().load_api_limit_patterns()
+
+
 def load_exemptions() -> set[str]:
     """Load file exemptions."""
     return get_policy_engine().load_exemptions()
@@ -86,30 +96,6 @@ def parse_moderator_result(output: str) -> Dict[str, Any]:
 
     return {"status": "fail", "reason": "Moderator validation unclear - no explicit PASS or FAIL in output"}
 
-
-# Prohibited communication patterns (regexes)
-PROHIBITED_PATTERNS = [
-    {
-        "pattern": r"the issue is clear",
-        "description": "Assuming clarity without verification"
-    },
-    {
-        "pattern": r"you are right",
-        "description": "Premature agreement"
-    },
-    {
-        "pattern": r"i see the problem",
-        "description": "Definitive claim without reading code"
-    }
-]
-
-# API Limit / Throttling patterns
-API_LIMIT_PATTERNS = [
-    r"rate limit",
-    r"throttled",
-    r"too many requests",
-    r"api limit"
-]
 
 # Greeting patterns to ignore
 GREETING_PATTERNS = [

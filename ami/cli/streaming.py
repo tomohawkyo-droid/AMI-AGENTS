@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from ami.cli.stream_processor import StreamProcessor, StreamEvent, StreamObserver
 from ami.cli_components.stream_renderer import StreamRenderer
-from ami.core.logic import parse_completion_marker
 
 if TYPE_CHECKING:
     from ami.core.models import AgentConfig
@@ -54,7 +52,13 @@ def execute_streaming(
         processor.add_observer(observer)
         
         try:
-            output, metadata = processor.run(stdin_data=stdin_data)
+            output = ""
+            metadata = {}
+            for event in processor.run(stdin_data=stdin_data):
+                if event.type == 'complete':
+                    output = event.data["output"]
+                    metadata = event.data["metadata"]
+            
             # Finalize renderer and merge metadata
             renderer_metadata = renderer.finish()
             metadata.update(renderer_metadata)
@@ -64,4 +68,10 @@ def execute_streaming(
             raise
     
     # Standard non-display execution
-    return processor.run(stdin_data=stdin_data)
+    output = ""
+    metadata = {}
+    for event in processor.run(stdin_data=stdin_data):
+        if event.type == 'complete':
+            output = event.data["output"]
+            metadata = event.data["metadata"]
+    return output, metadata

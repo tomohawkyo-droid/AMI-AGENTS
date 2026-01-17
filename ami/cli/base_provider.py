@@ -12,10 +12,7 @@ if TYPE_CHECKING:
     from .config import AgentConfig
 
 from ami.utils.uuid_utils import uuid7
-from .streaming import (
-    execute_streaming,
-    run_streaming_loop_with_display,
-)
+from .streaming import execute_streaming
 from .streaming_utils import load_instruction_with_replacements
 from ami.core.config import get_config
 from .agent_logging import TranscriptLogger

@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
-import sys
-from typing import Any
-
 from ami.cli_components.cursor_manager import CursorManager
 from ami.cli_components.editor_display import EditorDisplay
-from ami.cli_components.text_input_utils import BRACKETED_PASTE_DISABLE, BRACKETED_PASTE_ENABLE, read_key_sequence, Colors
+from ami.cli_components.text_input_utils import read_key_sequence, Colors, BRACKETED_PASTE_ENABLE, BRACKETED_PASTE_DISABLE
+from ami.cli_components.terminal.ansi import AnsiTerminal
+from typing import Any
 
 
 class TextEditor:

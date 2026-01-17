@@ -71,6 +71,28 @@ class PolicyEngine:
             data = yaml.safe_load(f)
         return data.get("sensitive_patterns", [])
 
+    @lru_cache(maxsize=4)
+    def load_communication_patterns(self) -> List[Dict[str, str]]:
+        """Load prohibited communication patterns."""
+        path = self._get_policy_path("communication", "prohibited")
+        if not path or not path.exists():
+            return []
+
+        with path.open() as f:
+            data = yaml.safe_load(f)
+        return data.get("prohibited_patterns", [])
+
+    @lru_cache(maxsize=4)
+    def load_api_limit_patterns(self) -> List[str]:
+        """Load API limit patterns."""
+        path = self._get_policy_path("api_limits", "files")
+        if not path or not path.exists():
+            return []
+
+        with path.open() as f:
+            data = yaml.safe_load(f)
+        return [p.get("pattern") for p in data.get("api_limit_patterns", [])]
+
     @lru_cache(maxsize=1)
     def load_exemptions(self) -> Set[str]:
         """Load file exemptions for pattern checks."""

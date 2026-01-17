@@ -14,6 +14,7 @@ from ami.utils.process import ProcessExecutor
 from ami.utils.uuid_utils import uuid7
 from ami.core.models import AgentConfig
 from ami.core.interfaces import AgentRuntimeProtocol
+from ami.core.config import get_config
 from ami.cli.provider_type import ProviderType
 from ami.core.guards import check_command_safety
 from ami.core.env import setup_agent_env

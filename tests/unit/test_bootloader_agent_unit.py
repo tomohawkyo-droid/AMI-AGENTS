@@ -10,10 +10,15 @@ class TestBootloaderAgent:
     """Unit tests for BootloaderAgent class."""
 
     @pytest.fixture
-    def agent(self):
-        """Fixture for BootloaderAgent."""
+    def mock_runtime(self):
+        """Mock runtime for injection."""
+        return MagicMock()
+
+    @pytest.fixture
+    def agent(self, mock_runtime):
+        """Fixture for BootloaderAgent with mocked runtime."""
         with patch("ami.core.bootloader_agent.BootloaderAgent._get_banner", return_value="MOCKED BANNER"):
-            yield BootloaderAgent()
+            yield BootloaderAgent(runtime=mock_runtime)
 
     @patch("ami.core.bootloader_agent.check_command_safety")
     @patch("ami.core.bootloader_agent.ProcessExecutor")
@@ -57,12 +62,9 @@ class TestBootloaderAgent:
         assert "Violation detected" in result
         MockExecutor.return_value.run.assert_not_called()
 
-    @patch("ami.core.bootloader_agent.get_agent_cli")
-    def test_run_new_session(self, mock_get_cli, agent):
+    def test_run_new_session(self, mock_runtime, agent):
         """run() initiates new session if none provided."""
-        mock_cli = MagicMock()
-        mock_get_cli.return_value = mock_cli
-        mock_cli.run_print.return_value = ("Agent response", {"session_id": "new-uuid"})
+        mock_runtime.run_print.return_value = ("Agent response", {"session_id": "new-uuid"})
 
         response, session_id = agent.run("Hello")
 
@@ -70,16 +72,13 @@ class TestBootloaderAgent:
         assert session_id == "new-uuid"
         
         # Verify prompt contains banner
-        args, kwargs = mock_cli.run_print.call_args
+        args, kwargs = mock_runtime.run_print.call_args
         instruction = kwargs.get("instruction", "")
         assert "MOCKED BANNER" in instruction
 
-    @patch("ami.core.bootloader_agent.get_agent_cli")
-    def test_run_resume_session(self, mock_get_cli, agent):
+    def test_run_resume_session(self, mock_runtime, agent):
         """run() uses existing session if provided."""
-        mock_cli = MagicMock()
-        mock_get_cli.return_value = mock_cli
-        mock_cli.run_print.return_value = ("Resumed response", {})
+        mock_runtime.run_print.return_value = ("Resumed response", {})
 
         response, session_id = agent.run("Continue", session_id="existing-uuid")
 
@@ -87,5 +86,5 @@ class TestBootloaderAgent:
         assert session_id == "existing-uuid"
         
         # Verify config has session_id
-        config = mock_get_cli.call_args[0][0]
+        config = mock_runtime.run_print.call_args[1].get('agent_config')
         assert config.session_id == "existing-uuid"

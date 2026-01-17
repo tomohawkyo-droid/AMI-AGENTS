@@ -56,8 +56,8 @@ class StreamProcessor:
             except Exception as e:
                 logger.error(f"Observer error: {e}")
 
-    def run(self, stdin_data: Optional[str] = None) -> tuple[str, Dict[str, Any]]:
-        """Execute the command and process the stream."""
+    def run(self, stdin_data: Optional[str] = None) -> Any:
+        """Execute the command and process the stream, yielding events."""
         process = start_streaming_process(self.cmd, stdin_data, self.cwd)
         
         if stdin_data is not None and process.stdin:
@@ -92,12 +92,16 @@ class StreamProcessor:
                     )
                     chunk_text = parsed_text
                     if parsed_metadata:
-                        self._notify(StreamEvent(type='metadata', data=parsed_metadata))
+                        event = StreamEvent(type='metadata', data=parsed_metadata)
+                        self._notify(event)
+                        yield event
 
                 # Notify observers of new chunk
                 if chunk_text:
                     self.full_output.append(chunk_text if chunk_text.endswith("\n") else chunk_text + "\n")
-                    self._notify(StreamEvent(type='chunk', data=chunk_text))
+                    event = StreamEvent(type='chunk', data=chunk_text)
+                    self._notify(event)
+                    yield event
                 
                 line_count += 1
 
@@ -109,12 +113,14 @@ class StreamProcessor:
             })
             
             final_text = "".join(self.full_output)
-            self._notify(StreamEvent(type='complete', data={"output": final_text, "metadata": self.metadata}))
-            
-            return final_text, self.metadata
+            comp_event = StreamEvent(type='complete', data={"output": final_text, "metadata": self.metadata})
+            self._notify(comp_event)
+            yield comp_event
 
         except Exception as e:
-            self._notify(StreamEvent(type='error', data=str(e)))
+            err_event = StreamEvent(type='error', data=str(e))
+            self._notify(err_event)
+            yield err_event
             raise
         finally:
             if process.poll() is None:

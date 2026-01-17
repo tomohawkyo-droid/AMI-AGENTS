@@ -12,7 +12,7 @@ from ami.cli.timer_utils import wrap_text_in_box
 from ami.cli.validation_utils import (
     validate_path_and_return_code,
 )
-from ami.core.bootloader_agent import BootloaderAgent
+from ami.core.factory import AgentFactory
 from ami.cli_components.text_input_utils import display_final_output
 from ami.cli_components.text_editor import TextEditor
 from ami.cli_components.dialogs import confirm
@@ -170,8 +170,7 @@ def mode_interactive_editor() -> int:
             return 0  # Exit quietly
 
         # Instantiate BootloaderAgent once for the session with injected runtime
-        cli = get_agent_cli()
-        agent = BootloaderAgent(runtime=cli)
+        agent = AgentFactory.create_bootloader()
         
         # Initial input (from first editor run)
         current_instruction = content

@@ -7,16 +7,11 @@ import pytest
 
 from ami.cli.config import AgentConfig, AgentConfigPresets
 from ami.core.config import Config, get_config
-from ami.cli.exceptions import AgentError, AgentTimeoutError
+from ami.cli.exceptions import AgentError
 from ami.cli.mode_handlers import (
     mode_interactive_editor,
     mode_print,
     mode_query,
-)
-from ami.cli.streaming import (
-    _handle_timeout,
-    _process_line_with_provider,
-    run_streaming_loop_with_display,
 )
 from ami.cli.timer_utils import TimerDisplay
 
@@ -149,130 +144,6 @@ class TestTimerErrorConditions:
         # Should handle multiple stops gracefully
         timer.stop()  # Should not fail
         assert timer.is_running is False
-
-
-class TestStreamingErrorConditions:
-    """Test streaming error conditions."""
-
-    @pytest.mark.skip(reason="Causes segmentation fault due to threading race condition in test environment")
-    @patch("ami.cli.streaming.TimerDisplay")
-    def test_run_streaming_loop_with_display_timeout(self, mock_timer_class):
-        """Test streaming with timeout."""
-        # Create a mock process that simulates timeout behavior
-        mock_process = Mock()
-        mock_process.poll.return_value = None  # Process still running
-        mock_process.stdout.readline.return_value = None
-
-        mock_config = Mock()
-        mock_config.session_id = "test-session"
-        mock_config.timeout = 1  # Short timeout
-
-        class MockProvider:
-            def _parse_stream_message(self, line, cmd, line_count, agent_config):
-                return "", None
-
-        # Test with a process that never returns data - should timeout
-        with patch("ami.cli.streaming.read_streaming_line") as mock_read:
-            # Make read_streaming_line return timeout continuously to trigger the timeout logic
-            mock_read.return_value = (None, True)  # No data, timeout
-            mock_process.stdout = Mock()
-            mock_process.stdout.fileno = Mock(return_value=123)  # Mock file descriptor
-            mock_process.poll = Mock(return_value=None)  # Process still running
-
-            # This will eventually timeout based on the timeout logic
-            with pytest.raises(AgentTimeoutError):
-                # Call the function that should timeout
-                run_streaming_loop_with_display(mock_process, ["test", "cmd"], mock_config, MockProvider())
-
-    def test_handle_timeout_no_config(self):
-        """Test timeout handling with None config."""
-        cmd = ["test", "cmd"]
-        started_at = time.time()
-
-        # Should not raise error when config is None
-        result = _handle_timeout(cmd, None, started_at)
-        assert result is False  # Continue waiting
-
-    def test_handle_timeout_no_timeout_config(self):
-        """Test timeout handling when no timeout configured."""
-        cmd = ["test", "cmd"]
-        mock_config = Mock()
-        mock_config.timeout = None
-
-        started_at = time.time()
-
-        # Should continue waiting when no timeout configured
-        result = _handle_timeout(cmd, mock_config, started_at)
-        assert result is False  # Continue waiting
-
-        def test_process_line_with_provider_no_content(self):
-
-            """Test processing line when provider returns no content."""
-
-            display_context = {
-
-                "full_output": "",
-
-                "started_at": time.time(),
-
-                "session_id": "test",
-
-                "timer": Mock(),
-
-                "content_started": False,
-
-                "box_displayed": False,
-
-                "last_print_ended_with_newline": False,
-
-                "capture_content": False,
-
-                "response_box_started": False,
-
-                "response_box_ended": False,
-
-            }
-
-    
-
-            class MockProvider:
-
-                def _parse_stream_message(self, line, cmd, line_count, agent_config):
-
-                    return "", {"empty": True}  # No text content, only metadata
-
-    
-
-            _process_line_with_provider("test line", ["cmd"], display_context, MockProvider(), 0, Mock())
-
-    
-
-            # Should maintain empty output
-
-            assert display_context["full_output"] == ""
-
-    def test_process_line_with_provider_exception(self):
-        """Test processing line when provider throws exception."""
-        display_context = {
-            "full_output": "",
-            "started_at": time.time(),
-            "session_id": "test",
-            "timer": Mock(),
-            "content_started": False,
-            "box_displayed": False,
-            "last_print_ended_with_newline": False,
-            "capture_content": False,
-            "response_box_started": False,
-            "response_box_ended": False,
-        }
-
-        class FailingProvider:
-            def _parse_stream_message(self, line, cmd, line_count, agent_config):
-                raise RuntimeError("Parsing failed")
-
-        # Should handle the exception gracefully
-        with pytest.raises(RuntimeError):  # Assuming FailingProvider raises RuntimeError
-            _process_line_with_provider("test line", ["cmd"], display_context, FailingProvider(), 0, Mock())
 
 
 if __name__ == "__main__":

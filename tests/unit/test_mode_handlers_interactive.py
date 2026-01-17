@@ -42,9 +42,9 @@ class TestModeInteractiveEditor:
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
-    @patch("ami.cli.mode_handlers.BootloaderAgent")
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
     @patch("ami.cli.mode_handlers.display_final_output")
-    def test_interactive_editor_success(self, mock_display, MockBootloaderAgent, MockTextEditor, mock_isatty, MockTimerDisplay):
+    def test_interactive_editor_success(self, mock_display, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay):
         """Test successful execution flow."""
         # Setup mocks
         mock_editor = MockTextEditor.return_value
@@ -52,7 +52,7 @@ class TestModeInteractiveEditor:
         mock_editor.run.side_effect = ["Do something", None]
         mock_editor.lines = ["Do something"]
         
-        mock_agent = MockBootloaderAgent.return_value
+        mock_agent = MockCreateBootloader.return_value
         mock_agent.run.return_value = ("Output", "sess-id")
 
         # Execute
@@ -70,8 +70,8 @@ class TestModeInteractiveEditor:
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
-    @patch("ami.cli.mode_handlers.BootloaderAgent")
-    def test_interactive_editor_cancel(self, MockBootloaderAgent, MockTextEditor, mock_isatty, MockTimerDisplay):
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    def test_interactive_editor_cancel(self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay):
         """Test user cancellation in editor."""
         mock_editor = MockTextEditor.return_value
         mock_editor.run.return_value = None # None means cancelled
@@ -79,13 +79,13 @@ class TestModeInteractiveEditor:
         exit_code = mode_interactive_editor()
 
         assert exit_code == 0
-        MockBootloaderAgent.assert_not_called()
+        MockCreateBootloader.assert_not_called()
 
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
-    @patch("ami.cli.mode_handlers.BootloaderAgent")
-    def test_interactive_editor_empty(self, MockBootloaderAgent, MockTextEditor, mock_isatty, MockTimerDisplay):
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    def test_interactive_editor_empty(self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay):
         """Test empty input."""
         mock_editor = MockTextEditor.return_value
         mock_editor.run.return_value = "   " # Empty/whitespace
@@ -93,18 +93,18 @@ class TestModeInteractiveEditor:
         exit_code = mode_interactive_editor()
 
         assert exit_code == 0
-        MockBootloaderAgent.assert_not_called()
+        MockCreateBootloader.assert_not_called()
 
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
-    @patch("ami.cli.mode_handlers.BootloaderAgent")
-    def test_interactive_editor_agent_error(self, MockBootloaderAgent, MockTextEditor, mock_isatty, MockTimerDisplay):
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    def test_interactive_editor_agent_error(self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay):
         """Test exception during agent execution."""
         mock_editor = MockTextEditor.return_value
         mock_editor.run.side_effect = ["Do task", None]
         
-        mock_agent = MockBootloaderAgent.return_value
+        mock_agent = MockCreateBootloader.return_value
         mock_agent.run.side_effect = Exception("Agent crashed")
 
         with patch.object(sys.stderr, 'write') as mock_stderr:

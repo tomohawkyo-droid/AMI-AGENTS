@@ -11,5 +11,9 @@ policies:
     fast: "ami/config/patterns/python_fast.yaml"
   sensitive:
     files: "ami/config/patterns/sensitive_files.yaml"
+  communication:
+    prohibited: "ami/config/patterns/prohibited_communication_patterns.yaml"
+  api_limits:
+    files: "ami/config/patterns/api_limit_patterns.yaml"
   exemptions:
     files: "ami/config/patterns/exemptions.yaml"

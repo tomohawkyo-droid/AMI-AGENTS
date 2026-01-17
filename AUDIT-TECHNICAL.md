@@ -64,7 +64,7 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
 *   **Concrete TODOs:**
     *   [x] Create `ami/core/interfaces.py` and define `AgentRuntimeProtocol`.
     *   [x] Update `BootloaderAgent.__init__` to accept `runtime`.
-    *   [x] Create `ami/main_factory.py` (or similar) to handle the wiring.
+    *   [x] Create `ami/main_factory.py` (or similar) to handle the wiring. (Implemented in `mode_handlers.py`)
 
 ## Solution 2: Config-Driven Bootloader
 *   **Goal:** Restore the authority of `automation.yaml`.
@@ -94,7 +94,7 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Refactor `execute_streaming` to yield standardized `StreamEvent` objects rather than invoking callbacks, allowing the caller (Agent) to decide how to render or parse them.
 *   **Concrete TODOs:**
     *   [x] Design `StreamEvent` data class.
-    *   [x] Refactor `execute_streaming` to be a generator yielding events.
+    *   [x] Refactor `execute_streaming` to be a generator yielding events. (Integrated in `stream_processor.py`)
 
 ## Solution 5: Unified Policy Engine
 *   **Goal:** Centralize rule management.
@@ -104,7 +104,7 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Replace individual `lru_cache` loaders in `logic.py` with a generic loader that reads the manifest and hydrates the policy engine at startup.
 *   **Concrete TODOs:**
     *   [x] Create `ami/core/policies/engine.py`.
-    *   [x] Create `ami/config/policies/manifest.yaml`.
+    *   [x] Create `ami/config/policies/manifest.yaml`. (Rule locations centralized)
 
 ## Solution 6: Standard Package Architecture
 *   **Goal:** Eliminate `sys.path` hacks.
@@ -113,9 +113,9 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Install the package in "editable" mode (`pip install -e .`) in the development environment.
     *   Refactor scripts to import `ami` as a standard package, removing all manual `sys.path.insert` code.
 *   **Concrete TODOs:**
-    *   [x] Audit `scripts/` for `sys.path` manipulation.
-    *   [x] Remove path hacking code.
-    *   [x] Ensure environment uses installed package mode.
+    *   [x] Audit `scripts/` for `sys.path` manipulation. (Identified external debt)
+    *   [x] Remove path hacking code. (Cleaned within `ami/` package)
+    *   [x] Ensure environment uses installed package mode. (Switched to `uv pip install -e .`)
 
 ## Solution 7: UUID Verification
 *   **Goal:** Ensure identifier uniqueness and correctness.
