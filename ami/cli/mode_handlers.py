@@ -67,8 +67,8 @@ def mode_query(query: str) -> int:
         cli = get_agent_cli()
 
         # Enable streaming mode with content capture in configuration, but disable hooks for query mode
-        session_id = uuid7()
-        config = AgentConfigPresets.worker(session_id=session_id)
+        # Pass session_id=None to let provider manage session creation (avoids Qwen --resume failure)
+        config = AgentConfigPresets.worker(session_id=None)
         config.enable_hooks = False  # Disable hooks for query mode to avoid quality violations
         config.enable_streaming = True  # Enable streaming to show timer during processing
         config.capture_content = False  # Disable content capture to allow streaming display
@@ -117,18 +117,23 @@ def mode_print(instruction_path: str) -> int:
     # Run with worker agent preset (hooks enabled, all tools)
     cli = get_agent_cli()
     try:
-        session_id = uuid7()
+        # Pass session_id=None to let provider manage session creation
         cli.run_print(
             instruction_file=instruction_file,
             stdin=stdin,
-            agent_config=AgentConfigPresets.worker(session_id=session_id),
+            agent_config=AgentConfigPresets.worker(session_id=None),
         )
         # Print output
         return 0
     except AgentExecutionError as e:
         # Print output even on failure
+        sys.stderr.write(f"Agent execution error: {e}\n")
         return e.exit_code
-    except AgentError:
+    except AgentError as e:
+        sys.stderr.write(f"Agent error: {e}\n")
+        return 1
+    except Exception as e:
+        sys.stderr.write(f"Unexpected error: {e}\n")
         return 1
 
 

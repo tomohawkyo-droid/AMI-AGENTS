@@ -38,7 +38,7 @@ class AgentConfigPresets:
         return provider, model
 
     @staticmethod
-    def worker(session_id: str) -> AgentConfig:
+    def worker(session_id: str | None = None) -> AgentConfig:
         """General worker agent: All tools, hooks enabled."""
         provider, model = AgentConfigPresets._get_defaults("worker")
         return AgentConfig(
@@ -51,7 +51,7 @@ class AgentConfigPresets:
         )
 
     @staticmethod
-    def interactive(session_id: str, mcp_servers: dict[str, Any] | None = None) -> AgentConfig:
+    def interactive(session_id: str | None = None, mcp_servers: dict[str, Any] | None = None) -> AgentConfig:
         """Interactive agent."""
         from ami.core.config import get_config
         

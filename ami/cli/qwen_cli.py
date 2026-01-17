@@ -82,7 +82,7 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
         """
         return AgentConfig(
             model="qwen-coder",  # Default Qwen model
-            session_id=uuid7(),
+            session_id=None,
             provider=ProviderType.QWEN,
             allowed_tools=None,
             enable_hooks=True,

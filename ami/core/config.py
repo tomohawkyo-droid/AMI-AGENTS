@@ -155,7 +155,16 @@ class Config:
             raise ValueError(f"CRITICAL: Unknown provider: {provider}")
 
         # Get the configured command or default
-        return self.get(f"agent.{provider.value}.command", provider_to_command[provider])
+        cmd = self.get(f"agent.{provider.value}.command", provider_to_command[provider])
+        
+        # Resolve to absolute path if relative
+        if cmd and not Path(cmd).is_absolute():
+            # Check if it exists relative to root
+            abs_cmd = (self.root / cmd).resolve()
+            if abs_cmd.exists():
+                return str(abs_cmd)
+        
+        return cmd
 
     def get_provider_default_model(self, provider: ProviderType) -> str:
         """Get the default model for a specific provider."""

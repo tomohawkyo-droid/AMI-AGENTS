@@ -18,7 +18,24 @@ else
     exit 1
 fi
 
-# 2. Setup extensions configuration
+# 2. Setup configuration files
+# 2a. Automation Config
+AUTO_CONFIG="ami/config/automation.yaml"
+AUTO_TEMPLATE="ami/config/automation.template.yaml"
+
+if [[ ! -f "$AUTO_CONFIG" ]]; then
+    echo "⚙️  Initializing automation configuration..."
+    if [[ -f "$AUTO_TEMPLATE" ]]; then
+        cp "$AUTO_TEMPLATE" "$AUTO_CONFIG"
+        echo "✅ Created $AUTO_CONFIG from template"
+    else
+        echo "⚠️  Template $AUTO_TEMPLATE not found"
+    fi
+else
+    echo "ℹ️  Automation configuration already exists at $AUTO_CONFIG"
+fi
+
+# 2b. Extensions Config
 EXT_CONFIG="ami/config/extensions.yaml"
 EXT_TEMPLATE="ami/config/extensions.template.yaml"
 

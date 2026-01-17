@@ -142,3 +142,4 @@ learning/forecasting/
 agents/
 ami/config/extensions.yaml
 uv.lock
+ami/config/automation.yaml

@@ -128,7 +128,9 @@ class CLIProvider(ABC):
         _ = audit_log_path  # Mark as intentionally unused
 
         # Initialize Transcript Logger
-        logger = TranscriptLogger(str(agent_config.session_id))
+        # If session_id is None (new session), generate one for logging only
+        log_session_id = str(agent_config.session_id) if agent_config.session_id else uuid7()
+        logger = TranscriptLogger(log_session_id)
         
         # Log User Instruction (Context)
         log_content = instruction

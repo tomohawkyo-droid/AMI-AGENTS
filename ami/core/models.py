@@ -12,8 +12,8 @@ class AgentConfig:
     def __init__(
         self,
         model: str,
-        session_id: str,  # Session ID for execution tracking
         provider: CLIProvider,  # AI provider
+        session_id: str | None = None,  # Session ID for execution tracking
         allowed_tools: list[str] | None = None,  # None = all tools allowed
         enable_hooks: bool = True,
         enable_streaming: bool | None = False,
