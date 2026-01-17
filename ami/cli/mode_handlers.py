@@ -9,7 +9,7 @@ from ami.cli.config import AgentConfigPresets
 from ami.cli.exceptions import AgentError, AgentExecutionError
 from ami.cli.factory import get_agent_cli
 from ami.cli.timer_utils import wrap_text_in_box
-from ami.utils.helpers import (
+from ami.cli.validation_utils import (
     validate_path_and_return_code,
 )
 from ami.core.bootloader_agent import BootloaderAgent

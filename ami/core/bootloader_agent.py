@@ -12,7 +12,7 @@ import yaml
 
 from ami.utils.process import ProcessExecutor
 from ami.utils.uuid_utils import uuid7
-from ami.cli.config import AgentConfig
+from ami.core.models import AgentConfig
 from ami.cli.factory import get_agent_cli
 from ami.cli.provider_type import ProviderType
 from ami.core.guards import check_command_safety

@@ -70,6 +70,7 @@ class TestModeHandlersIntegration:
 
         # Mock the BootloaderAgent
         mock_agent = Mock()
+        mock_agent.run.return_value = ("Response", "session-id")
         mock_agent_class.return_value = mock_agent
 
         # Call the mode handler
