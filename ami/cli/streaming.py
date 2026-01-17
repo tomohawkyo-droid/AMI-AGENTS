@@ -10,7 +10,6 @@ import time
 from typing import TYPE_CHECKING, Any, Protocol
 import sys
 import termios
-import textwrap
 import tty
 
 from loguru import logger
@@ -24,17 +23,12 @@ from ami.cli.exceptions import (
 from ami.core.config import get_config
 from ami.cli.process_utils import handle_process_completion, start_streaming_process, read_streaming_line
 from ami.cli.streaming_utils import calculate_timeout
-from ami.cli.timer_utils import TimerDisplay
 from ami.core.logic import parse_completion_marker
+from ami.cli_components.stream_renderer import StreamRenderer
 
 
 if TYPE_CHECKING:
     pass
-
-
-# Constants for display formatting
-CONTENT_WIDTH = 76  # Content width for wrapped text (80 total - 4 for borders/indentation)
-TOTAL_WIDTH = 80  # Total width for display boxes
 
 
 class AgentConfigProtocol(Protocol):
@@ -146,25 +140,9 @@ def run_streaming_loop_with_display(
     Returns:
         Tuple of (output, metadata)
     """
-    display_context: dict[str, Any] = {
-        "full_output": "",
-        "started_at": time.time(),
-        "session_id": agent_config.session_id if agent_config else "unknown",
-        "timer": TimerDisplay(),
-        "content_started": False,
-        "box_displayed": False,
-        "last_print_ended_with_newline": False,
-        "capture_content": capture_content,  # Add flag to control output behavior
-        "response_box_started": False,  # Track if response box top border has been displayed
-        "response_box_ended": False,  # Track if response box bottom border has been displayed
-        "line_buffer": "", # Buffer for incomplete lines to handle wrapping correctly
-        "in_run_block": False, # Track if we are inside a ```run block for display sanitization
-    }
-
-    # Start the timer display
-    timer_display = display_context["timer"]
-    if isinstance(timer_display, TimerDisplay):
-        timer_display.start()
+    session_id = agent_config.session_id if agent_config else "unknown"
+    renderer = StreamRenderer(session_id, capture_content)
+    renderer.start()
 
     # Setup terminal for raw input if possible to detect ESC
     old_settings = None
@@ -173,13 +151,12 @@ def run_streaming_loop_with_display(
             old_settings = termios.tcgetattr(sys.stdin.fileno())
             tty.setcbreak(sys.stdin.fileno())
     except Exception:
-        # If setting cbreak fails (e.g. not a real TTY in tests), ignore
         pass
 
     try:
         # Main streaming loop
         while True:
-            should_continue = _handle_read_iteration(process, cmd, agent_config, display_context, provider_instance)
+            should_continue = _handle_read_iteration(process, cmd, agent_config, renderer, provider_instance)
             if not should_continue:
                 break
     finally:
@@ -187,60 +164,27 @@ def run_streaming_loop_with_display(
         if old_settings:
             termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
 
-        timer_display = display_context["timer"]
-        if isinstance(timer_display, TimerDisplay):
-            _handle_display_cleanup(timer_display)
-
-        # Flush any remaining buffer content
-        if not display_context.get("capture_content", False) and display_context.get("line_buffer"):
-             # Print whatever is left in the buffer, wrapped
-             remaining = display_context["line_buffer"]
-             wrapped = textwrap.fill(remaining, width=CONTENT_WIDTH).split("\n")
-             for line in wrapped:
-                 sys.stdout.write(f"  {line}\n")
-             sys.stdout.flush()
-
-        # Close response box if it was opened but not yet closed
-        if (
-            not display_context.get("capture_content", False)
-            and display_context.get("response_box_started", False)
-            and not display_context.get("response_box_ended", False)
-        ):
-            sys.stdout.write("└" + "─" * 78 + "┘\n")  # Bottom border
-            sys.stdout.flush()
-            display_context["response_box_ended"] = True
-
-    # Add completion message after processing is done
-    if not display_context.get("capture_content", False):
-            # Display timestamp message after processing completes
-            sys.stdout.write(f"🤖 {time.strftime('%H:%M:%S')}\n\n")
-            sys.stdout.flush()
-            metadata = {
-        "session_id": display_context["session_id"],
-        "duration": time.time() - display_context["started_at"],
-        "output_length": len(display_context["full_output"]),
-        "completion": parse_completion_marker(display_context["full_output"]),
-    }
-    return display_context["full_output"], metadata
+    output, metadata = renderer.full_output, renderer.finish()
+    return output, metadata
 
 
 def _handle_read_iteration(
     process: subprocess.Popen[str],
     cmd: list[str],
     agent_config: AgentConfigProtocol | None,
-    display_context: dict[str, Any],
+    renderer: StreamRenderer,
     provider_instance: StreamMessageParser | None,
 ) -> bool:
     """Handle a single iteration of the streaming read loop."""
     # Calculate timeout for this read
-    timeout_val = calculate_timeout(agent_config.timeout if agent_config else None, len(display_context["full_output"]))
+    timeout_val = calculate_timeout(agent_config.timeout if agent_config else None, len(renderer.full_output))
 
     # Read a line with timeout
     line, is_timeout = read_streaming_line(process, timeout_val, cmd, check_stdin=True)
 
     if is_timeout:
         # Check if overall timeout was exceeded
-        return not _handle_timeout(cmd, agent_config, display_context["started_at"])
+        return not _handle_timeout(cmd, agent_config, renderer.started_at)
 
     if line is None:
         # Check if process has exited
@@ -248,9 +192,9 @@ def _handle_read_iteration(
 
     # Process the line based on whether we have a provider instance
     if provider_instance:
-        _process_line_with_provider(line, cmd, display_context, provider_instance, len(display_context["full_output"]), agent_config)
+        _process_line_with_provider(line, cmd, renderer, provider_instance, len(renderer.full_output), agent_config)
     else:
-        _process_raw_line(line, display_context)
+        renderer.render_raw_line(line)
 
     return True
 
@@ -268,7 +212,7 @@ def _handle_timeout(cmd: list[str], agent_config: AgentConfigProtocol | None, st
 def _process_line_with_provider(
     line: str,
     cmd: list[str],
-    display_context: dict[str, Any],
+    renderer: StreamRenderer,
     provider_instance: StreamMessageParser,
     line_count: int,
     agent_config: AgentConfigProtocol | None,
@@ -286,88 +230,11 @@ def _process_line_with_provider(
                 # Log but don't crash
                 print(f"Stream callback error: {e}")
 
-        if not display_context["content_started"]:
-            if not display_context.get("capture_content", False):
-                display_context["timer"].stop()
-            display_context["content_started"] = True
-            display_context["box_displayed"] = True
-            if not display_context.get("capture_content", False):
-                sys.stdout.write("┌" + "─" * 78 + "┐\n")
-                sys.stdout.flush()
-            display_context["response_box_started"] = True
-
-        if not display_context.get("capture_content", False):
-            current_buffer = display_context.get("line_buffer", "")
-            current_buffer += chunk_text
-            
-            if "\n" in current_buffer:
-                lines = current_buffer.split("\n")
-                complete_lines = lines[:-1]
-                display_context["line_buffer"] = lines[-1]
-                
-                # Process and print complete lines
-                for line in complete_lines:
-                    display_line = line
-                    # Display-only replacements to make output clearer
-                    if "```run" in display_line or "```bash" in display_line:
-                        display_line = display_line.replace("```run", "</>").replace("```bash", "</>")
-                        display_context["in_run_block"] = True
-                    
-                    # Check for closing fence
-                    if display_context.get("in_run_block"):
-                        if "```" in display_line:
-                            # If the line is just the closing fence (ignoring whitespace), skip it
-                            if display_line.strip() == "```":
-                                display_context["in_run_block"] = False
-                                continue
-                            
-                            # If it's inline (unlikely for block), replace it
-                            display_line = display_line.replace("```", "")
-                            display_context["in_run_block"] = False
-                    
-                    # Print the line with indentation to match the text bubble style
-                    print(f"  {display_line}")
-            else:
-                display_context["line_buffer"] = current_buffer
-
-        display_context["last_print_ended_with_newline"] = chunk_text.endswith("\n")
-        display_context["full_output"] += chunk_text
+        renderer.process_chunk(chunk_text)
 
     if chunk_metadata:
         if "session_id" in chunk_metadata:
-            display_context["session_id"] = chunk_metadata["session_id"]
-
-
-def _process_raw_line(line: str, display_context: dict[str, Any]) -> None:
-    """Process a raw line when no provider instance is available."""
-    if not display_context["content_started"]:
-        if not display_context.get("capture_content", False):
-            display_context["timer"].stop()
-        display_context["content_started"] = True
-        display_context["box_displayed"] = True
-
-    if len(line) <= CONTENT_WIDTH:
-        if not display_context.get("capture_content", False):
-            sys.stdout.write("  " + line + "\n")
-            sys.stdout.flush()
-        display_context["last_print_ended_with_newline"] = True
-    else:
-        wrapped = textwrap.fill(line, width=CONTENT_WIDTH).split("\n")
-        for idx, wrap_line in enumerate(wrapped):
-            if not display_context.get("capture_content", False):
-                sys.stdout.write("  " + wrap_line + "\n")
-                sys.stdout.flush()
-            if idx < len(wrapped) - 1 and not display_context.get("capture_content", False):
-                sys.stdout.write("\n")
-                sys.stdout.flush()
-        display_context["last_print_ended_with_newline"] = True
-    display_context["full_output"] += line + "\n"
-
-
-def _handle_display_cleanup(timer: TimerDisplay | None) -> None:
-    """Handle cleanup of display elements."""
-    if timer is not None and timer.is_running:
-        timer.stop()
+            renderer.session_id = chunk_metadata["session_id"]
 
 
 def execute_streaming(
@@ -378,19 +245,7 @@ def execute_streaming(
     config: Any = None,
     parse_stream_callback: Callable[..., Any] | None = None,  # Optional callback for parsing stream messages
 ) -> tuple[str, dict[str, Any] | None]:
-    """Execute CLI command in streaming mode.
-
-    Args:
-        cmd: Command to execute
-        stdin_data: Data to provide to stdin
-        cwd: Working directory
-        agent_config: Agent configuration
-        config: Configuration object
-        parse_stream_callback: Optional callback function for parsing stream messages with real-time display
-
-    Returns:
-        Tuple of (output, metadata)
-    """
+    """Execute CLI command in streaming mode."""
     if stdin_data is not None:
         return _execute_with_stdin(cmd, stdin_data, cwd, agent_config, config)
     return _execute_with_streaming(cmd, stdin_data, cwd, agent_config, config, parse_stream_callback)

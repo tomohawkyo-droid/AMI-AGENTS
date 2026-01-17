@@ -39,7 +39,7 @@ class TestInteractiveHelpers:
 class TestModeInteractiveEditor:
     """Tests for mode_interactive_editor."""
 
-    @patch("ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.BootloaderAgent")
@@ -67,7 +67,7 @@ class TestModeInteractiveEditor:
         assert kwargs["instruction"] == "Do something"
         assert kwargs["input_func"] == get_user_confirmation
 
-    @patch("ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.BootloaderAgent")
@@ -81,7 +81,7 @@ class TestModeInteractiveEditor:
         assert exit_code == 0
         MockBootloaderAgent.assert_not_called()
 
-    @patch("ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.BootloaderAgent")
@@ -95,7 +95,7 @@ class TestModeInteractiveEditor:
         assert exit_code == 0
         MockBootloaderAgent.assert_not_called()
 
-    @patch("ami.cli.streaming.TimerDisplay")
+    @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.BootloaderAgent")
