@@ -53,7 +53,7 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
 
 ---
 
-# Proposed Remediation Plan
+# Proposed Remediation Plan & Action Items
 
 ## Solution 1: Dependency Injection for Core/CLI Decoupling
 *   **Goal:** Break the circular dependency between `core` and `cli` layers.
@@ -61,6 +61,10 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Define a generic `AgentRuntime` interface in `ami.core.interfaces`.
     *   Update `BootloaderAgent` to accept an `AgentRuntime` instance in its constructor (Dependency Injection) rather than instantiating `get_agent_cli` directly.
     *   Move the `factory.py` logic to a higher-level `ami.setup` or `ami.main` module that wires the Core agent with the CLI implementation at application startup.
+*   **Concrete TODOs:**
+    *   [x] Create `ami/core/interfaces.py` and define `AgentRuntimeProtocol`.
+    *   [x] Update `BootloaderAgent.__init__` to accept `runtime`.
+    *   [x] Create `ami/main_factory.py` (or similar) to handle the wiring.
 
 ## Solution 2: Config-Driven Bootloader
 *   **Goal:** Restore the authority of `automation.yaml`.
@@ -68,6 +72,9 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Update `BootloaderAgent` to initialize `AgentConfig` using `get_config().get("agent.provider")` and `get("agent.worker.model")`.
     *   Remove hardcoded `"qwen"` strings.
     *   Implement a fallback mechanism: Config -> Defaults -> Hardcoded safety net.
+*   **Concrete TODOs:**
+    *   [x] In `ami/core/bootloader_agent.py`, replace `model="qwen-coder"` with `config.get("agent.worker.model")`.
+    *   [x] Replace `provider=ProviderType.QWEN` with provider lookup from config.
 
 ## Solution 3: TUI Hardening & Encapsulation
 *   **Goal:** Stabilize the custom TUI without introducing heavy external dependencies.
@@ -75,6 +82,9 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   **Encapsulate ANSI:** Create a dedicated `AnsiTerminal` class that abstracts all raw escape codes (colors, cursor movement, clearing).
     *   **Isolate Logic:** Separate the "Editor Buffer" logic (pure data manipulation) from the "Renderer" logic (I/O). This allows unit testing the editor state without a real terminal.
     *   **Input Normalization:** Centralize `termios` handling into a `KeyboardInput` service that produces standardized events (e.g., `Event(KEY_UP)`), decoupling the application logic from raw byte sequences.
+*   **Concrete TODOs:**
+    *   [x] Create `ami/cli_components/terminal/ansi.py` (abstraction layer).
+    *   [x] Refactor `TextEditor` to use `AnsiTerminal` methods instead of raw strings.
 
 ## Solution 4: Unified Streaming Pipeline
 *   **Goal:** Simplify the execution flow into a linear pipeline.
@@ -82,6 +92,9 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Create a `StreamProcessor` class that owns the lifecycle of a command execution.
     *   Implement the **Observer Pattern**: The provider registers an `on_chunk(text)` handler.
     *   Refactor `execute_streaming` to yield standardized `StreamEvent` objects rather than invoking callbacks, allowing the caller (Agent) to decide how to render or parse them.
+*   **Concrete TODOs:**
+    *   [x] Design `StreamEvent` data class.
+    *   [x] Refactor `execute_streaming` to be a generator yielding events.
 
 ## Solution 5: Unified Policy Engine
 *   **Goal:** Centralize rule management.
@@ -89,6 +102,9 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Create a `PolicyEngine` service.
     *   Define a single `manifest.yaml` that lists all policy files and their types (Bash, Python, Sensitive).
     *   Replace individual `lru_cache` loaders in `logic.py` with a generic loader that reads the manifest and hydrates the policy engine at startup.
+*   **Concrete TODOs:**
+    *   [x] Create `ami/core/policies/engine.py`.
+    *   [x] Create `ami/config/policies/manifest.yaml`.
 
 ## Solution 6: Standard Package Architecture
 *   **Goal:** Eliminate `sys.path` hacks.
@@ -96,12 +112,18 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Add a `pyproject.toml` `[project.scripts]` entry point for the agent (e.g., `ami-agent = ami.cli.main:main`).
     *   Install the package in "editable" mode (`pip install -e .`) in the development environment.
     *   Refactor scripts to import `ami` as a standard package, removing all manual `sys.path.insert` code.
+*   **Concrete TODOs:**
+    *   [x] Audit `scripts/` for `sys.path` manipulation.
+    *   [x] Remove path hacking code.
+    *   [x] Ensure environment uses installed package mode.
 
 ## Solution 7: UUID Verification
 *   **Goal:** Ensure identifier uniqueness and correctness.
 *   **Action:**
     *   Add a comprehensive test suite for `ami/utils/uuid_utils.py` verifying it against the RFC 9562 spec vectors (if available) or standard properties (sorting, uniqueness, version bits).
     *   *Alternative:* If project constraints allow, replace with the lightweight `uuid6` library which supports v7.
+*   **Concrete TODOs:**
+    *   [x] Create `tests/unit/test_uuid_utils.py`.
 
 ## Solution 8: Memory-Based I/O with Selectors
 *   **Goal:** Improve performance and reduce disk wear.
@@ -109,3 +131,5 @@ The project implements its own UUIDv7 generator in `ami/utils/uuid_utils.py`.
     *   Replace `tempfile.TemporaryFile` with `subprocess.PIPE`.
     *   Implement a `selectors` (or `asyncio`) loop in `ProcessExecutor` to read from `stdout` and `stderr` pipes concurrently into memory buffers.
     *   This eliminates the deadlock risk (by draining pipes actively) without hitting the disk.
+*   **Concrete TODOs:**
+    *   [x] Rewrite `ami/utils/process.py` `ProcessExecutor.run` to use `subprocess.PIPE` and a read loop.

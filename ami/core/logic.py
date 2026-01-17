@@ -12,81 +12,43 @@ from typing import Any, Dict, List, Literal, Optional
 import yaml
 
 from ami.core.config import get_config
+from ami.core.policies.engine import get_policy_engine
 
 
 # Code fence parsing constants
 MIN_CODE_FENCE_LINES = 2
 
 
-@lru_cache(maxsize=1)
 def load_python_patterns() -> List[Dict[str, Any]]:
-    """Load Python fast pattern validation rules from YAML."""
-    config = get_config()
-    patterns_dir = config.root / "scripts/config/patterns"
-    patterns_file = patterns_dir / "python_fast.yaml"
-
-    if not patterns_file.exists():
-        return []
-
-    with patterns_file.open() as f:
-        data = yaml.safe_load(f)
-
-    return data.get("patterns", [])
+    """Load Python fast pattern validation rules."""
+    return get_policy_engine().load_python_patterns()
 
 
-@lru_cache(maxsize=16)
 def load_bash_patterns(patterns_path: Path | None = None) -> List[Dict[str, str]]:
-    """Load Bash command validation patterns from YAML.
+    """Load Bash command validation patterns.
     
     Args:
         patterns_path: Optional path to specific patterns file.
     """
     if patterns_path:
-        patterns_file = patterns_path
-    else:
-        config = get_config()
-        patterns_dir = config.root / "ami/config/policies"
-        patterns_file = patterns_dir / "default.yaml"
-
-    if not patterns_file.exists():
-        return []
-
-    with patterns_file.open() as f:
-        data = yaml.safe_load(f)
-
-    return data.get("deny_patterns", [])
+        # If specific path given, load it manually (for now) or update engine to handle absolute paths
+        if not patterns_path.exists():
+            return []
+        with patterns_path.open() as f:
+            data = yaml.safe_load(f)
+        return data.get("deny_patterns", [])
+    
+    return get_policy_engine().load_bash_patterns()
 
 
-@lru_cache(maxsize=1)
 def load_sensitive_patterns() -> List[Dict[str, str]]:
-    """Load sensitive file patterns from YAML."""
-    config = get_config()
-    patterns_dir = config.root / "scripts/config/patterns"
-    patterns_file = patterns_dir / "sensitive_files.yaml"
-
-    if not patterns_file.exists():
-        return []
-
-    with patterns_file.open() as f:
-        data = yaml.safe_load(f)
-
-    return data.get("sensitive_patterns", [])
+    """Load sensitive file patterns."""
+    return get_policy_engine().load_sensitive_patterns()
 
 
-@lru_cache(maxsize=1)
 def load_exemptions() -> set[str]:
-    """Load file exemptions from YAML."""
-    config = get_config()
-    patterns_dir = config.root / "scripts/config/patterns"
-    exemptions_file = patterns_dir / "exemptions.yaml"
-
-    if not exemptions_file.exists():
-        return set()
-
-    with exemptions_file.open() as f:
-        data = yaml.safe_load(f)
-
-    return set(data.get("pattern_check_exemptions", []))
+    """Load file exemptions."""
+    return get_policy_engine().load_exemptions()
 
 
 def parse_code_fence_output(output: str) -> str:

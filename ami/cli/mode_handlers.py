@@ -169,8 +169,9 @@ def mode_interactive_editor() -> int:
             # User cancelled with Ctrl+C
             return 0  # Exit quietly
 
-        # Instantiate BootloaderAgent once for the session
-        agent = BootloaderAgent()
+        # Instantiate BootloaderAgent once for the session with injected runtime
+        cli = get_agent_cli()
+        agent = BootloaderAgent(runtime=cli)
         
         # Initial input (from first editor run)
         current_instruction = content

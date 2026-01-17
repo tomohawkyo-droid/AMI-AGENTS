@@ -3,6 +3,7 @@
 import sys
 
 from ami.cli_components.text_input_utils import Colors, display_final_output
+from ami.cli_components.terminal.ansi import AnsiTerminal
 
 
 """
@@ -31,10 +32,9 @@ class EditorDisplay:
             # Use a safer clearing approach: move to bottom of previous display, then clear upward
             # This prevents cursor positioning issues during rapid updates
             for _ in range(self.previous_display_lines):
-                sys.stdout.write("\033[1A")  # Move cursor up one line
-                sys.stdout.write("\033[2K")  # Clear the entire line
-                sys.stdout.write("\033[1G")  # Move cursor to beginning of line (column 1)
-                sys.stdout.flush()
+                AnsiTerminal.move_up(1)
+                AnsiTerminal.clear_line()
+                AnsiTerminal.move_to_column(1)
 
         # Print a header with instructions (no borders) if show_help is True
         effective_width = 80  # Fixed to 80 characters wide
@@ -110,8 +110,7 @@ class EditorDisplay:
             sys.stdout.flush()
             # Clear each line completely
             for i in range(self.previous_display_lines):
-                sys.stdout.write("\033[2K")  # Clear the entire line
-                sys.stdout.flush()
+                AnsiTerminal.clear_line()
                 if i < self.previous_display_lines - 1:  # For all but the last line, move to beginning of next line
                     sys.stdout.write("\033[B\033[1G")  # Move cursor down to next line and to beginning of that line
                     sys.stdout.flush()
@@ -126,10 +125,9 @@ class EditorDisplay:
         if self.previous_display_lines > 0:
             # Use the same safer clearing approach as in display_editor
             for _ in range(self.previous_display_lines):
-                sys.stdout.write("\033[1A")  # Move cursor up one line
-                sys.stdout.write("\033[2K")  # Clear the entire line
-                sys.stdout.write("\033[1G")  # Move cursor to beginning of line (column 1)
-                sys.stdout.flush()
+                AnsiTerminal.move_up(1)
+                AnsiTerminal.clear_line()
+                AnsiTerminal.move_to_column(1)
 
         # Use the utility function to display final output
         display_final_output(lines, "❌ Message discarded")

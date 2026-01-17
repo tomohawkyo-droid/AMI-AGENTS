@@ -32,10 +32,10 @@ markers = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["agents*"]
+include = ["ami*"]
 
 [tool.setuptools.package-data]
-agents = ["**/*.yaml", "**/*.txt", "**/*.json", "config/**/*"]
+ami = ["**/*.yaml", "**/*.txt", "**/*.json", "config/**/*"]
 
 [project.optional-dependencies]
 dev = [

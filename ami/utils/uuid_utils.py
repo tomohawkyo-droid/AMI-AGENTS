@@ -42,20 +42,20 @@ def uuid7() -> str:
 
     # Combine all parts into a single 128-bit integer.
     # The fields are concatenated directly in order of significance:
-    # unixts_ms (48 bits) | rand_a (12 bits) | version (4 bits) | variant (2 bits) | rand_b (62 bits)
+    # unixts_ms (48 bits) | version (4 bits) | rand_a (12 bits) | variant (2 bits) | rand_b (62 bits)
     #
     # Bit positions (from MSB 127 down to LSB 0):
     # unixts_ms:   [127-80] (48 bits)
-    # rand_a:      [79-68]  (12 bits)
-    # version:     [67-64]  (4 bits, value 0x7)
+    # version:     [79-76]  (4 bits, value 0x7)
+    # rand_a:      [75-64]  (12 bits)
     # variant:     [63-62]  (2 bits, value 0x2 / binary 10)
     # rand_b:      [61-0]   (62 bits)
     #
-    # Total bits: 48 + 12 + 4 + 2 + 62 = 128 bits
+    # Total bits: 48 + 4 + 12 + 2 + 62 = 128 bits
 
     uuid_int = (unixts_ms << 80) | \
-               (rand_a << 68) | \
-               (version << 64) | \
+               (version << 76) | \
+               (rand_a << 64) | \
                (variant << 62) | \
                rand_b
 

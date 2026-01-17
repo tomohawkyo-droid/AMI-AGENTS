@@ -13,7 +13,7 @@ import yaml
 from ami.utils.process import ProcessExecutor
 from ami.utils.uuid_utils import uuid7
 from ami.core.models import AgentConfig
-from ami.cli.factory import get_agent_cli
+from ami.core.interfaces import AgentRuntimeProtocol
 from ami.cli.provider_type import ProviderType
 from ami.core.guards import check_command_safety
 from ami.core.env import setup_agent_env
@@ -30,13 +30,28 @@ class BootloaderAgent:
     
     MAX_LOOPS = 10
     
-    def __init__(self):
+    def __init__(self, runtime: Optional[AgentRuntimeProtocol] = None):
         self.project_root = PROJECT_ROOT
         self.prompt_template = self.project_root / "ami/config/prompts/bootloader_agent.txt"
         self.extensions_config = self.project_root / "ami/config/extensions.template.yaml"
+        self.runtime = runtime
         
         # Consolidated environment setup
         setup_agent_env()
+    
+    def _get_runtime(self, agent_config: Any) -> AgentRuntimeProtocol:
+        """Get the runtime, either injected or via factory if absolutely necessary.
+        
+        NOTE: Relying on factory here is a fallback to maintain backward compatibility
+        during refactoring. Injected runtime is preferred.
+        """
+        if self.runtime:
+            return self.runtime
+            
+        # Fallback to factory (this still causes circularity if we import it here)
+        # So we should ideally NOT have a fallback that imports factory.
+        # For now, we will raise an error if no runtime is provided.
+        raise RuntimeError("Agent runtime not provided to BootloaderAgent")
     
     def _get_banner(self) -> str:
         """Get environment context by sourcing .bashrc."""
@@ -217,12 +232,19 @@ class BootloaderAgent:
 
             # 1. Configure Agent
             # Note: We rely on global config default or override here.
-            # MinimalAgent forced QWEN. We will check env or default.
+            global_config = get_config()
+            provider_name = global_config.get("agent.provider", "claude")
+            try:
+                actual_provider = ProviderType(provider_name)
+            except ValueError:
+                actual_provider = ProviderType.CLAUDE
+
+            default_model = global_config.get_provider_default_model(actual_provider)
             
             config = AgentConfig(
-                model="qwen-coder", # Defaulting to qwen-coder as requested
+                model=global_config.get("agent.worker.model") or default_model,
                 session_id=current_session_id,
-                provider=ProviderType.QWEN, # Enforcing Qwen for now as per requirements
+                provider=actual_provider,
                 allowed_tools=current_allowed_tools,
                 enable_hooks=True,
                 enable_streaming=True,
@@ -231,12 +253,12 @@ class BootloaderAgent:
                 guard_rules_path=guard_rules_path
             )
             
-            # 2. Get CLI Instance
-            cli = get_agent_cli(config)
+            # 2. Get Runtime and Execute
+            runtime = self._get_runtime(config)
             
             try:
                 # 3. Execute Agent
-                output, metadata = cli.run_print(
+                output, metadata = runtime.run_print(
                     instruction=next_prompt,
                     agent_config=config,
                     cwd=self.project_root

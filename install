@@ -3,20 +3,11 @@ set -e
 
 echo "🚀 Installing AMI Agents..."
 
-# 1. Sync venv
-echo "📦 Syncing dependencies with uv..."
+# 1. Sync venv and install in editable mode
+echo "📦 Syncing dependencies and installing in editable mode..."
 uv sync
-
-# 1.5 Setup PYTHONPATH via .pth
-echo "🔗 Configuring python path..."
-VENV_SITE_PACKAGES=$(find .venv -name "site-packages" -type d | head -n 1)
-if [[ -n "$VENV_SITE_PACKAGES" ]]; then
-    echo "$PWD" > "$VENV_SITE_PACKAGES/ami.pth"
-    echo "✅ Linked project root to $VENV_SITE_PACKAGES/ami.pth"
-else
-    echo "❌ Could not find site-packages in .venv"
-    exit 1
-fi
+uv pip install -e .
+echo "✅ Package 'ami-agents' installed in editable mode"
 
 # 2. Setup configuration files
 # 2a. Automation Config

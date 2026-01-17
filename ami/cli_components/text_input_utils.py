@@ -8,6 +8,8 @@ import termios
 import tty
 
 
+from ami.cli_components.terminal.ansi import AnsiTerminal
+
 # ASCII control character codes
 ESC = 27  # Escape character (arrow keys prefix)
 
@@ -43,24 +45,24 @@ CONTROL_MAX = 31  # Last control character (0-31)
 
 # ANSI color codes
 class Colors:
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
-    REVERSE = "\033[7m"  # Inverted video (black on white background rectangle)
-    BLACK = "\033[30m"
-    RED = "\033[31m"
-    GREEN = "\033[32m"
-    YELLOW = "\033[33m"
-    BLUE = "\033[34m"
-    MAGENTA = "\033[35m"
-    CYAN = "\033[36m"
-    WHITE = "\033[37m"
-    BG_RED = "\033[41m"
-    BG_GREEN = "\033[42m"
-    BG_YELLOW = "\033[43m"
-    BG_BLUE = "\033[44m"
-    BG_MAGENTA = "\033[45m"
-    BG_CYAN = "\033[46m"
-    BG_WHITE = "\033[47m"
+    RESET = AnsiTerminal.RESET
+    BOLD = AnsiTerminal.BOLD
+    REVERSE = AnsiTerminal.REVERSE  # Inverted video (black on white background rectangle)
+    BLACK = AnsiTerminal.BLACK
+    RED = AnsiTerminal.RED
+    GREEN = AnsiTerminal.GREEN
+    YELLOW = AnsiTerminal.YELLOW
+    BLUE = AnsiTerminal.BLUE
+    MAGENTA = AnsiTerminal.MAGENTA
+    CYAN = AnsiTerminal.CYAN
+    WHITE = AnsiTerminal.WHITE
+    BG_RED = AnsiTerminal.BG_RED
+    BG_GREEN = AnsiTerminal.BG_GREEN
+    BG_YELLOW = AnsiTerminal.BG_YELLOW
+    BG_BLUE = AnsiTerminal.BG_BLUE
+    BG_MAGENTA = AnsiTerminal.BG_MAGENTA
+    BG_CYAN = AnsiTerminal.BG_CYAN
+    BG_WHITE = AnsiTerminal.BG_WHITE
 
 
 def getchar() -> str:

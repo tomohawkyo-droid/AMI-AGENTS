@@ -53,8 +53,6 @@ class AgentConfigPresets:
     @staticmethod
     def interactive(session_id: str | None = None, mcp_servers: dict[str, Any] | None = None) -> AgentConfig:
         """Interactive agent."""
-        from ami.core.config import get_config
-        
         provider, model = AgentConfigPresets._get_defaults("worker")
         config = get_config()
         guard_rules_path = config.root / "ami/config/policies/interactive.yaml"

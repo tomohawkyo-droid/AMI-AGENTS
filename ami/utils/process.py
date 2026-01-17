@@ -1,18 +1,19 @@
 """Process execution utilities for AMI Agents.
 
-Provides robust subprocess management using file-based I/O to avoid pipe buffer deadlocks.
+Provides robust subprocess management using memory-based pipes and selectors
+to avoid deadlocks and minimize disk I/O.
 """
 
 import os
-import shutil
+import selectors
 import subprocess
-import tempfile
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 
 class ProcessExecutor:
-    """Synchronous process executor using file-based I/O for robustness."""
+    """Synchronous process executor using memory-based pipes and selectors."""
 
     def __init__(self, work_dir: Optional[Path] = None):
         self.work_dir = work_dir or Path.cwd()
@@ -25,7 +26,7 @@ class ProcessExecutor:
         timeout: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
-        Run a command and capture output via temporary files.
+        Run a command and capture output via pipes.
 
         Args:
             command: Command string or list of arguments.
@@ -50,51 +51,77 @@ class ProcessExecutor:
         if env:
             run_env.update(env)
 
-        # Create temporary files for stdout/stderr
-        # Using tempfile.TemporaryFile is safer than managing paths manually
-        # as it handles cleanup automatically on close.
-        with tempfile.TemporaryFile(mode='w+') as stdout_f, \
-             tempfile.TemporaryFile(mode='w+') as stderr_f:
-            
-            try:
-                # Normalize command to list if string (shell=True handling)
-                shell_mode = isinstance(command, str)
-                
-                process = subprocess.Popen(
-                    command,
-                    cwd=str(cwd),
-                    env=run_env,
-                    stdout=stdout_f,
-                    stderr=stderr_f,
-                    shell=shell_mode,
-                    text=True
-                )
+        # Normalize command to list if string (shell=True handling)
+        shell_mode = isinstance(command, str)
+        
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=str(cwd),
+                env=run_env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=shell_mode,
+                text=True,
+                bufsize=1,  # Line buffered
+            )
 
-                try:
-                    process.wait(timeout=timeout)
-                except subprocess.TimeoutExpired:
+            stdout_data = []
+            stderr_data = []
+            
+            # Use selectors to read from both pipes concurrently without deadlocks
+            sel = selectors.DefaultSelector()
+            if process.stdout:
+                sel.register(process.stdout, selectors.EVENT_READ, stdout_data)
+            if process.stderr:
+                sel.register(process.stderr, selectors.EVENT_READ, stderr_data)
+
+            start_time = time.time()
+            while sel.get_map():
+                # Check timeout
+                if timeout is not None and (time.time() - start_time) > timeout:
                     process.kill()
                     process.wait()
+                    sel.close()
                     return {
-                        "stdout": self._read_file(stdout_f),
-                        "stderr": f"Process timed out after {timeout} seconds.\n" + self._read_file(stderr_f),
-                        "returncode": 124  # Standard timeout exit code
+                        "stdout": "".join(stdout_data).strip(),
+                        "stderr": f"Process timed out after {timeout} seconds.\n" + "".join(stderr_data).strip(),
+                        "returncode": 124
                     }
 
-                return {
-                    "stdout": self._read_file(stdout_f),
-                    "stderr": self._read_file(stderr_f),
-                    "returncode": process.returncode
-                }
+                # Wait for data with short timeout to allow loop to check process status
+                events = sel.select(timeout=0.1)
+                for key, _ in events:
+                    if hasattr(key.fileobj, 'readline'):
+                        # fileobj is a pipe (text mode)
+                        line = key.fileobj.readline()
+                        if line:
+                            key.data.append(line)
+                        else:
+                            # EOF
+                            sel.unregister(key.fileobj)
+                
+                # If no events but process finished, ensure we close pipes
+                if not events and process.poll() is not None:
+                    # Final drain
+                    for key in list(sel.get_map().values()):
+                        line = key.fileobj.read()
+                        if line:
+                            key.data.append(line)
+                        sel.unregister(key.fileobj)
+            
+            sel.close()
+            process.wait()
 
-            except Exception as e:
-                return {
-                    "stdout": "",
-                    "stderr": f"Execution failed: {str(e)}",
-                    "returncode": 1
-                }
+            return {
+                "stdout": "".join(stdout_data).strip(),
+                "stderr": "".join(stderr_data).strip(),
+                "returncode": process.returncode
+            }
 
-    def _read_file(self, f: Any) -> str:
-        """Read content from a temporary file object."""
-        f.seek(0)
-        return f.read().strip()
+        except Exception as e:
+            return {
+                "stdout": "",
+                "stderr": f"Execution failed: {str(e)}",
+                "returncode": 1
+            }
