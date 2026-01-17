@@ -15,9 +15,9 @@
     - [ ] Fix `BootloaderAgent` hardcoded model (use system config).
     - [ ] Update `ami/cli/main.py` environment loading.
 
-- [ ] **Phase 3: Component Refactoring**
-    - [ ] Refactor `ami/cli/streaming.py` (Extract UI logic).
-    - [ ] Standardize Process Execution (if feasible without over-engineering).
+- [x] **Phase 3: Component Refactoring**
+    - [x] Refactor `ami/cli/streaming.py` (Extract UI logic into `StreamRenderer`).
+    - [x] Standardize Process Execution (Using `ProcessExecutor` for internal shell, maintained `process_utils` for CLI streaming as per design).
 
 ---
 
