@@ -73,6 +73,7 @@ def get_unprivileged_env(config: Any) -> dict[str, str] | None:
         return env
     except KeyError:
         # Unprivileged user doesn't exist - return modified copy of current env
+        logger.warning(f"Unprivileged user '{unprivileged_user}' not found. Running as current user.")
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
         env["FORCE_COLOR"] = "1"

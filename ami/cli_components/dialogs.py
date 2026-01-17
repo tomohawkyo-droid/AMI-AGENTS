@@ -178,7 +178,7 @@ class ConfirmationDialog(BaseDialog):
 class SelectionDialog(BaseDialog):
     """Menu selection dialog."""
     
-    def __init__(self, items: List[Any], title: str = "Select", width: int = 80, multi: bool = False):
+    def __init__(self, items: List[Any], title: str = "Select", width: int = 80, multi: bool = False, max_height: int = 10):
         super().__init__(title, width)
         # Handle string items or objects with labels
         self.items = []
@@ -198,7 +198,7 @@ class SelectionDialog(BaseDialog):
         self.cursor = 0
         self.selected = set()
         self.scroll_offset = 0
-        self.max_height = 10
+        self.max_height = max_height
 
     def run(self) -> Union[Any, List[Any], None]:
         """Run loop. Returns selected value(s) or None."""

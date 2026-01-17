@@ -85,11 +85,6 @@ class TestProcessUtilsErrorConditions:
 class TestClaudeCLIErrorConditions:
     """Test error conditions in Claude CLI provider."""
 
-    def test_compute_disallowed_tools_invalid_tool(self):
-        """Test computing disallowed tools with invalid tool."""
-        with pytest.raises(ValueError):
-            ClaudeAgentCLI.compute_disallowed_tools(["InvalidTool"])
-
     def test_build_command_invalid_session_id(self):
         """Test building command with invalid session ID."""
         cli = ClaudeAgentCLI()
@@ -131,11 +126,6 @@ class TestClaudeCLIErrorConditions:
 
 class TestQwenCLIErrorConditions:
     """Test error conditions in Qwen CLI provider."""
-
-    def test_compute_disallowed_tools_invalid_tool(self):
-        """Test computing disallowed tools with invalid tool."""
-        with pytest.raises(ValueError):
-            QwenAgentCLI.compute_disallowed_tools(["InvalidTool"])
 
     def test_parse_stream_message_empty_line(self):
         """Test parsing empty line."""

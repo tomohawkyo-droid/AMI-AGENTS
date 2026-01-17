@@ -26,9 +26,7 @@ class MenuSelector:
         allow_multiple: bool = False,
         max_visible_items: int = 10
     ):
-        self.dialog = SelectionDialog(items, title, width=80, multi=allow_multiple)
-        # SelectionDialog hardcodes max_height to 10 currently, but we could make it configurable
-        self.dialog.max_height = max_visible_items
+        self.dialog = SelectionDialog(items, title, width=80, multi=allow_multiple, max_height=max_visible_items)
     
     def run(self) -> Optional[List[MenuItem]]:
         """Run the menu selector and return selected items."""

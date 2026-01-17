@@ -8,6 +8,9 @@ from datetime import datetime
 from pathlib import Path
 
 
+from ami.core.config import get_config
+
+
 def calculate_timeout(base_timeout: int | float | None, line_count: int) -> float:
     """Calculate timeout for the next streaming line.
 
@@ -46,7 +49,8 @@ def load_instruction_with_replacements(instruction_file: Path) -> str:
 
     # Replace patterns templates if they exist
     if "{PATTERNS}" in content:
-        patterns_file = instruction_file.parent / "patterns_core.txt"
+        config = get_config()
+        patterns_file = config.root / "ami/config/prompts/patterns_core.txt"
         if patterns_file.exists():
             patterns_content = patterns_file.read_text()
             content = content.replace("{PATTERNS}", patterns_content)

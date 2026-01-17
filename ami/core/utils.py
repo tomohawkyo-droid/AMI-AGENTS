@@ -6,10 +6,6 @@ Now leverages consolidated logic from logic.py.
 from pathlib import Path
 from typing import Any
 
-from ami.core.logic import (
-    parse_json_block
-)
-
 
 def detect_language(file_path: Path) -> str | None:
     """Detect language from file extension."""

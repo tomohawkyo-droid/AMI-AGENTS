@@ -23,37 +23,6 @@ class TestQwenAgentCLI:
         assert "edit" in QwenAgentCLI.ALL_TOOLS
         assert "run_shell_command" in QwenAgentCLI.ALL_TOOLS
 
-    def test_compute_disallowed_tools_none(self):
-        """compute_disallowed_tools(None) returns []."""
-        result = QwenAgentCLI.compute_disallowed_tools(None)
-
-        assert result == []
-
-    def test_compute_disallowed_tools_complement(self):
-        """compute_disallowed_tools() returns complement."""
-        allowed = ["read_file", "write_file"]
-        result = QwenAgentCLI.compute_disallowed_tools(allowed)
-
-        # Should not contain allowed tools
-        assert "read_file" not in result
-        assert "write_file" not in result
-        # Should contain other tools
-        assert "edit" in result or "run_shell_command" in result
-
-    def test_compute_disallowed_tools_unknown_tool(self):
-        """compute_disallowed_tools() raises on unknown tool."""
-        with pytest.raises(ValueError) as exc_info:
-            QwenAgentCLI.compute_disallowed_tools(["UnknownTool"])
-
-        assert "unknown" in str(exc_info.value).lower()
-
-    def test_compute_disallowed_tools_sorted(self):
-        """compute_disallowed_tools() returns sorted list."""
-        result = QwenAgentCLI.compute_disallowed_tools(["edit"])
-
-        # Should be sorted
-        assert result == sorted(result)
-
     def test_get_default_config(self):
         """_get_default_config() returns proper default config."""
         cli = QwenAgentCLI()

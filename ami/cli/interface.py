@@ -20,7 +20,7 @@ class AgentCLI(ABC):
         session_id: str | None = None,
         mcp_servers: dict[str, Any] | None = None,
     ) -> tuple[str, dict[str, Any] | None]:
-        """Run agent interactively with Claude Code CLI.
+        """Run agent interactively with CLI.
 
         Args:
             instruction: Natural language instruction for the agent
@@ -45,7 +45,7 @@ class AgentCLI(ABC):
         stdin: str | None = None,
         audit_log_path: Path | None = None,
     ) -> tuple[str, dict[str, Any] | None]:
-        """Run agent in print mode with Claude Code CLI.
+        """Run agent in print mode with CLI.
 
         Args:
             instruction: Natural language instruction for the agent (or use instruction_file)

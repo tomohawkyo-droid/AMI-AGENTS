@@ -49,33 +49,6 @@ class ClaudeAgentCLI(BaseProvider, AgentCLI):
         """Initialize ClaudeAgentCLI."""
         self.current_process: subprocess.Popen[str] | None = None
 
-    @staticmethod
-    def compute_disallowed_tools(allowed_tools: list[str] | None) -> list[str]:
-        """Compute disallowed tools from allowed tools.
-
-        Args:
-            allowed_tools: List of allowed tools, or None for all tools allowed
-
-        Returns:
-            List of disallowed tools (complement of allowed tools)
-
-        Raises:
-            ValueError: If any tool in allowed_tools is not in ALL_TOOLS
-        """
-        if allowed_tools is None:
-            return []  # All tools allowed, no disallowed tools
-
-        # Validate that all allowed tools are in ALL_TOOLS
-        allowed_set = set(allowed_tools)
-        all_tools_set = ClaudeAgentCLI.ALL_TOOLS
-        unknown_tools = allowed_set - all_tools_set
-        if unknown_tools:
-            raise ValueError(f"Unknown tools in allowed_tools: {unknown_tools}")
-
-        # Compute complement
-        disallowed = [tool for tool in all_tools_set if tool not in allowed_set]
-        return sorted(disallowed)  # Return sorted to maintain consistent order
-
     def _get_default_config(self) -> AgentConfig:
         """Get default agent configuration.
 
@@ -173,15 +146,9 @@ class ClaudeAgentCLI(BaseProvider, AgentCLI):
                 # This allows for test scenarios with non-UUID session IDs
                 pass
 
-        # Handle allowed/disallowed tools (Claude CLI uses --allowed-tools or --disallowed-tools)
+        # Use allowlist approach for security (Fail Closed)
         if config.allowed_tools is not None:
-            # Add disallowed tools flags
-            disallowed = self.compute_disallowed_tools(config.allowed_tools)
-            if disallowed:
-                cmd.extend(["--disallowed-tools"] + disallowed)
-        else:
-            # All tools allowed by default
-            pass
+            cmd.extend(["--allowed-tools"] + config.allowed_tools)
 
         # Add timeout handling
         # Claude CLI doesn't support --timeout flag directly

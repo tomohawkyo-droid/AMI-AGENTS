@@ -131,7 +131,7 @@ class BootloaderAgent:
             
             # Helper to strip ANSI codes
             def strip_ansi(text):
-                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|[[0-?]*[ -/]*[@-~])')
+                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
                 return ansi_escape.sub('', text)
 
             # Minimal formatting with newline before block

@@ -47,33 +47,6 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
         """Initialize QwenAgentCLI."""
         super().__init__()  # Initialize parent class
 
-    @staticmethod
-    def compute_disallowed_tools(allowed_tools: list[str] | None) -> list[str]:
-        """Compute disallowed tools from allowed tools.
-
-        Args:
-            allowed_tools: List of allowed tools, or None for all tools allowed
-
-        Returns:
-            List of disallowed tools (complement of allowed tools)
-
-        Raises:
-            ValueError: If any tool in allowed_tools is not in ALL_TOOLS
-        """
-        if allowed_tools is None:
-            return []  # All tools allowed, no disallowed tools
-
-        # Validate that all allowed tools are in ALL_TOOLS
-        allowed_set = set(allowed_tools)
-        all_tools_set = QwenAgentCLI.ALL_TOOLS
-        unknown_tools = allowed_set - all_tools_set
-        if unknown_tools:
-            raise ValueError(f"Unknown tools in allowed_tools: {unknown_tools}")
-
-        # Compute complement
-        disallowed = [tool for tool in all_tools_set if tool not in allowed_set]
-        return sorted(disallowed)  # Return sorted to maintain consistent order
-
     def _get_default_config(self) -> AgentConfig:
         """Get default agent configuration.
 
@@ -152,14 +125,9 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
         if config.session_id and str(config.session_id).strip():
             cmd.extend(["--resume", str(config.session_id)])
 
-        # Handle allowed/disallowed tools
+        # Use allowlist approach for security (Fail Closed)
         if config.allowed_tools is not None:
-            if config.allowed_tools:
-                cmd.extend(["--allowed-tools"] + config.allowed_tools)
-            
-            disallowed = self.compute_disallowed_tools(config.allowed_tools)
-            if disallowed:
-                cmd.extend(["--exclude-tools"] + disallowed)
+            cmd.extend(["--allowed-tools"] + config.allowed_tools)
 
         # Add streaming flag if enabled
         if config.enable_streaming:
@@ -233,15 +201,6 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
                 elif msg_type == "assistant":
                     # Full message at end (sometimes sent as type=assistant)
                     # Extract text from content list
-                    content = data.get("message", {}).get("content", [])
-                    text_parts = []
-                    if isinstance(content, list):
-                        for part in content:
-                            if part.get("type") == "text":
-                                text_parts.append(part.get("text", ""))
-                    # Only return this if we haven't been streaming (to avoid double print)
-                    # But usually we rely on deltas.
-                    # output_text = "".join(text_parts) 
                     pass
                 
                 elif msg_type == "system" and data.get("subtype") == "init":

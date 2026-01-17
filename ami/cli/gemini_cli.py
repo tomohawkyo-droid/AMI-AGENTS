@@ -35,16 +35,6 @@ class GeminiAgentCLI(BaseProvider, AgentCLI):
         """Initialize GeminiAgentCLI."""
         super().__init__()
 
-    @staticmethod
-    def compute_disallowed_tools(allowed_tools: list[str] | None) -> list[str]:
-        """Compute disallowed tools."""
-        if allowed_tools is None:
-            return []
-        allowed_set = set(allowed_tools)
-        all_tools_set = GeminiAgentCLI.ALL_TOOLS
-        disallowed = [tool for tool in all_tools_set if tool not in allowed_set]
-        return sorted(disallowed)
-
     def _get_default_config(self) -> AgentConfig:
         """Get default agent configuration."""
         return AgentConfig(

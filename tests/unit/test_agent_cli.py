@@ -110,38 +110,6 @@ class TestClaudeAgentCLI:
         assert "Write" in ClaudeAgentCLI.ALL_TOOLS
         assert "WebSearch" in ClaudeAgentCLI.ALL_TOOLS
 
-    def test_compute_disallowed_tools_none(self):
-        """compute_disallowed_tools(None) returns []."""
-        result = ClaudeAgentCLI.compute_disallowed_tools(None)
-
-        assert result == []
-
-    def test_compute_disallowed_tools_complement(self):
-        """compute_disallowed_tools() returns complement."""
-        allowed = ["WebSearch", "WebFetch"]
-        result = ClaudeAgentCLI.compute_disallowed_tools(allowed)
-
-        # Should have 13 tools (15 - 2)
-        assert len(result) == TOOLS_WITHOUT_WEB_COUNT
-        assert "WebSearch" not in result
-        assert "WebFetch" not in result
-        assert "Bash" in result
-        assert "Read" in result
-
-    def test_compute_disallowed_tools_unknown_tool(self):
-        """compute_disallowed_tools() raises on unknown tool."""
-        with pytest.raises(ValueError) as exc_info:
-            ClaudeAgentCLI.compute_disallowed_tools(["UnknownTool"])
-
-        assert "unknown" in str(exc_info.value).lower()
-
-    def test_compute_disallowed_tools_sorted(self):
-        """compute_disallowed_tools() returns sorted list."""
-        result = ClaudeAgentCLI.compute_disallowed_tools(["Bash"])
-
-        # Should be sorted
-        assert result == sorted(result)
-
     def test_load_instruction_from_file(self):
         """load_instruction_with_replacements() reads file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:

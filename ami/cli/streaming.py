@@ -247,66 +247,8 @@ def execute_streaming(
     parse_stream_callback: Callable[..., Any] | None = None,  # Optional callback for parsing stream messages
 ) -> tuple[str, dict[str, Any] | None]:
     """Execute CLI command in streaming mode."""
-    if stdin_data is not None:
-        return _execute_with_stdin(cmd, stdin_data, cwd, agent_config, config)
+    # Always use streaming execution, even with stdin
     return _execute_with_streaming(cmd, stdin_data, cwd, agent_config, config, parse_stream_callback)
-
-
-def _execute_with_stdin(
-    cmd: list[str], stdin_data: str, cwd: Path | None, agent_config: AgentConfigProtocol | None, config: Any
-) -> tuple[str, dict[str, Any] | None]:
-    """Execute command with stdin data provided upfront."""
-    # Get unprivileged environment
-    if config is None:
-        config = get_config()
-    env = get_unprivileged_env(config)
-    if env is None:
-        env = os.environ.copy()
-
-    # Run the process with communicate to provide stdin data
-    start_time = time.time()
-    try:
-        _validate_command(cmd)
-
-        # Security review: Command validation already performed above (lines 329-337)
-        # The cmd list is validated to be a list of strings with proper path checks
-        result = subprocess.run(
-            cmd,
-            check=False,
-            input=stdin_data,
-            capture_output=True,
-            text=True,
-            cwd=cwd,
-            env=env,
-            timeout=agent_config.timeout if agent_config and agent_config.timeout else None,
-        )
-
-        duration = time.time() - start_time
-
-        if result.returncode != 0:
-            raise AgentExecutionError(result.returncode, result.stdout, result.stderr, cmd)
-
-        # Log completion
-        logger.info(
-            "agent_completed",
-            session_id=agent_config.session_id if agent_config else "unknown",
-            duration=duration,
-            exit_code=result.returncode,
-        )
-
-        # Return output and basic metadata
-        metadata: dict[str, Any] = {
-            "session_id": agent_config.session_id if agent_config else "unknown",
-            "duration": duration,
-            "exit_code": result.returncode,
-        }
-        return result.stdout, metadata
-
-    except subprocess.TimeoutExpired as e:
-        timeout = agent_config.timeout if agent_config and agent_config.timeout else 0
-        raise AgentTimeoutError(timeout, cmd, e.timeout) from e
-    except FileNotFoundError:
-        raise AgentCommandNotFoundError(cmd[0]) from None
 
 
 def _execute_with_streaming(
@@ -318,8 +260,16 @@ def _execute_with_streaming(
     parse_stream_callback: Callable[..., Any] | None,
 ) -> tuple[str, dict[str, Any] | None]:
     """Execute command in streaming mode."""
-    # For no stdin, use the original streaming approach
+    # Start process with piped stdin/stdout/stderr
     process = start_streaming_process(cmd, stdin_data, cwd, config)
+    
+    # Write stdin data if provided
+    if stdin_data is not None and process.stdin:
+        process.stdin.write(stdin_data)
+        process.stdin.flush()
+        process.stdin.close()
+        process.stdin = None  # Prevent communicate() from trying to use it again
+
     start_time = time.time()
 
     try:

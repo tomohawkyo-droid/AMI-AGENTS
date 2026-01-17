@@ -94,7 +94,7 @@ def read_streaming_line(
     try:
         rlist = [process.stdout]
         # Only check stdin if requested and it is a TTY
-        if check_stdin and sys.stdin.isatty():
+        if check_stdin and not sys.stdin.closed and sys.stdin.isatty():
             rlist.append(sys.stdin)
 
         # Wait for data to be available with timeout
@@ -240,7 +240,6 @@ def handle_process_completion(
         raise AgentExecutionError(process.returncode, stdout, stderr, cmd) from None
 
     # Log completion
-
     logger.info(
         "agent_completed",
         session_id=session_id,
