@@ -13,7 +13,6 @@ from ami.cli.factory import get_agent_cli
 from ami.cli.mode_handlers import mode_interactive_editor, mode_query
 from ami.cli.provider_type import ProviderType
 from ami.cli.qwen_cli import QwenAgentCLI
-from ami.cli.streaming import run_streaming_loop_with_display
 from ami.cli.timer_utils import TimerDisplay, wrap_text_in_box
 from ami.cli_components.text_editor import TextEditor
 
@@ -60,18 +59,18 @@ class TestModeHandlersIntegration:
     """Integration tests for mode handlers."""
 
     @patch("ami.cli.mode_handlers.TextEditor")
-    @patch("ami.cli.mode_handlers.BootloaderAgent")
-    def test_mode_interactive_editor_end_to_end(self, mock_agent_class, mock_text_editor):
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    def test_mode_interactive_editor_end_to_end(self, mock_create_bootloader, mock_text_editor):
         """End-to-end test of interactive editor mode."""
         # Mock the text editor to return content then None to exit loop
         mock_editor = Mock()
         mock_editor.run.side_effect = ["Hello!", None]
         mock_text_editor.return_value = mock_editor
 
-        # Mock the BootloaderAgent
+        # Mock the BootloaderAgent returned by factory
         mock_agent = Mock()
         mock_agent.run.return_value = ("Response", "session-id")
-        mock_agent_class.return_value = mock_agent
+        mock_create_bootloader.return_value = mock_agent
 
         # Call the mode handler
         result = mode_interactive_editor()

@@ -18,6 +18,7 @@ This session successfully remediated critical architectural debt within the `ami
 
 ### 3. Circular Dependency Resolution (COMPLETED)
 *   **Action:** Defined `AgentRuntimeProtocol` and refactored `BootloaderAgent` to use dependency injection.
+*   **Factory Pattern:** Implemented `AgentFactory` to centralize agent instantiation and wiring.
 *   **Result:** Broken the cyclic dependency between core logic and the CLI factory.
 
 ### 4. Config-Driven Authority (COMPLETED)
@@ -34,6 +35,11 @@ This session successfully remediated critical architectural debt within the `ami
 
 ### 7. UUID Correctness (COMPLETED)
 *   **Action:** Fixed bit-shifting in UUIDv7 and added verification tests.
+
+### 8. Test Suite Overhaul (COMPLETED)
+*   **Audit:** Removed obsolete tests (`test_ami_agent_edge_cases_part1.py`) and fixed integration tests broken by refactoring.
+*   **New Tests:** Added comprehensive unit tests for `StreamProcessor`, `PolicyEngine`, and `AgentFactory`.
+*   **Verification:** All 100+ unit and integration tests are passing.
 
 ## Remaining Debt (Outside Workspace)
 1.  **External Scripts:** `scripts/run_tests.py` and others still contain `sys.path` hacks. These cannot be refactored without write access to the repository root.
