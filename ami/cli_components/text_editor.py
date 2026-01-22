@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import sys
+
 from ami.cli_components.cursor_manager import CursorManager
 from ami.cli_components.editor_display import EditorDisplay
 from ami.cli_components.text_input_utils import read_key_sequence, Colors, BRACKETED_PASTE_ENABLE, BRACKETED_PASTE_DISABLE
