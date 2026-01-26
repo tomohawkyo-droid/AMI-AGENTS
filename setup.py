@@ -27,13 +27,9 @@ setup(
     package_data={
         "ami": [
             "res/config/*.toml",
-            "res/config/**/*.toml",  # Include nested config files
-            "res/config/**/*.txt",  # Include requirements files
-            "config/**/*.yaml",  # Include other config files
-            "config/**/*.txt",  # Include other config files
-            "**/*.yaml",  # Include all YAML files
-            "**/*.txt",  # Include all TXT files
-            "**/*.json",  # Include all JSON files
+            "res/config/*.yaml",
+            "res/config/vendor/*.toml",
+            "res/config/vendor/*.txt",
         ]
     },
     include_package_data=True,

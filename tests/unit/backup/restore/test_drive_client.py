@@ -40,7 +40,7 @@ class TestDriveRestoreClient:
         # Verify it's cached
         assert client._service == mock_service
 
-    @patch("scripts.backup.restore.drive_client.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     def test_list_backup_files_success(self, mock_build, mock_loop):
         """Test successful listing of backup files."""
@@ -106,7 +106,7 @@ class TestDriveRestoreClient:
         assert "ami-orchestrator-backup.tar.zst" in call_args["q"]
         assert "test_folder_id" in call_args["q"]
 
-    @patch("scripts.backup.restore.drive_client.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     def test_list_backup_files_no_files(self, mock_build, mock_loop):
         """Test listing backup files when no files exist."""
@@ -149,7 +149,7 @@ class TestDriveRestoreClient:
         # Verify results
         assert result == []  # Empty list
 
-    @patch("scripts.backup.restore.drive_client.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     @patch("builtins.open")
     def test_download_file_success(self, mock_open_func, mock_build, mock_loop):
@@ -216,7 +216,7 @@ class TestDriveRestoreClient:
             mock_open_func.assert_called_once_with(destination, "wb")
             mock_downloader.assert_called_once()  # Called for download
 
-    @patch("scripts.backup.restore.drive_client.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     def test_get_file_metadata_success(self, mock_build, mock_loop):
         """Test getting file metadata successfully."""
@@ -265,7 +265,7 @@ class TestDriveRestoreClient:
         # Verify results
         assert result == expected_metadata
 
-    @patch("scripts.backup.restore.drive_client.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     def test_verify_backup_exists_success(self, mock_build, mock_loop):
         """Test verifying backup exists when it does."""

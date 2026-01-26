@@ -14,27 +14,22 @@ from ami.cli_components.text_editor import TextEditor
 class TestMainIntegration:
     """Integration tests for main entry point."""
 
-    @patch("sys.argv", ["ami-agent", "--interactive-editor"])
-    @patch("sys.exit")
-    @patch("ami.cli.mode_handlers.mode_interactive_editor", return_value=0)
-    def test_main_with_interactive_editor_arg(self, mock_mode_handler, mock_exit):
+    @patch("ami.cli.main.mode_interactive_editor", return_value=0)
+    def test_main_with_interactive_editor_arg(self, mock_mode_handler):
         """Test main function with --interactive-editor argument."""
-        # Mock sys.argv
         with patch("sys.argv", ["ami-agent", "--interactive-editor"]):
-            cli_main()
+            result = cli_main()
 
-            mock_exit.assert_called_once()
+            assert result == 0
             mock_mode_handler.assert_called_once()
 
-    @patch("sys.argv", ["ami-agent", "--query", "test query"])
-    @patch("sys.exit")
-    @patch("ami.cli.mode_handlers.mode_query", return_value=0)
-    def test_main_with_query_arg(self, mock_mode_handler, mock_exit):
+    @patch("ami.cli.main.mode_query", return_value=0)
+    def test_main_with_query_arg(self, mock_mode_handler):
         """Test main function with --query argument."""
         with patch("sys.argv", ["ami-agent", "--query", "test query"]):
-            cli_main()
+            result = cli_main()
 
-            mock_exit.assert_called_once()
+            assert result == 0
             mock_mode_handler.assert_called_once()
 
 

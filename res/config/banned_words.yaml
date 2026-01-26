@@ -192,6 +192,7 @@ filename_rules:
     reason: "No backup extensions. Use git."
 
 ignored_files:
+  - "res/config/banned_words.yaml"
   - "ami/config/patterns/banned_words.yaml"
   - "CLAUDE.md"
   - "AGENTS.md"

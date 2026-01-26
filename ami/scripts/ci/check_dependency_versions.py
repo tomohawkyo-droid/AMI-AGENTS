@@ -5,7 +5,7 @@ Ensures that:
 1. Common dependencies are in pyproject.base.toml.
 2. Hardware-specific dependencies (torch, etc.) are NOT in base.toml.
 3. pyproject.toml contains all dependencies from pyproject.base.toml (ignoring vendor markers).
-Configuration loaded from res/config/dependency_check.yaml
+Configuration loaded from res/config/dependency_check.yaml via ami.config_utils
 """
 
 import sys
@@ -15,6 +15,8 @@ from typing import Any
 
 import yaml
 
+from ami.config_utils import get_config_path
+
 DEFAULT_CONFIG = {
     "base_toml_path": "res/config/pyproject.base.toml",
     "generated_toml_path": "pyproject.toml",
@@ -22,9 +24,13 @@ DEFAULT_CONFIG = {
 }
 
 
-def load_config(config_path: str = "res/config/dependency_check.yaml") -> Any:
-    if Path(config_path).exists():
-        with open(config_path) as f:
+def load_config(config_path: str | None = None) -> Any:
+    if config_path is None:
+        config_file = get_config_path("dependency_check.yaml")
+    else:
+        config_file = Path(config_path)
+    if config_file.exists():
+        with open(config_file) as f:
             return yaml.safe_load(f)
     return DEFAULT_CONFIG
 

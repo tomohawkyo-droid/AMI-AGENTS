@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from ami.core.bootloader_agent import BootloaderAgent, RunContext
+from ami.types.api import ProviderMetadata
 
 
 class TestBootloaderAgent:
@@ -72,7 +73,7 @@ class TestBootloaderAgent:
         """run() initiates new session if none provided."""
         mock_runtime.run_print.return_value = (
             "Agent response",
-            {"session_id": "new-uuid"},
+            ProviderMetadata(session_id="new-uuid"),
         )
 
         ctx = RunContext(instruction="Hello")
@@ -88,7 +89,7 @@ class TestBootloaderAgent:
 
     def test_run_resume_session(self, mock_runtime, agent):
         """run() uses existing session if provided."""
-        mock_runtime.run_print.return_value = ("Resumed response", {})
+        mock_runtime.run_print.return_value = ("Resumed response", ProviderMetadata())
 
         ctx = RunContext(instruction="Continue", session_id="existing-uuid")
         response, session_id = agent.run(ctx)

@@ -9,7 +9,7 @@ from ami.scripts.backup.restore import extractor
 class TestArchiveExtractor:
     """Unit tests for the archive extraction functions."""
 
-    @patch("scripts.backup.restore.extractor.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.restore.extractor.asyncio.get_event_loop")
     async def test_extract_specific_paths_executor_call(self, mock_loop):
         """Test that extract_specific_paths calls run_in_executor."""
         loop_instance = MagicMock()
@@ -26,8 +26,8 @@ class TestArchiveExtractor:
 
         loop_instance.run_in_executor.assert_called_once()
 
-    @patch("scripts.backup.restore.extractor.zstd")
-    @patch("scripts.backup.restore.extractor.tarfile")
+    @patch("ami.scripts.backup.restore.extractor.zstd")
+    @patch("ami.scripts.backup.restore.extractor.tarfile")
     @patch("builtins.open", new_callable=mock_open)
     def test_extract_specific_paths_sync_logic(
         self,
@@ -71,8 +71,8 @@ class TestArchiveExtractor:
             assert result is True
             mock_tar.extractall.assert_called_once()
 
-    @patch("scripts.backup.restore.extractor.zstd")
-    @patch("scripts.backup.restore.extractor.tarfile")
+    @patch("ami.scripts.backup.restore.extractor.zstd")
+    @patch("ami.scripts.backup.restore.extractor.tarfile")
     @patch("builtins.open", new_callable=mock_open)
     @patch("pathlib.Path.exists")
     def test_list_archive_contents_sync(

@@ -76,15 +76,20 @@ async def test_full_restore_workflow():
         assert success is True
 
         # 4. Verification
+        # Note: Archive preserves the root directory name ("original") in paths
         print("[Test] Verifying restored files...")
-        assert (restore_dir / "file1.txt").exists()
-        assert (restore_dir / "file1.txt").read_text() == "content 1"
+        assert (restore_dir / "original" / "file1.txt").exists()
+        assert (restore_dir / "original" / "file1.txt").read_text() == "content 1"
 
-        assert (restore_dir / "subdir" / "file2.txt").exists()
-        assert (restore_dir / "subdir" / "file2.txt").read_text() == "content 2"
+        assert (restore_dir / "original" / "subdir" / "file2.txt").exists()
+        assert (
+            restore_dir / "original" / "subdir" / "file2.txt"
+        ).read_text() == "content 2"
 
-        assert (restore_dir / "data.bin").exists()
-        assert (restore_dir / "data.bin").stat().st_size == EXPECTED_BINARY_FILE_SIZE
+        assert (restore_dir / "original" / "data.bin").exists()
+        assert (
+            restore_dir / "original" / "data.bin"
+        ).stat().st_size == EXPECTED_BINARY_FILE_SIZE
 
         print("[Test] Restore verification successful!")
 

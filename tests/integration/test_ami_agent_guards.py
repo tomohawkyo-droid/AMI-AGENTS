@@ -61,9 +61,7 @@ def test_static_command_guard_allows_whitelisted_commands(
 
         script = f"sed -i 's/hello/world/' {test_file}"
 
-        with patch(
-            "base.backend.workers.file_subprocess.FileSubprocessSync.run"
-        ) as mock_run:
+        with patch("ami.utils.process.ProcessExecutor.run") as mock_run:
             mock_run.return_value = {"stdout": "", "stderr": "", "returncode": 0}
 
             # Pass the interactive rules path
@@ -82,9 +80,7 @@ def test_interactive_mode_awk_allowed(agent_fixture, interactive_guard_rules):
     """Verify specifically that AWK is allowed."""
     script = "echo '1 2' | awk '{print $2}'"
 
-    with patch(
-        "base.backend.workers.file_subprocess.FileSubprocessSync.run"
-    ) as mock_run:
+    with patch("ami.utils.process.ProcessExecutor.run") as mock_run:
         mock_run.return_value = {"stdout": "2", "stderr": "", "returncode": 0}
 
         result = agent_fixture.execute_shell(

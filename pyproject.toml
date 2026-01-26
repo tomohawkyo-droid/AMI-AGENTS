@@ -55,6 +55,7 @@ include = ["ami*"]
 [tool.setuptools.package-data]
 ami = [
     "res/config/*.toml",
+    "res/config/*.yaml",
     "res/config/vendor/*.toml",
     "res/config/vendor/*.txt"
 ]

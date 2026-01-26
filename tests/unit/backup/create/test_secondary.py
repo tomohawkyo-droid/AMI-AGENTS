@@ -10,8 +10,8 @@ from ami.scripts.backup.create import secondary
 class TestSecondaryBackup:
     """Unit tests for the secondary backup functions."""
 
-    @patch("scripts.backup.create.secondary._get_secondary_locations")
-    @patch("scripts.backup.create.secondary._is_backup_location_available")
+    @patch("ami.scripts.backup.create.secondary._get_secondary_locations")
+    @patch("ami.scripts.backup.create.secondary._is_backup_location_available")
     @patch("shutil.copy2")
     @patch.object(Path, "exists")
     def test_copy_to_secondary_backup_success(
@@ -31,8 +31,8 @@ class TestSecondaryBackup:
         assert result is True
         mock_copy.assert_called_once_with(str(zip_path), str(location / zip_path.name))
 
-    @patch("scripts.backup.create.secondary._get_secondary_locations")
-    @patch("scripts.backup.create.secondary._is_backup_location_available")
+    @patch("ami.scripts.backup.create.secondary._get_secondary_locations")
+    @patch("ami.scripts.backup.create.secondary._is_backup_location_available")
     @patch.object(Path, "exists")
     def test_copy_to_secondary_backup_no_locations(
         self, mock_exists, mock_available, mock_locations

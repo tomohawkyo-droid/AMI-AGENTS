@@ -2,7 +2,7 @@
 """
 Enforces banned word/pattern policies across the codebase.
 
-Configuration is loaded from ami/config/patterns/banned_words.yaml (v3.0.0 format):
+Configuration is loaded from res/config/banned_words.yaml (v3.0.0 format):
 - banned: list of {pattern, reason, exception_regex?}
 - directory_rules: dict of directory -> list of {pattern, reason, exception_regex?}
 - filename_rules: list of {pattern, reason}
@@ -18,7 +18,7 @@ from typing import TypedDict, cast
 
 import yaml
 
-CONFIG_PATH = "ami/config/patterns/banned_words.yaml"
+CONFIG_PATH = "res/config/banned_words.yaml"
 
 # Directories to always ignore
 IGNORE_DIRS = {

@@ -3,20 +3,18 @@
 Provides Pydantic models for agent configuration, replacing dataclasses.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from ami.types.api import MCPServerConfig
-
-if TYPE_CHECKING:
-    from ami.types.events import StreamEvent
-
+from ami.types.events import StreamEvent
 
 # Type alias for stream callbacks
-StreamCallback = Callable[["StreamEvent"], None] | None
+StreamCallback = Callable[[StreamEvent], None] | None
 
 
 class AgentConfig(BaseModel):

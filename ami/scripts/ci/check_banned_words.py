@@ -1,162 +1,297 @@
 #!/usr/bin/env python3
+"""
+Enforces banned word/pattern policies across the codebase.
+
+Configuration is loaded from res/config/banned_words.yaml (v3.0.0 format):
+- banned: list of {pattern, reason, exception_regex?}
+- directory_rules: dict of directory -> list of {pattern, reason, exception_regex?}
+- filename_rules: list of {pattern, reason}
+- ignored_files: files to skip during scanning
+"""
+
+import contextlib
 import os
 import re
 import sys
-from typing import TypedDict
+from pathlib import Path
+from typing import TypedDict, cast
 
 import yaml
 
+CONFIG_PATH = "res/config/banned_words.yaml"
 
-class BannedConfig(TypedDict, total=False):
-    """Configuration for banned words."""
+# Directories to always ignore
+IGNORE_DIRS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "dist",
+    "build",
+    "checkpoints",
+    "logs",
+    "results",
+    "mlruns",
+    ".gemini",
+    "rocm_artifacts",
+    "tmp",
+    "projects",
+    ".boot-linux",
+    ".boot-macos",
+    ".gcloud",
+    ".cache",
+    ".local",
+    "venv",
+    "env",
+    ".env",
+    "site-packages",
+    "vendor",
+    ".tox",
+    ".nox",
+    "htmlcov",
+    ".coverage",
+    "eggs",
+    ".eggs",
+}
 
-    banned: list[dict[str, str]]
-    dir_rules: list[dict[str, str | list[dict[str, str]]]]
-    filename_rules: list[dict[str, str | list[dict[str, str]]]]
+# File extensions to check
+INCLUDE_EXTENSIONS = {".py", ".js", ".ts"}
 
 
-class ViolationRecord(TypedDict):
-    """Record of a banned pattern violation."""
+class PatternConfig(TypedDict, total=False):
+    """Configuration for a single pattern rule."""
 
-    file: str
-    line: int
     pattern: str
     reason: str
-    text: str
+    exception_regex: str
 
 
-def load_banned_config(
-    config_path: str = "res/config/banned_words.yaml",
-) -> BannedConfig:
-    if not os.path.exists(config_path):
-        print(f"Error: Configuration file {config_path} not found.")
+class BannedWordsConfig(TypedDict, total=False):
+    """Configuration for banned words checking."""
+
+    banned: list[PatternConfig]
+    directory_rules: dict[str, list[PatternConfig]]
+    filename_rules: list[PatternConfig]
+    ignored_files: list[str]
+
+
+class PatternRule:
+    """A single pattern rule with reason and optional exception."""
+
+    def __init__(self, config: PatternConfig):
+        self.pattern = config["pattern"]
+        self.reason = config["reason"]
+        self.exception_regex = config.get("exception_regex")
+
+        # Pre-compile main pattern
+        try:
+            self._compiled: re.Pattern[str] | None = re.compile(self.pattern)
+        except re.error:
+            self._compiled = None
+
+        # Pre-compile exception pattern
+        self._exception_compiled: re.Pattern[str] | None = None
+        if self.exception_regex:
+            with contextlib.suppress(re.error):
+                self._exception_compiled = re.compile(self.exception_regex)
+
+    def matches(self, line: str, filepath: str) -> bool:
+        """Check if pattern matches line, respecting exceptions."""
+        # Check if file is excepted
+        if self._exception_compiled and self._exception_compiled.search(filepath):
+            return False
+
+        # Try regex match
+        if self._compiled:
+            return bool(self._compiled.search(line))
+
+        # Fall back to literal match
+        return self.pattern in line
+
+
+def load_config() -> BannedWordsConfig:
+    """Load banned words configuration."""
+    if not os.path.exists(CONFIG_PATH):
+        print(f"Error: Configuration file {CONFIG_PATH} not found.")
         sys.exit(1)
-    with open(config_path) as f:
-        data = yaml.safe_load(f)
-        if not isinstance(data, dict):
-            print("Error: Invalid configuration format.")
-            sys.exit(1)
-        return BannedConfig(
-            banned=data.get("banned", []),
-            dir_rules=data.get("dir_rules", []),
-            filename_rules=data.get("filename_rules", []),
-        )
+    with open(CONFIG_PATH) as f:
+        loaded = yaml.safe_load(f)
+        if not loaded:
+            return cast(BannedWordsConfig, {})
+        return cast(BannedWordsConfig, loaded)
 
 
-def is_text_file(filepath: str) -> bool:
-    """Simple heuristic to check if a file is text."""
+def find_matching_rules(
+    line: str, filepath: str, rules: list[PatternRule]
+) -> list[PatternRule]:
+    """Find all rules that match the given line."""
+    return [rule for rule in rules if rule.matches(line, filepath)]
+
+
+def check_file_content(
+    filepath: str,
+    global_rules: list[PatternRule],
+    dir_rules: list[PatternRule],
+) -> list[dict[str, str | int]]:
+    """Check file content for banned patterns."""
+    all_rules = global_rules + dir_rules
+
+    if not all_rules:
+        return []
+
+    errors: list[dict[str, str | int]] = []
+
     try:
-        with open(filepath) as check_file:
-            check_file.read(1024)
-            return True
-    except Exception:
-        return False
+        with open(filepath, encoding="utf-8", errors="replace") as f:
+            for line_num, line in enumerate(f, 1):
+                matched = find_matching_rules(line, filepath, all_rules)
+                errors.extend(
+                    {
+                        "file": filepath,
+                        "line": line_num,
+                        "pattern": rule.pattern,
+                        "reason": rule.reason,
+                        "content": line.strip()[:80],
+                    }
+                    for rule in matched
+                )
+    except OSError:
+        return []
 
-
-def check_file(
-    filepath: str, banned_patterns: list[dict[str, str]]
-) -> list[ViolationRecord]:
-    errors: list[ViolationRecord] = []
-    try:
-        with open(filepath, encoding="utf-8", errors="ignore") as f:
-            lines = f.readlines()
-            for i, line in enumerate(lines):
-                for rule in banned_patterns:
-                    pattern = rule["pattern"]
-                    # Use regex search
-                    if re.search(pattern, line):
-                        # Check for exception regex (allow-list) matches LINE or FILEPATH
-                        if "exception_regex" in rule and (
-                            re.search(rule["exception_regex"], line)
-                            or re.search(rule["exception_regex"], filepath)
-                        ):
-                            continue
-
-                        errors.append(
-                            ViolationRecord(
-                                file=filepath,
-                                line=i + 1,
-                                pattern=pattern,
-                                reason=rule["reason"],
-                                text=line.strip(),
-                            )
-                        )
-    except Exception:
-        # If we can't read it as text, skip it
-        pass
     return errors
 
 
+def check_filename(
+    filepath: str,
+    filename_rules: list[PatternRule],
+) -> list[dict[str, str | int]]:
+    """Check if filename matches any banned patterns."""
+    filename = os.path.basename(filepath)
+    matched = [rule for rule in filename_rules if rule.matches(filename, filepath)]
+
+    return [
+        {
+            "file": filepath,
+            "line": 0,
+            "pattern": rule.pattern,
+            "reason": rule.reason,
+            "content": filename,
+        }
+        for rule in matched
+    ]
+
+
+# Cache for pre-compiled directory rules
+_dir_rules_cache: dict[str, list[PatternRule]] = {}
+
+
+def get_dir_rules(
+    filepath: str, dir_rules_compiled: dict[str, list[PatternRule]]
+) -> list[PatternRule]:
+    """Get rules that apply based on file's directory."""
+    rules: list[PatternRule] = []
+    path = Path(filepath)
+
+    for dir_name, compiled_rules in dir_rules_compiled.items():
+        if dir_name in path.parts:
+            rules.extend(compiled_rules)
+
+    return rules
+
+
+def compile_dir_rules(
+    dir_rules_config: dict[str, list[PatternConfig]],
+) -> dict[str, list[PatternRule]]:
+    """Pre-compile all directory rules."""
+    return {
+        dir_name: [PatternRule(cfg) for cfg in rule_configs]
+        for dir_name, rule_configs in dir_rules_config.items()
+    }
+
+
+def print_errors(errors: list[dict[str, str | int]]) -> None:
+    """Print errors grouped by file with reasons."""
+    print(f"\n\033[91mFAILED: {len(errors)} banned pattern(s) found:\033[0m\n")
+
+    # Group by file
+    by_file: dict[str, list[dict[str, str | int]]] = {}
+    for err in errors:
+        key = str(err["file"])
+        if key not in by_file:
+            by_file[key] = []
+        by_file[key].append(err)
+
+    for filepath, file_errors in sorted(by_file.items()):
+        print(f"\033[1m{filepath}\033[0m")
+        for err in file_errors:
+            line_info = f":{err['line']}" if err["line"] else ""
+            print(f"  Line{line_info}: \033[93m{err['pattern']}\033[0m")
+            print(f"    Reason: \033[96m{err['reason']}\033[0m")
+            if err["content"]:
+                print(f"    > {err['content']}")
+        print()
+
+
 def main() -> None:
-    config = load_banned_config()
-    banned_rules = config.get("banned", [])
+    """Main entry point."""
+    config = load_config()
 
-    # Directories to always ignore
-    IGNORE_DIRS = {
-        ".git",
-        ".venv",
-        "__pycache__",
-        "node_modules",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "build",
-        "checkpoints",
-        "logs",
-        "results",
-        "mlruns",
-        ".gemini",
-        "rocm_artifacts",
-        "tmp",
-    }
+    # Parse configuration
+    banned_configs = config.get("banned", [])
+    dir_rules_config = config.get("directory_rules", {})
+    filename_configs = config.get("filename_rules", [])
+    ignored_files = set(config.get("ignored_files", []))
 
-    # Files to ignore
-    IGNORE_FILES = {
-        "uv.lock",
-        "package-lock.json",
-        "yarn.lock",
-        "check_banned_words.py",
-        "block_coauthored.py",
-        "banned_words.yaml",
-    }
+    # Pre-compile all rule objects
+    global_rules = [PatternRule(cfg) for cfg in banned_configs]
+    filename_rules = [PatternRule(cfg) for cfg in filename_configs]
+    dir_rules_compiled = compile_dir_rules(dir_rules_config)
 
-    # Format inclusion list
-    INCLUDE_EXTENSIONS = {".py", ".js", ".ts"}
-
-    found_errors = []
+    errors: list[dict[str, str | int]] = []
     root_dir = os.getcwd()
+    files_checked = 0
 
-    print("Scanning repository for banned words in .py, .js, .ts files...")
+    print("Scanning repository for banned patterns...")
+    print(f"  Global rules: {len(global_rules)}")
+    print(
+        f"  Directory-specific rules: {sum(len(v) for v in dir_rules_compiled.values())}"
+    )
+    print(f"  Filename rules: {len(filename_rules)}")
 
     for root, dirs, files in os.walk(root_dir):
-        # Modify dirs in-place to prune ignored directories
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
 
-        for file in files:
-            if file in IGNORE_FILES:
+        for filename in files:
+            if not any(filename.endswith(ext) for ext in INCLUDE_EXTENSIONS):
                 continue
 
-            # Only check specific formats
-            if not any(file.endswith(ext) for ext in INCLUDE_EXTENSIONS):
-                continue
-
-            filepath = os.path.join(root, file)
-            # Make path relative for cleaner output
+            filepath = os.path.join(root, filename)
             rel_path = os.path.relpath(filepath, root_dir)
 
-            found_errors.extend(check_file(rel_path, banned_rules))
+            if rel_path in ignored_files or filename in ignored_files:
+                continue
 
-    if found_errors:
-        print("\n\033[91mFAILED: Banned words found in codebase:\033[0m")
-        for err in found_errors:
-            print(
-                f"  \033[1m{err['file']}:{err['line']}\033[0m - Found '{err['pattern']}'"
-            )
-            print(f"    Reason: {err['reason']}")
+            files_checked += 1
+
+            # Check filename
+            errors.extend(check_filename(rel_path, filename_rules))
+
+            # Get directory-specific rules (using pre-compiled rules)
+            dir_rules = get_dir_rules(rel_path, dir_rules_compiled)
+
+            # Check content
+            errors.extend(check_file_content(rel_path, global_rules, dir_rules))
+
+    print(f"  Files checked: {files_checked}")
+
+    if errors:
+        print_errors(errors)
         sys.exit(1)
 
-    print("\033[92mSUCCESS: No banned words found.\033[0m")
+    print("\033[92mSUCCESS: No banned patterns found.\033[0m")
     sys.exit(0)
 
 

@@ -32,9 +32,9 @@ async def test_ami_backup_command_execution():
 
     # Use --auth-mode key to force a non-interactive failure at the upload stage
     cmd = [
-        "scripts/ami-run",
+        "ami/scripts/bin/ami-run",
         "python",
-        "scripts/backup/backup_to_gdrive.py",
+        "ami/scripts/backup/backup_to_gdrive.py",
         "--keep-local",
         "--auth-mode",
         "key",

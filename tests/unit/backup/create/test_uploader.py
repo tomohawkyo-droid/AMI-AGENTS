@@ -40,7 +40,7 @@ class TestBackupUploader:
         # Verify it's cached
         assert uploader._service == mock_service
 
-    @patch("scripts.backup.create.uploader.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.create.uploader.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     def test_upload_to_gdrive_new_file(self, mock_build, mock_loop):
         """Test uploading a file that doesn't already exist."""
@@ -108,7 +108,7 @@ class TestBackupUploader:
             assert body_arg["name"] == "test-archive.tar.zst"
             assert body_arg["parents"] == ["test_folder_id"]
 
-    @patch("scripts.backup.create.uploader.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.create.uploader.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     def test_upload_to_gdrive_existing_file_update(self, mock_build, mock_loop):
         """Test uploading when a file with same name already exists (updates existing)."""
@@ -181,7 +181,7 @@ class TestBackupUploader:
             called_args = mock_drive_files.update.call_args
             assert called_args[1]["fileId"] == "existing_file_id_456"
 
-    @patch("scripts.backup.create.uploader.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.create.uploader.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     def test_upload_to_gdrive_error_handling(self, mock_build, mock_loop):
         """Test that upload handles errors properly."""
@@ -236,7 +236,7 @@ class TestBackupUploader:
         ):
             asyncio.run(uploader.upload_to_gdrive(zip_path, config))
 
-    @patch("scripts.backup.create.uploader.asyncio.get_event_loop")
+    @patch("ami.scripts.backup.create.uploader.asyncio.get_event_loop")
     @patch("googleapiclient.discovery.build")
     def test_upload_to_gdrive_no_file_id_returned(self, mock_build, mock_loop):
         """Test that upload raises error when no file ID is returned."""

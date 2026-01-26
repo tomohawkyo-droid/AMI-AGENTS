@@ -96,18 +96,18 @@ class TestConfig:
                 del os.environ["NESTED_VAR"]
 
     def test_dot_notation_access(self, temp_config_file: Path) -> None:
-        """Config.get() supports dot notation."""
+        """Config.get_value() supports dot notation."""
         config = Config(config_file=temp_config_file)
 
-        assert config.get("logging.level") == "INFO"
-        assert config.get("logging.format") == "json"
+        assert config.get_value("logging.level") == "INFO"
+        assert config.get_value("logging.format") == "json"
 
     def test_dot_notation_missing_key(self, temp_config_file: Path) -> None:
-        """Config.get() returns default for missing keys."""
+        """Config.get_value() returns default for missing keys."""
         config = Config(config_file=temp_config_file)
 
-        assert config.get("missing.key", "default") == "default"
-        assert config.get("missing.nested.key") is None
+        assert config.get_value("missing.key", "default") == "default"
+        assert config.get_value("missing.nested.key") is None
 
     def test_resolve_path_with_template(self, temp_config_file: Path) -> None:
         """Config.resolve_path() handles template substitution."""

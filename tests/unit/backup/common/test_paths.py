@@ -35,7 +35,7 @@ class TestPaths:
             root = paths.get_project_root()
             assert str(root) == "/home/ami/Projects/AMI-ORCHESTRATOR"
 
-    @patch("scripts.backup.common.paths.get_project_root")
+    @patch("ami.scripts.backup.common.paths.get_project_root")
     def test_setup_sys_path(self, mock_get_root):
         """Test that project root is added to sys.path."""
         mock_root = Path("/fake/root")
@@ -50,7 +50,7 @@ class TestPaths:
         finally:
             sys.path = original_path
 
-    @patch("scripts.backup.common.paths.get_project_root")
+    @patch("ami.scripts.backup.common.paths.get_project_root")
     @patch("pathlib.Path.exists")
     def test_find_gcloud_local(self, mock_exists, mock_get_root):
         """Test finding local gcloud binary."""
@@ -63,7 +63,7 @@ class TestPaths:
         result = paths.find_gcloud()
         assert "/fake/root/.gcloud/google-cloud-sdk/bin/gcloud" in str(result)
 
-    @patch("scripts.backup.common.paths.get_project_root")
+    @patch("ami.scripts.backup.common.paths.get_project_root")
     @patch("shutil.which")
     def test_find_gcloud_system(self, mock_which, mock_get_root):
         """Test finding system gcloud binary when local is missing."""

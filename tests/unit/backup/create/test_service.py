@@ -23,10 +23,10 @@ class TestBackupService:
         assert service.uploader == mock_uploader
         assert service.auth_manager == mock_auth_manager
 
-    @patch("scripts.backup.create.service.BackupConfig")
-    @patch("scripts.backup.create.service.create_zip_archive")
-    @patch("scripts.backup.create.service.copy_to_secondary_backup")
-    @patch("scripts.backup.create.service.cleanup_local_zip")
+    @patch("ami.scripts.backup.create.service.BackupConfig")
+    @patch("ami.scripts.backup.create.service.create_zip_archive")
+    @patch("ami.scripts.backup.create.service.copy_to_secondary_backup")
+    @patch("ami.scripts.backup.create.service.cleanup_local_zip")
     @patch("pathlib.Path.cwd")
     def test_run_backup_success(
         self, mock_cwd, mock_cleanup, mock_secondary, mock_archiver, mock_config_class
@@ -67,10 +67,10 @@ class TestBackupService:
         mock_secondary.assert_called_once()
         mock_cleanup.assert_called_once()
 
-    @patch("scripts.backup.create.service.BackupConfig")
-    @patch("scripts.backup.create.service.create_zip_archive")
-    @patch("scripts.backup.create.service.copy_to_secondary_backup")
-    @patch("scripts.backup.create.service.cleanup_local_zip")
+    @patch("ami.scripts.backup.create.service.BackupConfig")
+    @patch("ami.scripts.backup.create.service.create_zip_archive")
+    @patch("ami.scripts.backup.create.service.copy_to_secondary_backup")
+    @patch("ami.scripts.backup.create.service.cleanup_local_zip")
     @patch("pathlib.Path.cwd")
     def test_run_backup_auth_retry_success(
         self, mock_cwd, mock_cleanup, mock_secondary, mock_archiver, mock_config_class
@@ -116,10 +116,10 @@ class TestBackupService:
             assert result == "test_file_id_456"
             assert service._refresh_adc_credentials.called
 
-    @patch("scripts.backup.create.service.BackupConfig")
-    @patch("scripts.backup.create.service.create_zip_archive")
-    @patch("scripts.backup.create.service.copy_to_secondary_backup")
-    @patch("scripts.backup.create.service.cleanup_local_zip")
+    @patch("ami.scripts.backup.create.service.BackupConfig")
+    @patch("ami.scripts.backup.create.service.create_zip_archive")
+    @patch("ami.scripts.backup.create.service.copy_to_secondary_backup")
+    @patch("ami.scripts.backup.create.service.cleanup_local_zip")
     @patch("pathlib.Path.cwd")
     def test_run_backup_upload_error_no_retry(
         self, mock_cwd, mock_cleanup, mock_secondary, mock_archiver, mock_config_class

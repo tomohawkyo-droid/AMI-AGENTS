@@ -65,8 +65,8 @@ class TestArchiver:
         assert archiver._is_illegal_filename("file\nname.txt") is True
         assert archiver._is_illegal_filename("file\r.txt") is True
 
-    @patch("scripts.backup.create.archiver.asyncio.create_subprocess_exec")
-    @patch("scripts.backup.create.archiver._get_files_to_backup")
+    @patch("ami.scripts.backup.create.archiver.asyncio.create_subprocess_exec")
+    @patch("ami.scripts.backup.create.archiver._get_files_to_backup")
     @patch("pathlib.Path.rename")
     async def test_create_zip_archive_success(
         self,

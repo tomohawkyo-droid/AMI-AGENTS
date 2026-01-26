@@ -32,9 +32,9 @@ class TestRestoreCLI:
         assert str(args.paths[0]) == "path1.txt"
         assert str(args.paths[1]) == "path2.txt"
 
-    @patch("scripts.backup.restore.service.extract_specific_paths")
-    @patch("scripts.backup.restore.service.DriveRestoreClient")
-    @patch("scripts.backup.restore.service.AuthenticationManager")
+    @patch("ami.scripts.backup.restore.service.extract_specific_paths")
+    @patch("ami.scripts.backup.restore.service.DriveRestoreClient")
+    @patch("ami.scripts.backup.restore.service.AuthenticationManager")
     async def test_selective_restore_from_drive_by_file_id(
         self, mock_auth, mock_drive_client, mock_extract
     ):
@@ -53,9 +53,9 @@ class TestRestoreCLI:
         assert result is True
         mock_extract.assert_called_once()
 
-    @patch("scripts.backup.restore.service.extract_specific_paths")
-    @patch("scripts.backup.restore.service.DriveRestoreClient")
-    @patch("scripts.backup.restore.service.AuthenticationManager")
+    @patch("ami.scripts.backup.restore.service.extract_specific_paths")
+    @patch("ami.scripts.backup.restore.service.DriveRestoreClient")
+    @patch("ami.scripts.backup.restore.service.AuthenticationManager")
     async def test_selective_restore_from_drive_by_revision(
         self, mock_auth, mock_drive_client, mock_extract
     ):
@@ -86,10 +86,10 @@ class TestRestoreCLI:
         assert result is True
         mock_extract.assert_called_once()
 
-    @patch("scripts.backup.restore.service.extract_specific_paths")
-    @patch("scripts.backup.restore.service.local_client.verify_backup_exists")
-    @patch("scripts.backup.restore.service.DriveRestoreClient")
-    @patch("scripts.backup.restore.service.AuthenticationManager")
+    @patch("ami.scripts.backup.restore.service.extract_specific_paths")
+    @patch("ami.scripts.backup.restore.service.local_client.verify_backup_exists")
+    @patch("ami.scripts.backup.restore.service.DriveRestoreClient")
+    @patch("ami.scripts.backup.restore.service.AuthenticationManager")
     async def test_selective_restore_local_backup(
         self, mock_auth, mock_drive_client, mock_verify, mock_extract
     ):
