@@ -114,6 +114,9 @@ critical_noqa*.txt
 # Client-specific work (gitignored development area)
 /clients/
 
+# Project-specific work (gitignored development area)
+/projects/
+
 # Logo processing scripts (not part of migration)
 scripts/process_tech_logos.py
 docs/tech-logos/
@@ -143,3 +146,8 @@ agents/
 ami/config/extensions.yaml
 uv.lock
 ami/config/automation.yaml
+projects/
+
+# Linter config symlinks (point to res/config/)
+ruff.toml
+mypy.toml

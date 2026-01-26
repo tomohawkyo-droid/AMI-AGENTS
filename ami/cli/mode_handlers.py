@@ -1,10 +1,9 @@
 """Mode handler functions for main CLI entry point."""
 
+import sys
 from datetime import datetime
 from pathlib import Path
-import sys
 
-from ami.utils.uuid_utils import uuid7
 from ami.cli.config import AgentConfigPresets
 from ami.cli.exceptions import AgentError, AgentExecutionError
 from ami.cli.factory import get_agent_cli
@@ -12,11 +11,13 @@ from ami.cli.timer_utils import wrap_text_in_box
 from ami.cli.validation_utils import (
     validate_path_and_return_code,
 )
-from ami.core.factory import AgentFactory
-from ami.cli_components.text_input_utils import display_final_output
-from ami.cli_components.text_editor import TextEditor
 from ami.cli_components.dialogs import confirm
+from ami.cli_components.text_editor import TextEditor
+from ami.cli_components.text_input_utils import display_final_output
+from ami.core.bootloader_agent import RunContext
 from ami.core.config import get_config
+from ami.core.factory import AgentFactory
+from ami.core.interfaces import RunPrintParams
 
 
 def get_user_confirmation(command: str) -> bool:
@@ -31,15 +32,15 @@ def get_latest_session_id() -> str | None:
         transcripts_dir = config.root / "logs" / "transcripts"
         if not transcripts_dir.exists():
             return None
-            
+
         # Find all jsonl files recursively
         files = list(transcripts_dir.rglob("*.jsonl"))
         if not files:
             return None
-            
+
         # Sort by modification time, newest first
         files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-        
+
         # Return the stem (filename without extension) of the newest file
         return files[0].stem
     except Exception:
@@ -61,7 +62,6 @@ def mode_query(query: str) -> int:
     sys.stdout.write(f"💬 {datetime.now().strftime('%H:%M:%S')}\n")
     sys.stdout.flush()
 
-
     try:
         # Get CLI instance
         cli = get_agent_cli()
@@ -69,20 +69,27 @@ def mode_query(query: str) -> int:
         # Enable streaming mode with content capture in configuration, but disable hooks for query mode
         # Pass session_id=None to let provider manage session creation (avoids Qwen --resume failure)
         config = AgentConfigPresets.worker(session_id=None)
-        config.enable_hooks = False  # Disable hooks for query mode to avoid quality violations
-        config.enable_streaming = True  # Enable streaming to show timer during processing
-        config.capture_content = False  # Disable content capture to allow streaming display
+        config.enable_hooks = (
+            False  # Disable hooks for query mode to avoid quality violations
+        )
+        config.enable_streaming = (
+            True  # Enable streaming to show timer during processing
+        )
+        config.capture_content = (
+            False  # Disable content capture to allow streaming display
+        )
 
         # Run with streaming to capture content while showing timer
-        output, metadata = cli.run_print(
-            instruction=query,
-            agent_config=config,
+        _output, _metadata = cli.run_print(
+            params=RunPrintParams(
+                instruction=query,
+                agent_config=config,
+            )
         )
 
         # The response will be handled by the streaming loop which formats it in a box
         # and displays the timestamp message
 
-        return 0
     except KeyboardInterrupt:
         # User cancelled with Ctrl+C
         sys.stdout.write(f"🤖 {datetime.now().strftime('%H:%M:%S')}\n\n")
@@ -93,6 +100,8 @@ def mode_query(query: str) -> int:
         sys.stdout.write(f"🤖 {datetime.now().strftime('%H:%M:%S')}\n\n")
         sys.stdout.flush()
         return 1
+    else:
+        return 0
 
 
 def mode_print(instruction_path: str) -> int:
@@ -119,12 +128,13 @@ def mode_print(instruction_path: str) -> int:
     try:
         # Pass session_id=None to let provider manage session creation
         cli.run_print(
-            instruction_file=instruction_file,
-            stdin=stdin,
-            agent_config=AgentConfigPresets.worker(session_id=None),
+            params=RunPrintParams(
+                instruction_file=instruction_file,
+                stdin=stdin,
+                agent_config=AgentConfigPresets.worker(session_id=None),
+            )
         )
         # Print output
-        return 0
     except AgentExecutionError as e:
         # Print output even on failure
         sys.stderr.write(f"Agent execution error: {e}\n")
@@ -135,6 +145,8 @@ def mode_print(instruction_path: str) -> int:
     except Exception as e:
         sys.stderr.write(f"Unexpected error: {e}\n")
         return 1
+    else:
+        return 0
 
 
 def mode_interactive_editor() -> int:
@@ -171,49 +183,49 @@ def mode_interactive_editor() -> int:
 
         # Instantiate BootloaderAgent once for the session with injected runtime
         agent = AgentFactory.create_bootloader()
-        
+
         # Initial input (from first editor run)
         current_instruction = content
-        # Resume last session if available
-        current_session_id = get_latest_session_id()
-        if current_session_id:
-            sys.stdout.write(f"🔄 Resuming session: {current_session_id}\n")
-        
+        # Start fresh session (don't auto-resume - provider sessions may not match local logs)
+        current_session_id: str | None = None
+
         while True:
             # Prepare initial text for next editor run (defaults to empty unless cancelled)
             next_initial_text = ""
-            
+
             try:
                 # Run agent loop (ReAct: Think -> Act -> Loop)
                 # The agent maintains state via session_id passed to the provider
-                _, current_session_id = agent.run(
+                ctx = RunContext(
                     instruction=current_instruction,
                     session_id=current_session_id,
-                    input_func=get_user_confirmation
+                    input_func=get_user_confirmation,
                 )
+                _, current_session_id = agent.run(ctx)
             except KeyboardInterrupt:
                 # User cancelled with Ctrl+C or Esc
                 sys.stdout.write("\n❌ Cancelled by user.\n\n")
                 sys.stdout.flush()
                 # Pre-fill editor with the message we just sent/cancelled
                 next_initial_text = current_instruction
-            
+
             # --- SESSION LOOP ---
             # Immediately relaunch editor for next turn
             # Launch editor for next turn
             editor = TextEditor(initial_text=next_initial_text)
             next_content = editor.run(clear_on_submit=True)
-            
+
             if next_content is None or not next_content.strip():
                 sys.stdout.write("❌ Empty input or cancelled. Exiting session.\n")
                 break
-                
+
             current_instruction = next_content
             display_final_output(current_instruction.splitlines(), "✅ Sent to agent")
 
-        return 0
     except Exception as e:
         # Print error for debugging
-        sys.stderr.write(f"Error calling agent: {str(e)}\n")
+        sys.stderr.write(f"Error calling agent: {e!s}\n")
         sys.stderr.flush()
         return 1
+    else:
+        return 0

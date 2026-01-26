@@ -5,7 +5,6 @@ from typing import Any
 
 from ami.cli_components.text_editor import TextEditor
 
-
 """
 Simple in-line text input with borders that preserves terminal scrollability.
 Arrow keys for navigation, Ctrl+D to save and exit.
@@ -24,7 +23,7 @@ def main() -> None:
     # Accept command line arguments as initial text
     initial_text = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
     result = create_text_editor(initial_text)
-    
+
     if result is not None:
         print(result)
 

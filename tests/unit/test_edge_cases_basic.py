@@ -1,6 +1,6 @@
 """Comprehensive tests for basic edge cases and error conditions in ami-agent interactive mode."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from ami.cli_components.cursor_manager import CursorManager
 from ami.cli_components.editor_saving import save_content
@@ -11,7 +11,7 @@ class TestEdgeCasesAndErrorConditions:
     """Test edge cases and error conditions for ami-agent interactive mode."""
 
     # Text Editor Edge Cases
-    def test_cursor_manager_edge_cases(self):
+    def test_cursor_manager_edge_cases(self) -> None:
         """Test cursor manager edge cases."""
         # Empty lines
         cursor = CursorManager([])
@@ -41,7 +41,7 @@ class TestEdgeCasesAndErrorConditions:
         assert cursor.current_line == 0
         assert cursor.current_col == 1  # at end of "x"
 
-    def test_cursor_manager_word_movement_edge_cases(self):
+    def test_cursor_manager_word_movement_edge_cases(self) -> None:
         """Test cursor word movement edge cases."""
         # Empty string
         cursor = CursorManager([""])
@@ -60,7 +60,7 @@ class TestEdgeCasesAndErrorConditions:
         cursor.move_to_next_word()
         assert cursor.current_col == len("hello")  # Stay at end
 
-    def test_text_editor_edge_cases(self):
+    def test_text_editor_edge_cases(self) -> None:
         """Test text editor edge cases."""
         # Empty initial text
         editor = TextEditor("")
@@ -76,7 +76,7 @@ class TestEdgeCasesAndErrorConditions:
         assert editor.lines[0] == long_line
 
     @patch.object(TextEditor, "run")
-    def test_text_editor_run_edge_cases(self, mock_run):
+    def test_text_editor_run_edge_cases(self, mock_run: MagicMock) -> None:
         """Test text editor run method edge cases."""
         editor = TextEditor()
 
@@ -95,7 +95,7 @@ class TestEdgeCasesAndErrorConditions:
         result = editor.run()
         assert result == "   \\n\\t\\n  "
 
-    def test_save_content_edge_cases(self):
+    def test_save_content_edge_cases(self) -> None:
         """Test save content function edge cases."""
         # Empty lines
         content = save_content([], 0)

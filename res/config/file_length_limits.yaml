@@ -1,0 +1,54 @@
+# File Length Limits Configuration
+# Used by check_file_length.py to enforce maximum file sizes
+
+# Maximum number of lines allowed per file
+max_lines: 512
+
+# File extensions to check
+extensions:
+  - ".py"
+  - ".sh"
+  - ".js"
+  - ".ts"
+
+# Files to ignore (by basename)
+ignore_files: []
+
+# Directories to ignore
+ignore_dirs:
+  - ".git"
+  - ".venv"
+  - "node_modules"
+  - "dist"
+  - "build"
+  - "__pycache__"
+  - ".mypy_cache"
+  - ".pytest_cache"
+  - ".ruff_cache"
+  - "projects"
+  - "tmp"
+  - "logs"
+  - ".boot-linux"
+  - ".boot-macos"
+  - ".gcloud"
+  - ".cache"
+  - ".local"
+  - "venv"
+  - "env"
+  - ".env"
+  - "site-packages"
+  - "vendor"
+  - ".tox"
+  - ".nox"
+  - "htmlcov"
+  - ".coverage"
+  - "eggs"
+  - ".eggs"
+  - "lib"
+  - "lib64"
+  - "parts"
+  - "sdist"
+  - "var"
+  - "wheels"
+  - ".installed.cfg"
+  - "pip-wheel-metadata"

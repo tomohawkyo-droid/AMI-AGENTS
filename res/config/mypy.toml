@@ -1,0 +1,109 @@
+# Global options
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+disallow_subclassing_any = false
+warn_unused_configs = true
+exclude = [
+    "(?x)(^tmp/|^.venv/|^venv/|^dist/|^build/|^.eggs/|^__pycache__/|.*\\.egg-info/|^.pytest_cache/|^.git/|^projects/)"
+]
+
+# Platform-specific overrides
+[[tool.mypy.overrides]]
+module = ["torch.*", "pydantic.*", "sqlalchemy.*", "click.*"]
+disallow_subclassing_any = false
+
+# Test files - relaxed typing for test helpers and mocks
+# Tests use mocks, fixtures, and test utilities that often lack type annotations
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_decorators = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = "sklearn.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "matplotlib.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "seaborn.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tqdm.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "fitz.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "psutil.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "boto3.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "botocore.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "questionary"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "questionary.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "rich.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "transformers.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "datasets.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "accelerate.*"
+ignore_missing_imports = true
+
+# External Google API libraries - missing type stubs only
+[[tool.mypy.overrides]]
+module = ["googleapiclient", "googleapiclient.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["google_auth_oauthlib", "google_auth_oauthlib.*"]
+ignore_missing_imports = true
+
+# Google auth libraries have incomplete type annotations (py.typed but untyped functions)
+# See: https://github.com/googleapis/google-auth-library-python/issues/1567
+[[tool.mypy.overrides]]
+module = ["google.auth", "google.auth.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["google.oauth2", "google.oauth2.*"]
+ignore_missing_imports = true
+
+# This module calls untyped Google auth library functions
+# Blocked on upstream fix: https://github.com/googleapis/google-auth-library-python/issues/1567
+[[tool.mypy.overrides]]
+module = "ami.scripts.backup.common.auth"
+disallow_untyped_calls = false

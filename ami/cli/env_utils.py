@@ -6,41 +6,59 @@ to reduce code size and improve maintainability.
 
 import os
 import pwd
-from typing import Any
+from typing import TYPE_CHECKING, Protocol
 
 from loguru import logger
 
+if TYPE_CHECKING:
+    from ami.core.config import ConfigValue
 
-def drop_privileges(config: Any) -> None:
+
+class ConfigProtocol(Protocol):
+    """Protocol for configuration objects with get_value method."""
+
+    def get_value(
+        self,
+        key: str,
+        default: "ConfigValue" = None,
+    ) -> "ConfigValue":
+        """Get configuration value by key."""
+        ...
+
+
+def drop_privileges(config: ConfigProtocol) -> None:
     """Drop privileges to the unprivileged user specified in config.
 
     Args:
         config: Configuration object containing unprivileged_user setting
     """
-    unprivileged_user = config.get("unprivileged_user")
+
+    def _verify_privilege_drop(expected_uid: int, expected_gid: int) -> None:
+        """Verify that privileges were successfully dropped."""
+        if os.getuid() != expected_uid or os.getgid() != expected_gid:
+            raise RuntimeError("Failed to drop privileges")
+
+    unprivileged_user_value = config.get_value("unprivileged_user")
+    unprivileged_user = (
+        str(unprivileged_user_value) if unprivileged_user_value else None
+    )
     if not unprivileged_user:
         return
 
     try:
-        # Get user info
         user_info = pwd.getpwnam(unprivileged_user)
         uid = user_info.pw_uid
         gid = user_info.pw_gid
 
-        # Set group first, then user (can't undo after dropping privileges)
-
         os.setgid(gid)
         os.setuid(uid)
 
-        # Verify the change
-        if os.getuid() != uid or os.getgid() != gid:
-            raise RuntimeError("Failed to drop privileges")
+        _verify_privilege_drop(uid, gid)
     except Exception as e:
-        # Log error but continue execution
         logger.error(f"Failed to drop privileges: {e}")
 
 
-def get_unprivileged_env(config: Any) -> dict[str, str] | None:
+def get_unprivileged_env(config: ConfigProtocol) -> dict[str, str] | None:
     """Get environment to run subprocess with unprivileged user.
 
     Args:
@@ -50,7 +68,10 @@ def get_unprivileged_env(config: Any) -> dict[str, str] | None:
         Environment dict with HOME and USER set to unprivileged user,
         or None if unprivileged user is not configured
     """
-    unprivileged_user = config.get("unprivileged_user")
+    unprivileged_user_value = config.get_value("unprivileged_user")
+    unprivileged_user = (
+        str(unprivileged_user_value) if unprivileged_user_value else None
+    )
     if not unprivileged_user:
         return None
 
@@ -62,19 +83,19 @@ def get_unprivileged_env(config: Any) -> dict[str, str] | None:
             "PATH": os.environ.get("PATH", ""),
             "LANG": os.environ.get("LANG", "C.UTF-8"),
             "LC_ALL": os.environ.get("LC_ALL", "C.UTF-8"),
-            "PYTHONUNBUFFERED": "1", # Force unbuffered output
-            "FORCE_COLOR": "1",      # Encourage TTY-like behavior
+            "PYTHONUNBUFFERED": "1",
+            "FORCE_COLOR": "1",
         }
 
-        # Include Claude CLI auto-update prevention environment variable
         if "DISABLE_AUTOUPDATER" in os.environ:
             env["DISABLE_AUTOUPDATER"] = os.environ["DISABLE_AUTOUPDATER"]
-
-        return env
     except KeyError:
-        # Unprivileged user doesn't exist - return modified copy of current env
-        logger.warning(f"Unprivileged user '{unprivileged_user}' not found. Running as current user.")
+        logger.warning(
+            f"Unprivileged user '{unprivileged_user}' not found. Running as current user."
+        )
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
         env["FORCE_COLOR"] = "1"
+        return env
+    else:
         return env

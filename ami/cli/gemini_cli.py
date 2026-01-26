@@ -2,24 +2,23 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any
+from typing import ClassVar
 
-from ami.utils.uuid_utils import uuid7
 from ami.cli.base_provider import CLIProvider as BaseProvider
-from ami.cli.config import AgentConfig
-from ami.core.config import get_config
 from ami.cli.interface import AgentCLI
 from ami.cli.provider_type import ProviderType
-from ami.cli.streaming_utils import load_instruction_with_replacements
+from ami.core.config import get_config
+from ami.core.interfaces import RunPrintParams
+from ami.types.api import ProviderMetadata, StreamMetadata
+from ami.types.config import AgentConfig
+from ami.utils.uuid_utils import uuid7
 
 
 class GeminiAgentCLI(BaseProvider, AgentCLI):
     """Implementation of AgentCLI using Gemini CLI."""
 
-    # All Gemini tools (in snake_case format)
-    ALL_TOOLS = {
+    ALL_TOOLS: ClassVar[set[str]] = {
         "read_file",
         "write_file",
         "edit",
@@ -48,21 +47,10 @@ class GeminiAgentCLI(BaseProvider, AgentCLI):
 
     def run_print(
         self,
-        instruction: str | Path | None = None,
-        cwd: Path | None = None,
-        agent_config: AgentConfig | None = None,
-        instruction_file: Path | None = None,
-        stdin: str | None = None,
-        audit_log_path: Path | None = None,
-    ) -> tuple[str, dict[str, Any] | None]:
+        params: RunPrintParams | None = None,
+    ) -> tuple[str, ProviderMetadata | None]:
         """Run agent in print mode."""
-        if instruction_file is not None:
-            instruction_content = load_instruction_with_replacements(instruction_file)
-        else:
-            instruction_content = str(instruction)
-
-        config = agent_config or self._get_default_config()
-        return self._execute_with_timeout(instruction_content, cwd, config, stdin_data=stdin, audit_log_path=audit_log_path)
+        return super().run_print(params=params)
 
     def _build_command(
         self,
@@ -74,17 +62,29 @@ class GeminiAgentCLI(BaseProvider, AgentCLI):
         cli_config = get_config()
         gemini_cmd = cli_config.get_provider_command(ProviderType.GEMINI)
 
-        cmd = [gemini_cmd, "--prompt", instruction, "--model", config.model, "--output-format", "json"]
-        
-        # Add session ID / Resume logic
+        cmd = [
+            gemini_cmd,
+            "--prompt",
+            instruction,
+            "--model",
+            config.model,
+            "--output-format",
+            "json",
+        ]
+
         if config.session_id:
             cmd.extend(["--resume", str(config.session_id)])
-        
-        # Note: --yolo is usually required for Gemini CLI to not prompt
+
         cmd.append("--yolo")
-        
+
         return cmd
 
-    def _parse_stream_message(self, line: str, _cmd, _line_count, _agent_config) -> tuple[str, dict[str, Any] | None]:
-        """Parse streaming output (placeholder as Gemini CLI support is being added)."""
+    def _parse_stream_message(
+        self,
+        line: str,
+        _cmd: list[str],
+        _line_count: int,
+        _agent_config: AgentConfig | None,
+    ) -> tuple[str, StreamMetadata | None]:
+        """Parse streaming output from Gemini CLI."""
         return line, None

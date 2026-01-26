@@ -1,17 +1,19 @@
 """Configuration management for AMI automation."""
 
 import os
-from pathlib import Path
 import re
-import sys
-from typing import Any
+from pathlib import Path
 
 import yaml
 
 from ami.cli.provider_type import ProviderType
+from ami.core.env import get_project_root
 
-# Project root is the directory containing the 'ami' package
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# JSON-compatible types from YAML parsing
+ConfigValue = (
+    str | int | float | bool | None | list["ConfigValue"] | dict[str, "ConfigValue"]
+)
+ConfigData = dict[str, ConfigValue]
 
 
 class Config:
@@ -28,11 +30,11 @@ class Config:
             ValueError: If config file is malformed or invalid
             PermissionError: If config file cannot be read
         """
-        self.root = PROJECT_ROOT
+        self.root = get_project_root()
         self.config_file = config_file or self.root / "ami/config/automation.yaml"
         self._data = self._load()
 
-    def _load(self) -> dict[str, Any]:
+    def _load(self) -> ConfigData:
         """Load and parse YAML config.
 
         Returns:
@@ -61,7 +63,7 @@ class Config:
         # Substitute environment variables
         substituted = self._substitute_env(data)
         if not isinstance(substituted, dict):
-            raise ValueError(f"Config must be a dict, got {type(substituted)}")
+            raise TypeError(f"Config must be a dict, got {type(substituted)}")
 
         # Test mode override: explicitly disable file locking when AMI_TEST_MODE environment variable is set to "1"
         # This is required for integration tests to run without sudo permissions
@@ -75,7 +77,7 @@ class Config:
 
         return substituted
 
-    def _substitute_env(self, data: Any) -> Any:
+    def _substitute_env(self, data: ConfigValue) -> ConfigValue:
         """Recursively substitute ${VAR:default} and {root} patterns.
 
         Args:
@@ -105,7 +107,7 @@ class Config:
             return result
         return data
 
-    def resolve_path(self, key: str, **kwargs: Any) -> Path:
+    def resolve_path(self, key: str, **kwargs: str) -> Path:
         """Resolve path template with variables.
 
         Args:
@@ -115,13 +117,15 @@ class Config:
         Returns:
             Absolute path with template substituted
         """
-        template = self.get(key)
+        template = self.get_value(key)
         if not isinstance(template, str):
-            raise ValueError(f"Path template at '{key}' must be a string, got {type(template)}")
+            raise TypeError(
+                f"Path template at '{key}' must be a string, got {type(template)}"
+            )
         path_str = template.format(**kwargs)
         return self.root / path_str
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get_value(self, key: str, default: ConfigValue = None) -> ConfigValue:
         """Get config value by dot notation.
 
         Args:
@@ -132,7 +136,7 @@ class Config:
             Config value or default
         """
         keys = key.split(".")
-        value: Any = self._data
+        value: ConfigValue = self._data
         for k in keys:
             if isinstance(value, dict):
                 value = value.get(k)
@@ -155,20 +159,30 @@ class Config:
             raise ValueError(f"CRITICAL: Unknown provider: {provider}")
 
         # Get the configured command or default
-        cmd = self.get(f"agent.{provider.value}.command", provider_to_command[provider])
-        
+        cmd = self.get_value(
+            f"agent.{provider.value}.command", provider_to_command[provider]
+        )
+
+        # Ensure cmd is a string (config could return None or unexpected type)
+        if not isinstance(cmd, str):
+            cmd = provider_to_command[provider]
+
         # Resolve to absolute path if relative
-        if cmd and not Path(cmd).is_absolute():
+        if not Path(cmd).is_absolute():
             # Resolve relative to root
             abs_cmd = (self.root / cmd).resolve()
             return str(abs_cmd)
-        
+
         return cmd
 
     def get_provider_default_model(self, provider: ProviderType) -> str:
         """Get the default model for a specific provider."""
         # Map provider to default model
-        provider_to_model = {ProviderType.CLAUDE: "claude-sonnet-4-5", ProviderType.QWEN: "qwen-coder", ProviderType.GEMINI: "gemini-3-pro"}
+        provider_to_model = {
+            ProviderType.CLAUDE: "claude-sonnet-4-5",
+            ProviderType.QWEN: "qwen-coder",
+            ProviderType.GEMINI: "gemini-3-pro",
+        }
 
         # Get the default model, defaulting to Claude if provider not found
         return provider_to_model.get(provider, "claude-sonnet-4-5")
@@ -176,7 +190,11 @@ class Config:
     def get_provider_audit_model(self, provider: ProviderType) -> str:
         """Get the audit model for a specific provider."""
         # Map provider to audit model
-        provider_to_model = {ProviderType.CLAUDE: "claude-sonnet-4-5", ProviderType.QWEN: "qwen-coder", ProviderType.GEMINI: "gemini-3-flash"}
+        provider_to_model = {
+            ProviderType.CLAUDE: "claude-sonnet-4-5",
+            ProviderType.QWEN: "qwen-coder",
+            ProviderType.GEMINI: "gemini-3-flash",
+        }
 
         # Get the audit model, defaulting to Claude if provider not found
         return provider_to_model.get(provider, "claude-sonnet-4-5")

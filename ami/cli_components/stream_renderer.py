@@ -3,10 +3,20 @@
 import sys
 import textwrap
 import time
-from typing import Any
+from typing import TypedDict
 
 from ami.cli.timer_utils import TimerDisplay
-from ami.core.logic import parse_completion_marker
+from ami.core.logic import CompletionMarker, parse_completion_marker
+
+
+class StreamResult(TypedDict):
+    """Result from stream rendering completion."""
+
+    session_id: str
+    duration: float
+    output_length: int
+    completion: CompletionMarker
+
 
 # Constants
 CONTENT_WIDTH = 76
@@ -19,11 +29,11 @@ class StreamRenderer:
     def __init__(self, session_id: str, capture_content: bool = False):
         self.session_id = session_id
         self.capture_content = capture_content
-        
+
         self.full_output = ""
         self.started_at = time.time()
         self.timer = TimerDisplay()
-        
+
         self.content_started = False
         self.box_displayed = False
         self.last_print_ended_with_newline = False
@@ -54,12 +64,12 @@ class StreamRenderer:
 
         if not self.capture_content:
             self.line_buffer += chunk_text
-            
+
             if "\n" in self.line_buffer:
                 lines = self.line_buffer.split("\n")
                 complete_lines = lines[:-1]
                 self.line_buffer = lines[-1]
-                
+
                 for line in complete_lines:
                     self._render_line(line)
 
@@ -69,27 +79,28 @@ class StreamRenderer:
     def _render_line(self, line: str) -> None:
         """Render a single completed line."""
         display_line = line
-        
+
         # Display-only replacements
         if "```run" in display_line or "```bash" in display_line:
-            display_line = display_line.replace("```run", "</>").replace("```bash", "</>")
+            display_line = display_line.replace("```run", "</>").replace(
+                "```bash", "</>"
+            )
             self.in_run_block = True
-        
+
         # Check for closing fence
-        if self.in_run_block:
-            if "```" in display_line:
-                if display_line.strip() == "```":
-                    self.in_run_block = False
-                    return # Skip printing closing fence line
-                
-                display_line = display_line.replace("```", "")
+        if self.in_run_block and "```" in display_line:
+            if display_line.strip() == "```":
                 self.in_run_block = False
-        
+                return  # Skip printing closing fence line
+
+            display_line = display_line.replace("```", "")
+            self.in_run_block = False
+
         # Print with indentation
         print(f"  {display_line}")
 
     def render_raw_line(self, line: str) -> None:
-        """Render a raw line (fallback mode)."""
+        """Render a raw line directly without parsing."""
         if not self.content_started:
             if not self.capture_content:
                 self.timer.stop()
@@ -103,14 +114,14 @@ class StreamRenderer:
             self.last_print_ended_with_newline = True
         else:
             wrapped = textwrap.fill(line, width=CONTENT_WIDTH).split("\n")
-            for idx, wrap_line in enumerate(wrapped):
+            for _idx, wrap_line in enumerate(wrapped):
                 if not self.capture_content:
                     sys.stdout.write("  " + wrap_line + "\n")
                     sys.stdout.flush()
             self.last_print_ended_with_newline = True
         self.full_output += line + "\n"
 
-    def finish(self) -> dict[str, Any]:
+    def finish(self) -> StreamResult:
         """Finish rendering and return metadata."""
         # Cleanup display
         if self.timer.is_running:
@@ -125,8 +136,8 @@ class StreamRenderer:
 
         # Close box
         if (
-            not self.capture_content 
-            and self.response_box_started 
+            not self.capture_content
+            and self.response_box_started
             and not self.response_box_ended
         ):
             sys.stdout.write("└" + "─" * 78 + "┘\n")

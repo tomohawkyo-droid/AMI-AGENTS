@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# ami-pwd: AMI root directory management
+# Gets or sets the AMI_ROOT persistently
+#
+# Usage:
+#   ami-pwd              # Print current AMI_ROOT
+#   ami-pwd --set PATH   # Set AMI_ROOT persistently
+#   ami-pwd --reset      # Reset to default (agents/ directory)
+#   ami-pwd --env        # Output export statement for eval
+#
+# The root is stored in ~/.config/ami/root and exported as AMI_ROOT
+set -euo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ami"
+ROOT_FILE="$CONFIG_DIR/root"
+
+# Default: agents directory (this script is at agents/ami/scripts/bin/ami-pwd)
+# Go 3 levels up: bin -> scripts -> ami -> agents
+get_default_root() {
+    cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd
+}
+
+# Get current root (from file, env, or default)
+get_root() {
+    if [[ -f "$ROOT_FILE" ]]; then
+        cat "$ROOT_FILE"
+    elif [[ -n "${AMI_ROOT:-}" ]]; then
+        echo "$AMI_ROOT"
+    else
+        get_default_root
+    fi
+}
+
+# Set root persistently
+set_root() {
+    local new_root="$1"
+
+    # Resolve to absolute path
+    if [[ -d "$new_root" ]]; then
+        new_root="$(cd "$new_root" && pwd)"
+    else
+        echo "Error: Directory does not exist: $new_root" >&2
+        exit 1
+    fi
+
+    mkdir -p "$CONFIG_DIR"
+    echo "$new_root" > "$ROOT_FILE"
+    echo "AMI_ROOT set to: $new_root"
+}
+
+# Reset to default
+reset_root() {
+    if [[ -f "$ROOT_FILE" ]]; then
+        rm "$ROOT_FILE"
+    fi
+    echo "AMI_ROOT reset to default: $(get_default_root)"
+}
+
+# Main
+case "${1:-}" in
+    --set)
+        [[ -z "${2:-}" ]] && echo "Usage: ami-pwd --set PATH" >&2 && exit 1
+        set_root "$2"
+        ;;
+    --reset)
+        reset_root
+        ;;
+    --env)
+        echo "export AMI_ROOT=\"$(get_root)\""
+        ;;
+    --help|-h)
+        echo "ami-pwd: AMI root directory management"
+        echo ""
+        echo "Usage:"
+        echo "  ami-pwd              Print current AMI_ROOT"
+        echo "  ami-pwd --set PATH   Set AMI_ROOT persistently"
+        echo "  ami-pwd --reset      Reset to default (agents/)"
+        echo "  ami-pwd --env        Output export statement for eval"
+        echo ""
+        echo "Current: $(get_root)"
+        ;;
+    "")
+        get_root
+        ;;
+    *)
+        echo "Unknown option: $1" >&2
+        exit 1
+        ;;
+esac

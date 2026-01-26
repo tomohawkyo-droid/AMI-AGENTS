@@ -7,11 +7,10 @@ to reduce code size and improve maintainability.
 from datetime import datetime
 from pathlib import Path
 
-
 from ami.core.config import get_config
 
 
-def calculate_timeout(base_timeout: int | float | None, line_count: int) -> float:
+def calculate_timeout(base_timeout: float | None, line_count: int) -> float:
     """Calculate timeout for the next streaming line.
 
     Args:

@@ -1,14 +1,15 @@
 """Unit tests for QwenAgentCLI."""
 
-from pathlib import Path
 import tempfile
-
-import pytest
+from pathlib import Path
 
 from ami.cli.config import AgentConfig
 from ami.cli.provider_type import ProviderType
 from ami.cli.qwen_cli import QwenAgentCLI
 from ami.cli.streaming_utils import load_instruction_with_replacements
+
+# Test constants
+DEFAULT_QWEN_TIMEOUT = 180
 
 
 class TestQwenAgentCLI:
@@ -32,12 +33,14 @@ class TestQwenAgentCLI:
         assert config.provider == ProviderType.QWEN
         assert config.allowed_tools is None
         assert config.enable_hooks is True
-        assert config.timeout == 180
+        assert config.timeout == DEFAULT_QWEN_TIMEOUT
 
     def test_build_command_basic(self):
         """_build_command() creates basic command correctly."""
         cli = QwenAgentCLI()
-        config = AgentConfig(model="qwen-coder", session_id="test-session", provider=ProviderType.QWEN)
+        config = AgentConfig(
+            model="qwen-coder", session_id="test-session", provider=ProviderType.QWEN
+        )
 
         cmd = cli._build_command("test instruction", None, config)
 

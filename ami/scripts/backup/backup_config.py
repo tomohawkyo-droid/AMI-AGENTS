@@ -1,0 +1,205 @@
+"""Backup configuration module.
+
+Handles loading and validation of backup configuration from .env file.
+"""
+
+import os
+import subprocess
+from pathlib import Path
+
+from dotenv import load_dotenv
+from loguru import logger
+
+from ami.scripts.backup.backup_exceptions import BackupConfigError
+from ami.scripts.backup.common.paths import find_gcloud
+
+ADC_CREDENTIALS_PATH = (
+    Path.home() / ".config/gcloud/application_default_credentials.json"
+)
+
+
+def check_adc_credentials_valid() -> bool:
+    """Check if Application Default Credentials are valid and not expired."""
+    gcloud_path = find_gcloud()
+    if not gcloud_path or not ADC_CREDENTIALS_PATH.exists():
+        return False
+
+    try:
+        result = subprocess.run(
+            [gcloud_path, "auth", "application-default", "print-access-token"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, Exception):
+        return False
+    else:
+        return result.returncode == 0
+
+
+def refresh_adc_credentials() -> bool:
+    """Attempt to refresh Application Default Credentials using gcloud."""
+    gcloud_path = find_gcloud()
+    if not gcloud_path:
+        logger.error("gcloud CLI not found! Cannot refresh credentials.")
+        return False
+
+    if not ADC_CREDENTIALS_PATH.exists():
+        logger.warning(
+            "Application Default Credentials file not found, need to set up auth first."
+        )
+        return False
+
+    try:
+        return _check_and_refresh_adc_token(gcloud_path)
+    except subprocess.TimeoutExpired:
+        logger.error("Timeout while checking credentials with gcloud.")
+        return False
+    except Exception as e:
+        logger.error(f"Error refreshing credentials: {e}")
+        return False
+
+
+def _check_and_refresh_adc_token(gcloud_path: str) -> bool:
+    """Check token status and refresh if needed."""
+    result = subprocess.run(
+        [gcloud_path, "auth", "application-default", "print-access-token"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    if result.returncode == 0:
+        logger.info("Access token is still valid.")
+        return True
+
+    logger.info("Current access token is invalid or expired, attempting refresh...")
+    logger.debug(f"gcloud error output: {result.stderr}")
+
+    refresh_result = subprocess.run(
+        [gcloud_path, "auth", "application-default", "login"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    if refresh_result.returncode == 0:
+        logger.info("Credentials successfully refreshed.")
+        return True
+
+    logger.error(f"Failed to refresh credentials: {refresh_result.stderr}")
+    return False
+
+
+class BackupConfig:
+    """Backup configuration loaded from .env"""
+
+    VALID_AUTH_METHODS = ("impersonation", "key", "oauth")
+
+    def __init__(self, root_dir: Path):
+        self.root_dir = root_dir
+        self.auth_method: str = "oauth"
+        self.service_account_email: str | None = None
+        self.credentials_file: str | None = None
+        self.folder_id: str | None = None
+        self.gcloud_path: str | None = None
+
+    @classmethod
+    def load(cls, root_dir: Path) -> "BackupConfig":
+        """Load configuration from .env file."""
+        env_path = root_dir / ".env"
+        if not env_path.exists():
+            raise BackupConfigError(f".env file not found at {env_path}")
+
+        load_dotenv(env_path)
+        config = cls(root_dir)
+
+        auth_method = os.getenv("GDRIVE_AUTH_METHOD", "oauth")
+        if auth_method not in cls.VALID_AUTH_METHODS:
+            raise BackupConfigError(
+                f"Invalid GDRIVE_AUTH_METHOD: {auth_method}. Must be one of {cls.VALID_AUTH_METHODS}."
+            )
+
+        config.auth_method = auth_method
+        config._configure_auth_method(root_dir)
+        config.folder_id = os.getenv("GDRIVE_BACKUP_FOLDER_ID")
+        return config
+
+    def _configure_auth_method(self, root_dir: Path) -> None:
+        """Configure the selected authentication method."""
+        if self.auth_method == "impersonation":
+            self._configure_impersonation_auth()
+        elif self.auth_method == "key":
+            self._configure_key_auth(root_dir)
+        else:
+            self._configure_oauth_auth()
+
+    def _configure_impersonation_auth(self) -> None:
+        """Configure service account impersonation authentication."""
+        service_account_email = os.getenv("GDRIVE_SERVICE_ACCOUNT_EMAIL")
+        if not service_account_email:
+            raise BackupConfigError(
+                "GDRIVE_SERVICE_ACCOUNT_EMAIL must be set when using impersonation auth method.\n"
+                "Example: GDRIVE_SERVICE_ACCOUNT_EMAIL=backup@project.iam.gserviceaccount.com"
+            )
+
+        self.service_account_email = service_account_email
+        self.gcloud_path = find_gcloud()
+
+        logger.info("Using service account impersonation (secure)")
+        logger.info(f"  Service Account: {service_account_email}")
+
+        if not self.gcloud_path:
+            logger.error("  ❌ gcloud CLI not found!")
+            logger.error("  Install with: ./scripts/install_gcloud.sh")
+            raise BackupConfigError("gcloud CLI required for impersonation auth method")
+
+        self._log_gcloud_status()
+
+    def _log_gcloud_status(self) -> None:
+        """Log gcloud CLI status and credentials validity."""
+        assert self.gcloud_path is not None  # Checked by caller
+        gcloud_type = "local" if ".gcloud" in self.gcloud_path else "system"
+        logger.info(f"  Using {gcloud_type} gcloud: {self.gcloud_path}")
+
+        if check_adc_credentials_valid():
+            logger.info("  ✓ Application Default Credentials are valid")
+        else:
+            logger.warning(
+                "  ⚠️  Application Default Credentials may be expired or invalid"
+            )
+            logger.info("  To refresh: ami-gcloud auth application-default login")
+
+    def _configure_key_auth(self, root_dir: Path) -> None:
+        """Configure service account key file authentication."""
+        credentials_file = os.getenv("GDRIVE_CREDENTIALS_FILE")
+        if not credentials_file:
+            raise BackupConfigError(
+                "GDRIVE_CREDENTIALS_FILE must be set when using key auth method.\n"
+                "Example: GDRIVE_CREDENTIALS_FILE=/path/to/service-account.json"
+            )
+
+        credentials_path = Path(credentials_file)
+        if not credentials_path.is_absolute():
+            credentials_path = root_dir / credentials_path
+
+        if not credentials_path.exists():
+            raise BackupConfigError(
+                f"Credentials file not found at {credentials_path}\n"
+                "Create a service account and download the JSON key from Google Cloud Console"
+            )
+
+        self.credentials_file = str(credentials_path)
+
+        logger.warning("⚠️  Using service account key file (security risk)")
+        logger.warning("  Consider switching to service account impersonation")
+
+    def _configure_oauth_auth(self) -> None:
+        """Configure OAuth authentication."""
+        logger.info(
+            "Using regular user OAuth (requires initial browser authentication)"
+        )
+        logger.info("  First time setup will open a browser for authentication")

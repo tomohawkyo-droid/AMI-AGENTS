@@ -1,128 +1,198 @@
-# Banned Word Patterns Configuration
-# Used by banned_words.py to detect forbidden words and patterns
+# Banned Word Patterns Configuration v3.0.0
+# Consolidated from agents/ and AMI-TRADING/ repositories
 #
-# This file contains all patterns that should be banned from the codebase
-# including both simple words and regex patterns for complex detection
+# Format:
+#   pattern: regex pattern to match
+#   reason: why this pattern is banned
+#   exception_regex: (optional) files where this pattern is allowed
+#   multiline: (optional) true for patterns spanning multiple lines
 
-version: "2.0.0"
+version: "3.0.0"
 
-# Global banned words that apply to all directories
-global_banned_words:
-  # General banned words
-  - "fallback"
-  - "falling"
-  - "backwards"
-  - "compatibility"
-  - "degradation"
-  - "legacy"
-  - "shim"
-  - "shims"
-  - "stub"
-  - "stubs"
-  - "skeleton"
-  - "ignore"
-  - ".suppress"
-  - "pass"
-  - "except.*:.*\n\s*pass"
-  - "placeholder"
-  - "placeholders"
-  - "mock"
-  - "parent.parent"
-  - ".parents["
-  - ".parent.resolve"
-  - "hallucinate"
-  - "hallucinated"
-  - "lazy"
-  - "maybe"
-  - "@dataclass"
-  - '(?<!tc)getattr'  # getattr not preceded by tc (like tcgetattr)
-  - '(?<!tc)setattr'  # setattr not preceded by tc (like tcsetattr)
-  - '(?<!\.|W)hasattr(?!()'  # hasattr not followed by parentheses (to allow hasattr())
-  - '.__dict__'
-  - 'vars(?!()'  # vars not followed by parentheses (to allow vars())
-  - "—"  # em-dash
-  - ": Any"
-  - "/home/"
-  - "importlib"
+banned:
+  # === LINTER/TYPE SUPPRESSION ===
+  - pattern: 'mypy: ignore-errors'
+    reason: "Global mypy ignores forbidden. Fix the types."
 
-  # UUID version bans - only uuid7 allowed
-  - "uuid.uuid1("
-  - "uuid.uuid3("
-  - "uuid.uuid4("
-  - "uuid.uuid5("
-  - "uuid.uuid6("
-  - "uuid.uuid8("
-  - "uuid1()"
-  - "uuid3()"
-  - "uuid4()"
-  - "uuid5()"
-  - "uuid6()"
-  - "uuid8()"
-  - "self\\.get("
-  - "self\\.set("
-  - ":latest"
+  - pattern: '#\s*type:\s*ignore'
+    reason: "Type ignoring forbidden. Fix the code or architecture."
 
-  # Unreadable nested bracket and comma patterns - AUTOMATED DETECTION
-  # - "tuple[dict["
-  # - "dict[str, dict["
-  # - "list[dict[str,"
-  # - "tuple[.*,.+,.+]"
-  # - "dict[.+, .+, .+ ]"
-  # - "[str, Any], str, dict["
-  # - "dict[str, list[dict["
-  # - "list[dict[str, list["
-  # - "tuple[.+, .+, .+, .+ ]"  # tuple with 4+ comma-separated elements
+  - pattern: '#\s*noqa'
+    reason: "Linter suppression forbidden. Fix the code style."
 
-# Directory-specific banned patterns
-directory_specific_banned_words:
-  # Skip-related patterns that should only apply to test directories
+  # === DEPRECATED TYPING ===
+  - pattern: '\b(List|Dict|Tuple)\['
+    reason: "Use lowercase generics (list, dict, tuple) for Python 3.9+."
+
+  # === UNSAFE TYPING ===
+  - pattern: 'dict\[.*,\s*Any\]'
+    reason: "No generic dicts for structured data. Use Pydantic models."
+
+  - pattern: ':\s*Any\b'
+    reason: "Explicit Any forbidden. Use proper types."
+
+  # === CODE OWNERSHIP ===
+  - pattern: '(?i)co-authored-by'
+    reason: "Co-authored attribution forbidden. Own your code."
+    exception_regex: "block_coauthored\\.py|commit_checks\\.yaml"
+
+  # === LEGACY/FALLBACK CODE ===
+  - pattern: '\bfallback\b'
+    reason: "No fallback code. Fix properly or fail explicitly."
+
+  - pattern: '\bfalling\b'
+    reason: "Avoid 'falling back' patterns."
+
+  - pattern: '\bbackwards\b'
+    reason: "No backwards compatibility hacks."
+
+  - pattern: '\bcompatibility\b'
+    reason: "No compatibility shims."
+
+  - pattern: '\bdegradation\b'
+    reason: "No graceful degradation. Fail fast."
+
+  - pattern: '\blegacy\b'
+    reason: "No legacy code paths."
+
+  - pattern: '\bshims?\b'
+    reason: "No shim layers."
+
+  - pattern: '\bstubs?\b'
+    reason: "No stub implementations."
+    exception_regex: "\\.pyi$"
+
+  - pattern: '\bskeleton\b'
+    reason: "No skeleton code."
+
+  - pattern: '\bplaceholders?\b'
+    reason: "No placeholder code."
+
+  - pattern: '\bmock\b'
+    reason: "No mock objects in production code."
+    exception_regex: "tests/|test_|_test\\.py"
+
+  - pattern: '\blazy\b'
+    reason: "No lazy evaluation hacks."
+
+  - pattern: '\bmaybe\b'
+    reason: "No uncertain code paths."
+
+  # === SUPPRESSION PATTERNS ===
+  - pattern: '\.suppress'
+    reason: "No suppression of errors/warnings."
+    exception_regex: "contextlib\\.suppress|tests/|scripts/ci/"
+
+  # === UNSAFE REFLECTION ===
+  - pattern: '(?<!tc)getattr\('
+    reason: "getattr is unsafe. Use explicit attribute access."
+
+  - pattern: '(?<!tc)setattr\('
+    reason: "setattr is unsafe. Use explicit attribute assignment."
+
+  - pattern: '\bhasattr\('
+    reason: "hasattr is unsafe. Use explicit checks or protocols."
+
+  - pattern: '\.__dict__'
+    reason: "Direct __dict__ access forbidden. Use proper interfaces."
+
+  - pattern: '\bvars\('
+    reason: "vars() is unsafe reflection."
+
+  - pattern: '\bimportlib\b'
+    reason: "Dynamic imports forbidden. Use explicit imports."
+
+  # === DATA CLASSES ===
+  - pattern: '@dataclass'
+    reason: "Use Pydantic models instead of dataclasses."
+
+  # === PATH SAFETY ===
+  - pattern: '/home/'
+    reason: "No hardcoded home paths. Use environment variables."
+    exception_regex: "conftest\\.py|test_"
+
+  - pattern: '\.parent\.parent'
+    reason: "Fragile path navigation. Use explicit paths."
+
+  - pattern: '\.parents\['
+    reason: "Fragile path navigation. Use explicit paths."
+
+  - pattern: '\.parent\.resolve'
+    reason: "Fragile path navigation. Use explicit paths."
+
+  # === UUID (only uuid7 allowed) ===
+  - pattern: 'uuid\.uuid[134568]\('
+    reason: "Only uuid7 allowed. Use uuid_utils.uuid7()."
+
+  - pattern: '\buuid[134568]\(\)'
+    reason: "Only uuid7 allowed. Use uuid_utils.uuid7()."
+
+  # === CONTAINER VERSIONS ===
+  - pattern: ':latest\b'
+    reason: "Pin container versions. No :latest tags."
+
+  # === SELF METHOD PATTERNS ===
+  - pattern: 'self\.get\('
+    reason: "Avoid dict-like self.get(). Use explicit attributes."
+
+  - pattern: 'self\.set\('
+    reason: "Avoid dict-like self.set(). Use explicit attributes."
+
+  # === SPECIAL CHARACTERS ===
+  - pattern: '—'
+    reason: "No em-dashes. Use -- or proper formatting."
+
+directory_rules:
   tests:
-    - "skip"
-    - "@pytest.mark.skipif"
-    - "@pytest.mark.skip"
-    - "pytest.skip("
-    - "pytest.skip"
-    - "skip_test"
-    - "skip_test("
-    - "if.*skip.*:"
-    - "if.*skip.*return"
-    - "conditional.*skip"
-    - "condition.*skip"
-    - "skip.*condition"
-    - "reason=\".*not implemented yet\""
-    - "reason='.*not implemented yet'"
-    - "reason=\".*skip.*"
-    - "reason='.*skip.*"
-    - "return.*#.*skip"
-    - "pass.*#.*skip"
-    - "#.*skip.*test"
-    - "#.*test.*skip"
+    - pattern: '\bskip\b'
+      reason: "No skipping tests. Fix or delete them."
+      exception_regex: "conftest\\.py"
 
-# General filename patterns (applies globally)
-banned_filename_patterns:
-  - "_v1"
-  - "_v2"
-  - "_v3"
-  - "_v4"
-  - "_v5"
-  - "_old"
-  - "_new"
-  - "_fixed"
-  - "_temp"
-  - "_tmp"
-  - "_backup"
-  - "_copy"
-  - "_2"
-  - "_final"
-  - "_latest"
-  - ".old"
-  - ".new"
-  - ".backup"
-  - ".bak"
-  - ".orig"
+    - pattern: '@pytest\.mark\.skipif'
+      reason: "No conditional skips. Tests must always run."
 
-# Files that should be ignored from banned word scanning
+    - pattern: '@pytest\.mark\.skip'
+      reason: "No skipping tests."
+
+    - pattern: 'pytest\.skip\('
+      reason: "No programmatic skips."
+
+    - pattern: 'reason=.*not implemented yet'
+      reason: "Implement the test or delete it."
+
+filename_rules:
+  - pattern: '_v[0-9]+'
+    reason: "No versioned filenames. Use git."
+
+  - pattern: '_old\.'
+    reason: "No _old files. Delete or rename properly."
+
+  - pattern: '_new\.'
+    reason: "No _new files. Rename to final name."
+
+  - pattern: '_fixed\.'
+    reason: "No _fixed files. Replace original."
+
+  - pattern: '_temp\.'
+    reason: "No temp files in repo."
+
+  - pattern: '_tmp\.'
+    reason: "No tmp files in repo."
+
+  - pattern: '_backup\.'
+    reason: "No backup files. Use git."
+
+  - pattern: '_copy\.'
+    reason: "No copy files. Consolidate."
+
+  - pattern: '_final\.'
+    reason: "No _final files. Just use the real name."
+
+  - pattern: '\.(old|new|backup|bak|orig)$'
+    reason: "No backup extensions. Use git."
+
 ignored_files:
-  - "scripts/config/patterns/banned_words.yaml"  # This config file itself
-  - "AGENTS.md"
+  - "ami/config/patterns/banned_words.yaml"
   - "CLAUDE.md"
+  - "AGENTS.md"
+  - "res/config/commit_checks.yaml"

@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-
-from __future__ import annotations
-
-
 """AMI Agent - Unified automation entry point.
 
 Usage:
@@ -18,21 +14,23 @@ Examples:
     ami-agent
 """
 
+from __future__ import annotations
+
 import argparse
-from collections.abc import Callable
 import sys
-import os
+from collections.abc import Callable
 from pathlib import Path
 
-# Load .env file
 from dotenv import load_dotenv
-load_dotenv(Path.cwd() / ".env")
 
 from ami.cli.mode_handlers import (
     mode_interactive_editor,
     mode_print,
     mode_query,
 )
+
+# Load .env file after imports
+load_dotenv(Path.cwd() / ".env")
 
 
 def main() -> int:
@@ -65,7 +63,10 @@ def main() -> int:
 
     # Route to appropriate mode using dispatch
     mode_handlers_list: list[tuple[str | bool | None, Callable[[], int]]] = [
-        (args.interactive_editor, lambda: mode_interactive_editor() if args.interactive_editor else 1),
+        (
+            args.interactive_editor,
+            lambda: mode_interactive_editor() if args.interactive_editor else 1,
+        ),
         (args.query, lambda: mode_query(args.query) if args.query else 1),
         (args.print, lambda: mode_print(args.print) if args.print else 1),
     ]

@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# ami-run: Universal execution wrapper for AMI Orchestrator
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AMI_ROOT="$("$SCRIPT_DIR/ami-pwd")"
+export AMI_ROOT
+
+VENV_DIR="$AMI_ROOT/.venv"
+VENV_PYTHON="$VENV_DIR/bin/python"
+BOOT_DIR="$AMI_ROOT/.boot-linux"
+
+[[ -f "$AMI_ROOT/.env" ]] && export $(grep -v '^#' "$AMI_ROOT/.env" | xargs) || true
+
+export PATH="$BOOT_DIR/bin:$VENV_DIR/bin:$PATH"
+export PYTHONPATH="$AMI_ROOT:${PYTHONPATH:-}"
+
+if [[ "$#" -gt 0 && ("$1" == "-h" || "$1" == "--help") ]]; then
+    echo "ami-run: Universal execution wrapper for AMI Orchestrator"
+    echo ""
+    echo "Usage: ami-run [subcommand] [args...]"
+    echo ""
+    echo "Subcommands: python, uv, podman, node, npm, npx, tests, ansible, status"
+    exit 0
+fi
+
+KNOWN_CMDS="python uv podman docker node npm npx java wrap bash sh tests ansible ansible-playbook ansible-galaxy status systemd"
+if [[ $# -gt 0 ]] && [[ " $KNOWN_CMDS " == *" $1 "* ]]; then
+    SUBCOMMAND="$1"
+    shift
+    ARGS=("$@")
+elif [[ $# -gt 0 && -f "$1" ]]; then
+    SUBCOMMAND="python"
+    ARGS=("$@")
+elif [[ $# -eq 0 ]]; then
+    SUBCOMMAND="python"
+    ARGS=()
+else
+    echo "Error: Unknown subcommand '$1'" >&2
+    exit 1
+fi
+
+case "$SUBCOMMAND" in
+    python)
+        exec "$VENV_PYTHON" "${ARGS[@]}"
+        ;;
+    tests)
+        exec "$VENV_DIR/bin/pytest" "${ARGS[@]}"
+        ;;
+    uv)
+        exec "$BOOT_DIR/bin/uv" "${ARGS[@]}"
+        ;;
+    ansible|ansible-playbook|ansible-galaxy)
+        exec "$VENV_DIR/bin/$SUBCOMMAND" "${ARGS[@]}"
+        ;;
+    status)
+        exec "$VENV_PYTHON" "$AMI_ROOT/ami/cli_components/status.py"
+        ;;
+    systemd)
+        exec systemctl --user "${ARGS[@]}"
+        ;;
+    podman)
+        exec "$BOOT_DIR/bin/podman" "${ARGS[@]}"
+        ;;
+    docker)
+        if command -v docker >/dev/null 2>&1; then
+            exec docker "${ARGS[@]}"
+        else
+            echo "Error: Docker not found" >&2
+            exit 1
+        fi
+        ;;
+    node)
+        exec "$BOOT_DIR/bin/node" "${ARGS[@]}"
+        ;;
+    npm)
+        exec "$BOOT_DIR/bin/npm" "${ARGS[@]}"
+        ;;
+    npx)
+        exec "$BOOT_DIR/bin/npx" "${ARGS[@]}"
+        ;;
+    java)
+        exec java "${ARGS[@]}"
+        ;;
+    bash)
+        exec bash "${ARGS[@]}"
+        ;;
+    sh)
+        exec sh "${ARGS[@]}"
+        ;;
+    wrap)
+        [[ ${#ARGS[@]} -lt 2 ]] && echo "Usage: ami-run wrap <id> <cmd>" >&2 && exit 1
+        SVC_ID="${ARGS[0]}"
+        CMD=("${ARGS[@]:1}")
+        R_DIR="$AMI_ROOT/.runtime/wrapped/$SVC_ID"
+        mkdir -p "$R_DIR"
+        PID_F="$R_DIR/pid.lock"
+        [[ -f "$PID_F" ]] && kill -0 $(cat "$PID_F") 2>/dev/null && echo "Already running" >&2 && exit 1
+        nohup "$0" "${CMD[@]}" > "$R_DIR/std.log" 2>&1 &
+        echo $! > "$PID_F"
+        echo "Started $SVC_ID (PID: $!)"
+        ;;
+esac

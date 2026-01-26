@@ -1,9 +1,10 @@
 """Unit tests for Core Agent."""
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 
-from ami.core.bootloader_agent import BootloaderAgent
+from ami.core.bootloader_agent import BootloaderAgent, RunContext
 
 
 class TestBootloaderAgent:
@@ -17,7 +18,10 @@ class TestBootloaderAgent:
     @pytest.fixture
     def agent(self, mock_runtime):
         """Fixture for BootloaderAgent with mocked runtime."""
-        with patch("ami.core.bootloader_agent.BootloaderAgent._get_banner", return_value="MOCKED BANNER"):
+        with patch(
+            "ami.core.bootloader_agent.BootloaderAgent._get_banner",
+            return_value="MOCKED BANNER",
+        ):
             yield BootloaderAgent(runtime=mock_runtime)
 
     @patch("ami.core.bootloader_agent.check_command_safety")
@@ -25,25 +29,27 @@ class TestBootloaderAgent:
     def test_execute_shell_safe(self, MockExecutor, mock_safety, agent):
         """execute_shell executes command if safe."""
         mock_safety.return_value = (True, "")
-        
+
         # Mock extensions setup
-        with patch.object(BootloaderAgent, "_load_extensions", return_value='eval "$(./ami-agent -i)"'):
+        with patch.object(
+            BootloaderAgent, "_load_extensions", return_value='eval "$(./ami-agent -i)"'
+        ):
             # Mock executor result
             mock_instance = MockExecutor.return_value
             mock_instance.run.return_value = {
                 "stdout": "\x1b[31moutput\x1b[0m",
                 "stderr": "",
-                "returncode": 0
+                "returncode": 0,
             }
 
             result = agent.execute_shell("echo test")
 
             assert "output" in result
-            assert "\x1b" not in result # No ANSI codes
-            
+            assert "\x1b" not in result  # No ANSI codes
+
             # Verify call arguments
             mock_instance.run.assert_called_once()
-            args, kwargs = mock_instance.run.call_args
+            args, _kwargs = mock_instance.run.call_args
             cmd_list = args[0]
             assert cmd_list[0] == "/bin/bash"
             assert cmd_list[1] == "-c"
@@ -64,15 +70,19 @@ class TestBootloaderAgent:
 
     def test_run_new_session(self, mock_runtime, agent):
         """run() initiates new session if none provided."""
-        mock_runtime.run_print.return_value = ("Agent response", {"session_id": "new-uuid"})
+        mock_runtime.run_print.return_value = (
+            "Agent response",
+            {"session_id": "new-uuid"},
+        )
 
-        response, session_id = agent.run("Hello")
+        ctx = RunContext(instruction="Hello")
+        response, session_id = agent.run(ctx)
 
         assert response == "Agent response"
         assert session_id == "new-uuid"
-        
+
         # Verify prompt contains banner
-        args, kwargs = mock_runtime.run_print.call_args
+        _args, kwargs = mock_runtime.run_print.call_args
         instruction = kwargs.get("instruction", "")
         assert "MOCKED BANNER" in instruction
 
@@ -80,11 +90,12 @@ class TestBootloaderAgent:
         """run() uses existing session if provided."""
         mock_runtime.run_print.return_value = ("Resumed response", {})
 
-        response, session_id = agent.run("Continue", session_id="existing-uuid")
+        ctx = RunContext(instruction="Continue", session_id="existing-uuid")
+        response, session_id = agent.run(ctx)
 
         assert response == "Resumed response"
         assert session_id == "existing-uuid"
-        
+
         # Verify config has session_id
-        config = mock_runtime.run_print.call_args[1].get('agent_config')
+        config = mock_runtime.run_print.call_args[1].get("agent_config")
         assert config.session_id == "existing-uuid"

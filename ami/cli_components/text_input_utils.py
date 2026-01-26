@@ -7,7 +7,6 @@ import sys
 import termios
 import tty
 
-
 from ami.cli_components.terminal.ansi import AnsiTerminal
 
 # ASCII control character codes
@@ -47,7 +46,9 @@ CONTROL_MAX = 31  # Last control character (0-31)
 class Colors:
     RESET = AnsiTerminal.RESET
     BOLD = AnsiTerminal.BOLD
-    REVERSE = AnsiTerminal.REVERSE  # Inverted video (black on white background rectangle)
+    REVERSE = (
+        AnsiTerminal.REVERSE
+    )  # Inverted video (black on white background rectangle)
     BLACK = AnsiTerminal.BLACK
     RED = AnsiTerminal.RED
     GREEN = AnsiTerminal.GREEN
@@ -95,21 +96,23 @@ def get_char_with_ordinals() -> tuple[str, int]:
 
 def _handle_escape_sequence() -> str | None:
     """Handle escape sequences (arrow keys, etc)."""
-    ch2, ord2 = get_char_with_ordinals()
+    _ch2, ord2 = get_char_with_ordinals()
     if ord2 == BRACKET:  # '[' character (ANSI sequence prefix)
         return _handle_ansi_sequence()
     if ord2 == OSC_PREFIX:  # 'O' character (F1-F4 keys prefix)
         return _handle_osc_sequence()
-    if ord2 in {ENTER_CR, ENTER_LF}: # Alt+Enter
+    if ord2 in {ENTER_CR, ENTER_LF}:  # Alt+Enter
         return "ALT_ENTER"
-    
+
     # If not a recognized sequence, return the original ESC
-    return "ESC_NOT_HANDLED"  # Special marker to indicate original ESC should be returned
+    return (
+        "ESC_NOT_HANDLED"  # Special marker to indicate original ESC should be returned
+    )
 
 
 def _handle_osc_sequence() -> str:
     """Handle OSC escape sequences for F1-F4 keys."""
-    ch3, ord3 = get_char_with_ordinals()
+    _ch3, ord3 = get_char_with_ordinals()
     if ord3 == ord("P"):  # F1
         return "F1"
     if ord3 == ord("Q"):  # F2
@@ -123,7 +126,7 @@ def _handle_osc_sequence() -> str:
 
 def _handle_ansi_sequence() -> str:
     """Handle ANSI escape sequences for arrow keys and special combinations."""
-    ch3, ord3 = get_char_with_ordinals()
+    _ch3, ord3 = get_char_with_ordinals()
 
     # Check for bracketed paste sequences first
     paste_result = _check_paste_sequences(ord3)
@@ -147,15 +150,15 @@ def _check_paste_sequences(ord3: int) -> str:
 
 def _check_bracketed_paste_sequence() -> str:
     """Check for bracketed paste sequence ESC[200~ (start) and ESC[201~ (end)."""
-    ch4, ord4 = get_char_with_ordinals()
+    _ch4, ord4 = get_char_with_ordinals()
     if ord4 == ord("0"):
-        ch5, ord5 = get_char_with_ordinals()
+        _ch5, ord5 = get_char_with_ordinals()
         if ord5 == ord("0"):
-            ch6, ord6 = get_char_with_ordinals()
+            _ch6, ord6 = get_char_with_ordinals()
             if ord6 == ord("~"):  # ESC[200~ - paste start
                 return "PASTE_START"
         elif ord5 == ord("1"):
-            ch6, ord6 = get_char_with_ordinals()
+            _ch6, ord6 = get_char_with_ordinals()
             if ord6 == ord("~"):  # ESC[201~ - paste end
                 return "PASTE_END"
     return "ESC_NOT_HANDLED"
@@ -163,11 +166,11 @@ def _check_bracketed_paste_sequence() -> str:
 
 def _check_alternative_paste_sequence() -> str:
     """Check for alternative paste sequences like ESC0~ and ESC01~."""
-    ch4, ord4 = get_char_with_ordinals()
+    _ch4, ord4 = get_char_with_ordinals()
     if ord4 == ord("~"):  # ESC0~ - alternative paste start
         return "PASTE_START_ALT"
     if ord4 == ord("1"):
-        ch5, ord5 = get_char_with_ordinals()
+        _ch5, ord5 = get_char_with_ordinals()
         if ord5 == ord("~"):  # ESC01~ - alternative paste end
             return "PASTE_END_ALT"
     return "ESC_NOT_HANDLED"
@@ -175,72 +178,63 @@ def _check_alternative_paste_sequence() -> str:
 
 def _handle_arrow_keys(ord3: int) -> str:
     """Handle arrow keys and other special sequences."""
-    result = "ESC_NOT_HANDLED"  # Default return value
+    # Simple arrow key mapping
+    arrow_map = {
+        UP_ARROW: "UP",
+        DOWN_ARROW: "DOWN",
+        RIGHT_ARROW: "RIGHT",
+        LEFT_ARROW: "LEFT",
+    }
+    if ord3 in arrow_map:
+        return arrow_map[ord3]
 
-    if ord3 == UP_ARROW:  # Up arrow
-        result = "UP"
-    elif ord3 == DOWN_ARROW:  # Down arrow
-        result = "DOWN"
-    elif ord3 == RIGHT_ARROW:  # Right arrow
-        result = "RIGHT"
-    elif ord3 == LEFT_ARROW:  # LEFT arrow
-        result = "LEFT"
-    elif ord3 == ONE:  # '1' - Check for Ctrl+Arrow combinations or function keys
-        ch4, ord4 = get_char_with_ordinals()
-        if ord4 == ord("1"): # ESC[11~ (F1)
-            ch5, ord5 = get_char_with_ordinals()
+    # '1' - Check for Ctrl+Arrow combinations or function keys
+    if ord3 == ONE:
+        _ch4, ord4 = get_char_with_ordinals()
+        if ord4 == ord("1"):  # ESC[11~ (F1)
+            _ch5, ord5 = get_char_with_ordinals()
             if ord5 == TILDE:
-                result = "F1"
-        elif ord4 == SEMICOLON: # ESC[1;5X (Ctrl+Arrow)
-            result = _handle_ctrl_arrow_sequence_after_semicolon()
+                return "F1"
+        elif ord4 == SEMICOLON:  # ESC[1;5X (Ctrl+Arrow)
+            return _handle_ctrl_arrow_sequence_after_semicolon()
 
-    # If not a recognized ANSI sequence, return not handled
-    return result
+    return "ESC_NOT_HANDLED"
 
 
 def _handle_ctrl_arrow_sequence_after_semicolon() -> str:
     """Handle the rest of Ctrl+Arrow sequence after semicolon."""
-    result = "ESC_NOT_HANDLED"
-    ch5, ord5 = get_char_with_ordinals()  # Should be '5'
-    if ord5 == FIVE:  # '5' (Ctrl modifier)
-        ch6, ord6 = get_char_with_ordinals()  # Direction: A, B, C, D
-        if ord6 == UP_ARROW:  # Ctrl+Up (move by paragraph)
-            result = "CTRL_UP"
-        elif ord6 == DOWN_ARROW:  # Ctrl+Down (move by paragraph)
-            result = "CTRL_DOWN"
-        elif ord6 == RIGHT_ARROW:  # Ctrl+Right (move by word)
-            result = "CTRL_RIGHT"
-        elif ord6 == LEFT_ARROW:  # Ctrl+Left (move by word)
-            result = "CTRL_LEFT"
-    return result
+    _ch5, ord5 = get_char_with_ordinals()  # Should be '5'
+    if ord5 != FIVE:  # '5' (Ctrl modifier)
+        return "ESC_NOT_HANDLED"
+
+    _ch6, ord6 = get_char_with_ordinals()  # Direction: A, B, C, D
+    ctrl_arrow_map = {
+        UP_ARROW: "CTRL_UP",
+        DOWN_ARROW: "CTRL_DOWN",
+        RIGHT_ARROW: "CTRL_RIGHT",
+        LEFT_ARROW: "CTRL_LEFT",
+    }
+    return ctrl_arrow_map.get(ord6, "ESC_NOT_HANDLED")
 
 
 def _handle_control_characters(ord1: int) -> str | None:
     """Handle various control characters."""
-    result = None  # Default return value
-
-    if ord1 == CTRL_C:  # Ctrl+C
+    if ord1 == CTRL_C:
         raise KeyboardInterrupt
-    if ord1 == CTRL_S:  # Ctrl+S
-        result = "EOF"
-    elif ord1 == BACKSPACE:  # Backspace (delete)
-        result = "BACKSPACE"
-    elif ord1 == ENTER_CR:  # Enter (carriage return) - Standard Enter
-        result = "ENTER"
-    elif ord1 == ENTER_LF:  # Enter (line feed) - Often Ctrl+Enter
-        result = "CTRL_ENTER"
-    elif ord1 == TAB:  # Tab
-        result = "\t"
-    elif ord1 == CTRL_U:  # Ctrl+U (delete entire line)
-        result = "DELETE_LINE"
-    elif ord1 == CTRL_A:  # Ctrl+A (go to beginning of line)
-        result = "HOME"
-    elif ord1 == CTRL_W:  # Ctrl+W (delete word)
-        result = "DELETE_WORD"
-    elif ord1 == CTRL_H_CODE:  # Ctrl+H (often sent by Ctrl+Backspace in some terminals)
-        result = "BACKSPACE_WORD"  # Delete word like Ctrl+Backspace
 
-    return result
+    # Map control characters to their action strings
+    control_map = {
+        CTRL_S: "EOF",
+        BACKSPACE: "BACKSPACE",
+        ENTER_CR: "ENTER",
+        ENTER_LF: "CTRL_ENTER",
+        TAB: "\t",
+        CTRL_U: "DELETE_LINE",
+        CTRL_A: "HOME",
+        CTRL_W: "DELETE_WORD",
+        CTRL_H_CODE: "BACKSPACE_WORD",
+    }
+    return control_map.get(ord1)
 
 
 def read_key_sequence() -> str | int | None:
@@ -266,7 +260,17 @@ def read_key_sequence() -> str | int | None:
     # Filter out other control characters to prevent them from appearing in content
     # Control characters are typically 0-31 and 127, we've already handled the useful ones
     # So we'll return a special code for unhandled control characters to skip them
-    if 0 <= ord1 <= CONTROL_MAX and ord1 not in [CTRL_C, TAB, ENTER_LF, ENTER_CR, CTRL_S, CTRL_U, CTRL_W, ESC, CTRL_H_CODE]:  # Skip handled control chars
+    if 0 <= ord1 <= CONTROL_MAX and ord1 not in [
+        CTRL_C,
+        TAB,
+        ENTER_LF,
+        ENTER_CR,
+        CTRL_S,
+        CTRL_U,
+        CTRL_W,
+        ESC,
+        CTRL_H_CODE,
+    ]:  # Skip handled control chars
         return None  # Skip unhandled control characters
     return ch1
 
@@ -293,7 +297,9 @@ def display_final_output(lines: list[str], message: str) -> None:
             sys.stdout.write(f"{indented_line}\n")
             sys.stdout.flush()
     else:
-        empty_line = "  ".ljust(effective_width - 2)  # 2-space indent padded to content width
+        empty_line = "  ".ljust(
+            effective_width - 2
+        )  # 2-space indent padded to content width
         sys.stdout.write(f"{empty_line}\n")
         sys.stdout.flush()
 

@@ -1,0 +1,18 @@
+# Dependency Check Configuration
+# Used by check_dependency_versions.py to validate dependency setup
+
+# Path to the base TOML template (hardware-agnostic dependencies)
+base_toml_path: "res/config/pyproject.base.toml"
+
+# Path to the generated project TOML
+generated_toml_path: "pyproject.toml"
+
+# Packages that MUST NOT appear in base config (hardware-specific)
+# These should only be in vendor/ requirements files
+forbidden_packages:
+  - torch
+  - torchvision
+  - torchaudio
+  - tensorflow
+  - jax
+  - jaxlib

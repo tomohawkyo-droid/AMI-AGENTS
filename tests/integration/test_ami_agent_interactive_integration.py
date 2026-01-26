@@ -1,18 +1,12 @@
 """Integration tests for ami-agent interactive mode functionality."""
 
-import importlib.util
-from pathlib import Path
-import sys
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import Mock, patch
 
 from ami.cli.claude_cli import ClaudeAgentCLI
 from ami.cli.config import AgentConfigPresets
 from ami.cli.factory import get_agent_cli
+from ami.cli.main import main as cli_main
 from ami.cli.mode_handlers import mode_interactive_editor, mode_query
-from ami.cli.provider_type import ProviderType
-from ami.cli.qwen_cli import QwenAgentCLI
 from ami.cli.timer_utils import TimerDisplay, wrap_text_in_box
 from ami.cli_components.text_editor import TextEditor
 
@@ -25,16 +19,10 @@ class TestMainIntegration:
     @patch("ami.cli.mode_handlers.mode_interactive_editor", return_value=0)
     def test_main_with_interactive_editor_arg(self, mock_mode_handler, mock_exit):
         """Test main function with --interactive-editor argument."""
-        # Setup paths
-        agents_root = Path(__file__).resolve().parent.parent.parent
-        main_py_path = agents_root / "ami" / "cli" / "main.py"
-        
         # Mock sys.argv
         with patch("sys.argv", ["ami-agent", "--interactive-editor"]):
-            spec = importlib.util.spec_from_file_location("__main__", str(main_py_path.resolve()))
-            main_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(main_module)
-            
+            cli_main()
+
             mock_exit.assert_called_once()
             mock_mode_handler.assert_called_once()
 
@@ -43,13 +31,8 @@ class TestMainIntegration:
     @patch("ami.cli.mode_handlers.mode_query", return_value=0)
     def test_main_with_query_arg(self, mock_mode_handler, mock_exit):
         """Test main function with --query argument."""
-        agents_root = Path(__file__).resolve().parent.parent.parent
-        main_py_path = agents_root / "ami" / "cli" / "main.py"
-
         with patch("sys.argv", ["ami-agent", "--query", "test query"]):
-            spec = importlib.util.spec_from_file_location("__main__", str(main_py_path.resolve()))
-            main_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(main_module)
+            cli_main()
 
             mock_exit.assert_called_once()
             mock_mode_handler.assert_called_once()
@@ -60,7 +43,9 @@ class TestModeHandlersIntegration:
 
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
-    def test_mode_interactive_editor_end_to_end(self, mock_create_bootloader, mock_text_editor):
+    def test_mode_interactive_editor_end_to_end(
+        self, mock_create_bootloader, mock_text_editor
+    ):
         """End-to-end test of interactive editor mode."""
         # Mock the text editor to return content then None to exit loop
         mock_editor = Mock()

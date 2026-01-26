@@ -3,8 +3,37 @@
 This module defines the protocols that decouple core logic from interface implementations.
 """
 
-from typing import Protocol, Any, Dict, Tuple, Optional
 from pathlib import Path
+from typing import TYPE_CHECKING, Protocol
+
+from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from ami.types.api import MCPServerConfig, ProviderMetadata
+    from ami.types.config import AgentConfig
+
+
+class RunPrintParams(BaseModel):
+    """Parameters for run_print method."""
+
+    instruction: str | Path | None = None
+    cwd: Path | None = None
+    agent_config: "AgentConfig | None" = None
+    instruction_file: Path | None = None
+    stdin: str | None = None
+    audit_log_path: Path | None = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class RunInteractiveParams(BaseModel):
+    """Parameters for run_interactive method."""
+
+    instruction: str = ""
+    cwd: Path | None = None
+    session_id: str | None = None
+    mcp_servers: dict[str, "MCPServerConfig"] = Field(default_factory=dict)
 
 
 class AgentRuntimeProtocol(Protocol):
@@ -12,22 +41,14 @@ class AgentRuntimeProtocol(Protocol):
 
     def run_print(
         self,
-        instruction: str | Path | None = None,
-        cwd: Path | None = None,
-        agent_config: Any = None,
-        instruction_file: Path | None = None,
-        stdin: str | None = None,
-        audit_log_path: Path | None = None,
-    ) -> Tuple[str, Dict[str, Any] | None]:
+        params: RunPrintParams | None = None,
+    ) -> tuple[str, "ProviderMetadata | None"]:
         """Run agent in print mode."""
         ...
 
     def run_interactive(
         self,
-        instruction: str,
-        cwd: Path | None = None,
-        session_id: str | None = None,
-        mcp_servers: Dict[str, Any] | None = None,
-    ) -> Tuple[str, Dict[str, Any] | None]:
+        params: RunInteractiveParams | None = None,
+    ) -> tuple[str, "ProviderMetadata | None"]:
         """Run agent interactively."""
         ...

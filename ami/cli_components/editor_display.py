@@ -2,9 +2,8 @@
 
 import sys
 
-from ami.cli_components.text_input_utils import Colors, display_final_output
 from ami.cli_components.terminal.ansi import AnsiTerminal
-
+from ami.cli_components.text_input_utils import Colors, display_final_output
 
 """
 Display functionality for the text editor.
@@ -17,15 +16,25 @@ class EditorDisplay:
     def __init__(self) -> None:
         # Store the original cursor position (number of lines we print)
         self.editor_line_count: int = 0
-        self.previous_display_lines: int = 0  # Track how many lines were displayed in the previous render
+        self.previous_display_lines: int = (
+            0  # Track how many lines were displayed in the previous render
+        )
         self.show_help: bool = False  # Toggle help legend display
 
-    def display_editor(self, lines: list[str], current_line: int, current_col: int, status_override: str | None = None) -> None:
+    def display_editor(
+        self,
+        lines: list[str],
+        current_line: int,
+        current_col: int,
+        status_override: str | None = None,
+    ) -> None:
         """Display the current state of the editor."""
 
         # Calculate the total display lines before making changes
         header_lines = 1 if self.show_help else 0
-        total_display_lines = header_lines + 2 + len(lines) + 1  # header + 2 for borders + content + 1 for status
+        total_display_lines = (
+            header_lines + 2 + len(lines) + 1
+        )  # header + 2 for borders + content + 1 for status
 
         # For subsequent displays (after first), clear previous content using a more robust approach
         if self.previous_display_lines > 0:
@@ -39,11 +48,13 @@ class EditorDisplay:
         # Print a header with instructions (no borders) if show_help is True
         effective_width = 80  # Fixed to 80 characters wide
         if self.show_help:
-            content_text = (
-                f" Arrows: nav {Colors.CYAN}|{Colors.YELLOW} Alt/Ctrl+Enter: newline {Colors.CYAN}|{Colors.YELLOW} Enter: send {Colors.CYAN}|{Colors.GREEN} F1: toggle help"
-            )
+            content_text = f" Arrows: nav {Colors.CYAN}|{Colors.YELLOW} Alt/Ctrl+Enter: newline {Colors.CYAN}|{Colors.YELLOW} Enter: send {Colors.CYAN}|{Colors.GREEN} F1: toggle help"
             content_width = effective_width  # Full width for header without borders
-            content_text = content_text[:content_width] if len(content_text) > content_width else content_text.ljust(content_width)
+            content_text = (
+                content_text[:content_width]
+                if len(content_text) > content_width
+                else content_text.ljust(content_width)
+            )
             sys.stdout.write(content_text + "\n")
             sys.stdout.flush()
 
@@ -68,9 +79,13 @@ class EditorDisplay:
                     # If cursor position is invalid (too negative or beyond line length), just append a space with reverse video
                     formatted_line = f"{line_content}{Colors.REVERSE} {Colors.RESET}"
 
-                sys.stdout.write(f" {Colors.REVERSE}{i + 1:2d}{Colors.RESET}| {formatted_line}\n")
+                sys.stdout.write(
+                    f" {Colors.REVERSE}{i + 1:2d}{Colors.RESET}| {formatted_line}\n"
+                )
             else:
-                sys.stdout.write(f" {Colors.CYAN}{i + 1:2d}{Colors.RESET}| {line_content}\n")
+                sys.stdout.write(
+                    f" {Colors.CYAN}{i + 1:2d}{Colors.RESET}| {line_content}\n"
+                )
             sys.stdout.flush()
 
         # Create bottom border for the input area
@@ -106,17 +121,25 @@ class EditorDisplay:
         """Clear the editor from the terminal."""
         if self.previous_display_lines > 0:
             # Move up to the beginning of the previous display and clear all lines
-            sys.stdout.write(f"\033[{self.previous_display_lines}A")  # Move cursor up to the top of previous display
+            sys.stdout.write(
+                f"\033[{self.previous_display_lines}A"
+            )  # Move cursor up to the top of previous display
             sys.stdout.flush()
             # Clear each line completely
             for i in range(self.previous_display_lines):
                 AnsiTerminal.clear_line()
-                if i < self.previous_display_lines - 1:  # For all but the last line, move to beginning of next line
-                    sys.stdout.write("\033[B\033[1G")  # Move cursor down to next line and to beginning of that line
+                if (
+                    i < self.previous_display_lines - 1
+                ):  # For all but the last line, move to beginning of next line
+                    sys.stdout.write(
+                        "\033[B\033[1G"
+                    )  # Move cursor down to next line and to beginning of that line
                     sys.stdout.flush()
             # The cursor is now at the last cleared line. Move back up to print new content
             if self.previous_display_lines > 1:
-                sys.stdout.write(f"\033[{self.previous_display_lines - 1}A")  # Move back up to the first line position
+                sys.stdout.write(
+                    f"\033[{self.previous_display_lines - 1}A"
+                )  # Move back up to the first line position
                 sys.stdout.flush()
 
     def handle_keyboard_interrupt(self, lines: list[str]) -> None:

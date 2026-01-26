@@ -1,6 +1,39 @@
 # AMI Agent Shell Extensions Registry
-# Commands defined here will be executed and their output EVALUATED (sourced) 
-# into the agent's shell environment.
+# All ami-* commands are defined as extensions in ami/scripts/extensions/*.sh
+# Each extension contains metadata (@name, @description, @category, @binary, @features)
+# This is the SINGLE SOURCE OF TRUTH for all ami-* commands.
+#
+# Extensions are auto-loaded from ami/scripts/extensions/*.sh by shell-setup
+# This file documents the available extensions for reference.
 
 extensions:
-  - "./ami-agent -i"
+  # ==========================================================================
+  # Core Execution & Management
+  # ==========================================================================
+  - "./ami/scripts/extensions/ami-agent.sh"       # Main entry point
+  - "./ami/scripts/extensions/ami.sh"             # Unified CLI
+  - "./ami/scripts/extensions/ami-run.sh"         # Universal execution wrapper
+  - "./ami/scripts/extensions/ami-repo.sh"        # Git repository management
+  - "./ami/scripts/extensions/ami-pwd.sh"         # Root directory finder
+
+  # ==========================================================================
+  # Enterprise Services
+  # ==========================================================================
+  - "./ami/scripts/extensions/ami-mail.sh"        # Enterprise mail (SMTP/IMAP)
+  - "./ami/scripts/extensions/ami-chat.sh"        # Matrix chat (matrix-commander)
+  - "./ami/scripts/extensions/ami-admin.sh"       # Matrix admin (synadm)
+  - "./ami/scripts/extensions/ami-browser.sh"     # Browser automation (Playwright)
+
+  # ==========================================================================
+  # Development Tools
+  # ==========================================================================
+  - "./ami/scripts/extensions/ami-backup.sh"      # Backup to Google Drive
+  - "./ami/scripts/extensions/ami-restore.sh"     # Restore from Google Drive
+  - "./ami/scripts/extensions/ami-check-storage.sh"  # Storage validation
+
+  # ==========================================================================
+  # AI Coding Agents (REQUIRE HUMAN SUPERVISION)
+  # ==========================================================================
+  - "./ami/scripts/extensions/ami-claude.sh"      # Claude Code
+  - "./ami/scripts/extensions/ami-gemini.sh"      # Gemini CLI
+  - "./ami/scripts/extensions/ami-qwen.sh"        # Qwen Code

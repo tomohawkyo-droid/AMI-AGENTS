@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
+import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-import subprocess
-from typing import TYPE_CHECKING, Any
 
-
-if TYPE_CHECKING:
-    from .config import AgentConfig
-
+from ami.core.interfaces import RunInteractiveParams, RunPrintParams
+from ami.types.api import ProviderMetadata, StreamMetadata
+from ami.types.config import AgentConfig
 from ami.utils.uuid_utils import uuid7
+
+from .agent_logging import TranscriptLogger
 from .streaming import execute_streaming
 from .streaming_utils import load_instruction_with_replacements
-from ami.core.config import get_config
-from .agent_logging import TranscriptLogger
 
 
 class CLIProvider(ABC):
@@ -35,17 +33,13 @@ class CLIProvider(ABC):
             return False
 
         try:
-            # Try graceful termination first
             self.current_process.terminate()
             try:
-                # Wait a short time for graceful exit
                 self.current_process.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                # Force kill if it doesn't exit gracefully
                 self.current_process.kill()
-                self.current_process.wait()  # Clean up zombie process
+                self.current_process.wait()
         except ProcessLookupError:
-            # Process already terminated
             pass
         finally:
             self.current_process = None
@@ -76,8 +70,8 @@ class CLIProvider(ABC):
         line: str,
         cmd: list[str],
         line_count: int,
-        agent_config: AgentConfig,
-    ) -> tuple[str, dict[str, Any] | None]:
+        agent_config: AgentConfig | None,
+    ) -> tuple[str, StreamMetadata | None]:
         """Parse a single line from CLI's streaming output.
 
         Args:
@@ -87,7 +81,7 @@ class CLIProvider(ABC):
             agent_config: Agent configuration
 
         Returns:
-            Tuple of (output text, metadata dict or None)
+            Tuple of (output text, metadata or None)
         """
 
     @abstractmethod
@@ -105,7 +99,7 @@ class CLIProvider(ABC):
         agent_config: AgentConfig,
         stdin_data: str | None = None,
         audit_log_path: Path | None = None,
-    ) -> tuple[str, dict[str, Any] | None]:
+    ) -> tuple[str, ProviderMetadata | None]:
         """Execute CLI command with timeout handling.
 
         Args:
@@ -113,7 +107,7 @@ class CLIProvider(ABC):
             cwd: Working directory for execution
             agent_config: Agent configuration
             stdin_data: Data to provide to stdin
-            audit_log_path: Path for audit logging (not used in base implementation but accepted for interface compatibility)
+            audit_log_path: Path for audit logging (optional)
 
         Returns:
             Tuple of (output, metadata)
@@ -121,62 +115,43 @@ class CLIProvider(ABC):
         Raises:
             AgentError: If execution fails or times out
         """
-        # audit_log_path is accepted for interface compatibility but not used in base implementation
         _ = audit_log_path  # Mark as intentionally unused
 
-        # Initialize Transcript Logger
-        # If session_id is None (new session), generate one for logging only
-        log_session_id = str(agent_config.session_id) if agent_config.session_id else uuid7()
+        log_session_id = (
+            str(agent_config.session_id) if agent_config.session_id else uuid7()
+        )
         logger = TranscriptLogger(log_session_id)
-        
-        # Log User Instruction (Context)
+
         log_content = instruction
         if stdin_data:
             log_content += f"\n\nSTDIN:\n{stdin_data}"
         logger.log_user_message(log_content)
 
-        # Build the command
         cmd = self._build_command(instruction, cwd, agent_config)
 
-        # Use streaming execution for better timeout handling
-        config = get_config()
-
         try:
-            # The simplified execute_streaming now handles its own internal rendering 
-            # if agent_config.enable_streaming is True
             output, metadata = execute_streaming(
-                cmd=cmd, 
-                stdin_data=stdin_data, 
-                cwd=cwd, 
-                agent_config=agent_config, 
-                config=config,
-                provider=self
+                cmd=cmd,
+                stdin_data=stdin_data,
+                cwd=cwd,
+                agent_config=agent_config,
+                provider=self,
             )
-            
-            # Log Assistant Response
-            logger.log_assistant_message(output, metadata)
-            
-            return output, metadata
-            
         except Exception as e:
-            # Log Error
             logger.log_error(str(e))
             raise
+        else:
+            logger.log_assistant_message(output, metadata)
+            return output, metadata
 
     def run_interactive(
         self,
-        instruction: str,
-        cwd: Path | None = None,
-        session_id: str | None = None,
-        mcp_servers: dict[str, Any] | None = None,
-    ) -> tuple[str, dict[str, Any] | None]:
+        params: RunInteractiveParams | None = None,
+    ) -> tuple[str, ProviderMetadata | None]:
         """Run agent interactively with CLI.
 
         Args:
-            instruction: Natural language instruction for the agent
-            cwd: Working directory for agent execution (defaults to current)
-            session_id: Session identifier for audit logging
-            mcp_servers: MCP servers configuration for the session
+            params: RunInteractiveParams containing instruction, cwd, session_id, mcp_servers
 
         Returns:
             Tuple of (output, metadata) where metadata includes session info
@@ -184,34 +159,28 @@ class CLIProvider(ABC):
         Raises:
             AgentError: If agent execution fails
         """
+        if params is None:
+            params = RunInteractiveParams()
+
         config = AgentConfig(
-            model="default-model",  # Subclass should override this
-            session_id=session_id or uuid7(),
-            allowed_tools=None,  # All tools allowed in interactive mode
+            model="default-model",
+            provider=self,
+            session_id=params.session_id or uuid7(),
+            allowed_tools=None,
             enable_hooks=True,
-            timeout=None,  # No timeout for interactive sessions
-            mcp_servers=mcp_servers,
+            timeout=None,
+            mcp_servers=params.mcp_servers or None,
         )
-        return self._execute_with_timeout(instruction, cwd, config)
+        return self._execute_with_timeout(params.instruction, params.cwd, config)
 
     def run_print(
         self,
-        instruction: str | Path | None = None,
-        cwd: Path | None = None,
-        agent_config: AgentConfig | None = None,
-        instruction_file: Path | None = None,
-        stdin: str | None = None,
-        audit_log_path: Path | None = None,
-    ) -> tuple[str, dict[str, Any] | None]:
+        params: RunPrintParams | None = None,
+    ) -> tuple[str, ProviderMetadata | None]:
         """Run agent in print mode with CLI.
 
         Args:
-            instruction: Natural language instruction for the agent (or use instruction_file)
-            cwd: Working directory for agent execution (defaults to current)
-            agent_config: Configuration for agent execution
-            instruction_file: Path to instruction file (alternative to instruction string)
-            stdin: Data to provide to stdin
-            audit_log_path: Path for audit logging (not used in base implementation but accepted for interface compatibility)
+            params: Parameters for execution (instruction, cwd, config, etc.)
 
         Returns:
             Tuple of (output, metadata) where metadata includes session info
@@ -219,7 +188,15 @@ class CLIProvider(ABC):
         Raises:
             AgentError: If agent execution fails
         """
-        # Handle instruction vs instruction_file
+        if params is None:
+            params = RunPrintParams()
+        instruction = params.instruction
+        cwd = params.cwd
+        agent_config = params.agent_config
+        instruction_file = params.instruction_file
+        stdin_data = params.stdin
+        audit_log_path = params.audit_log_path
+
         if instruction_file is not None:
             if instruction is not None:
                 raise ValueError("Cannot specify both instruction and instruction_file")
@@ -227,13 +204,21 @@ class CLIProvider(ABC):
             if cwd is None:
                 cwd = instruction_file.parent
         elif isinstance(instruction, Path):
-            # Security restriction: Path should only be passed as instruction_file parameter
-            raise ValueError("Path objects should be passed as instruction_file parameter, not instruction parameter")
+            raise ValueError(
+                "Path objects should be passed as instruction_file parameter, not instruction parameter"
+            )
         else:
-            # instruction is a string (not None since first condition handled instruction_file case)
             if instruction is None:
-                raise ValueError("instruction cannot be None when instruction_file is not provided")
+                raise ValueError(
+                    "instruction cannot be None when instruction_file is not provided"
+                )
             instruction_content = instruction
 
         config = agent_config or self._get_default_config()
-        return self._execute_with_timeout(instruction_content, cwd, config, stdin_data=stdin, audit_log_path=audit_log_path)
+        return self._execute_with_timeout(
+            instruction_content,
+            cwd,
+            config,
+            stdin_data=stdin_data,
+            audit_log_path=audit_log_path,
+        )

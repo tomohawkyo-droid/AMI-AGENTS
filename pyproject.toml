@@ -1,23 +1,41 @@
 [build-system]
-requires = ["setuptools==80.9.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ami-agents"
-version = "1.0.0"
-description = "AMI Agent Orchestration System"
+version = "0.0.1"
+description = "AMI Agent Orchestration System with shared code quality infrastructure"
 readme = "README.md"
 requires-python = "==3.11.*"
 license = {text = "MIT"}
+authors = [{name = "AMI Team", email = "ami@example.com"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+]
 dependencies = [
-    "setuptools==80.9.0",
     "loguru==0.7.3",
     "pydantic==2.12.5",
+    "pydantic-settings==2.7.1",
+    "click==8.1.8",
+    "setuptools>=61.0",
     "matrix-nio==0.25.2",
+    "matrix-commander==8.0.5",
     "python-dotenv==1.2.1",
     "prometheus-client==0.24.1",
     "psutil==7.2.1",
     "pyyaml==6.0.3",
+    "nodeenv==1.10.0",
+    "playwright==1.57.0",
+    "synadm==0.49.2",
+    "google-auth==2.47.0",
+    "google-auth-oauthlib==1.2.4",
+    "google-api-python-client==2.188.0",
+    "zstandard==0.25.0",
 ]
 
 [tool.pytest.ini_options]
@@ -35,7 +53,11 @@ where = ["."]
 include = ["ami*"]
 
 [tool.setuptools.package-data]
-ami = ["**/*.yaml", "**/*.txt", "**/*.json", "config/**/*"]
+ami = [
+    "res/config/*.toml",
+    "res/config/vendor/*.toml",
+    "res/config/vendor/*.txt"
+]
 
 [project.optional-dependencies]
 dev = [
@@ -50,4 +72,112 @@ dev = [
     "types-setuptools==80.9.0.20251223",
     "types-PyYAML==6.0.12.20250915",
     "types-tqdm==4.67.0.20250809",
+    "google-auth-stubs>=0.3.0",
+    "tomli==2.2.1",
+    "tomli-w==1.1.0",
 ]
+lint = [
+    "ruff==0.14.10",
+    "black==25.12.0",
+]
+type-check = [
+    "mypy==1.19.1",
+    "tomli==2.2.1",
+    "tomli-w==1.1.0",
+]
+test = [
+    "pytest==9.0.2",
+    "pytest-asyncio==1.3.0",
+    "pytest-cov>=7.0.0",
+    "pytest-timeout==2.4.0",
+]
+ci = [
+    "pre-commit==4.5.1",
+]
+torch-cpu = [
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1",
+]
+torch-cuda = [
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1",
+]
+torch-rocm = [
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1",
+]
+torch-intel-xpu = [
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1",
+]
+# For Apple Silicon Macs with MPS acceleration (uses CPU build with MPS backend)
+torch-mps = [
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1",
+]
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "torch-cpu" },
+        { extra = "torch-cuda" },
+        { extra = "torch-mps" },
+    ],
+]
+# Note: torch-rocm and torch-intel-xpu are currently disabled due to dependency resolution issues
+# Re-enable once the upstream issues are resolved
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "torch-cpu" },
+    { index = "pytorch-cu121", extra = "torch-cuda" },
+    { index = "pytorch-cpu", extra = "torch-mps" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "torch-cpu" },
+    { index = "pytorch-cu121", extra = "torch-cuda" },
+    { index = "pytorch-cpu", extra = "torch-mps" },
+]
+torchaudio = [
+    { index = "pytorch-cpu", extra = "torch-cpu" },
+    { index = "pytorch-cu121", extra = "torch-cuda" },
+    { index = "pytorch-cpu", extra = "torch-mps" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm6.4"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-intel-xpu"
+url = "https://pytorch-extension.intel.com/release-whl/xpu/us/"
+explicit = true
+
+[tool.mypy]
+# Config is in res/config/mypy.toml - mypy will auto-discover it
+# Exclude projects/ and conftest.py files (pytest-specific, not regular modules)
+exclude = [
+    "projects/",
+    "conftest\\.py$",
+]
+explicit_package_bases = true
+
+[project.scripts]
+ami-generate-pyproject = "scripts.generate_pyproject:main"
+ami-inject-vendor-deps = "scripts.inject_vendor_deps:main"

@@ -1,32 +1,58 @@
 """Core logic and rule definitions for agent orchestration.
 
-Consolidates regex patterns and parsing logic from legacy validation modules.
+Consolidates regex patterns and parsing logic from earlier validation modules.
 """
 
 import json
-from pathlib import Path
-from functools import lru_cache
 import re
-from typing import Any, Dict, List, Literal, Optional
+from pathlib import Path
+from typing import Literal, TypedDict
 
 import yaml
 
-from ami.core.config import get_config
 from ami.core.policies.engine import get_policy_engine
+
+
+class PythonPattern(TypedDict):
+    """Pattern definition for Python validation."""
+
+    name: str
+    pattern: str
+    reason: str
+
+
+class CompletionMarker(TypedDict):
+    """Parsed completion marker from worker output."""
+
+    type: Literal["work_done", "feedback", "none"]
+    content: str | None
+
+
+class ModeratorResult(TypedDict):
+    """Parsed moderator validation result."""
+
+    status: Literal["pass", "fail"]
+    reason: str | None
+
+
+class JsonBlockResult(TypedDict, total=False):
+    """Parsed JSON block result."""
+
+    data: object
 
 
 # Code fence parsing constants
 MIN_CODE_FENCE_LINES = 2
 
 
-def load_python_patterns() -> List[Dict[str, Any]]:
+def load_python_patterns() -> list[PythonPattern]:
     """Load Python fast pattern validation rules."""
     return get_policy_engine().load_python_patterns()
 
 
-def load_bash_patterns(patterns_path: Path | None = None) -> List[Dict[str, str]]:
+def load_bash_patterns(patterns_path: Path | None = None) -> list[dict[str, str]]:
     """Load Bash command validation patterns.
-    
+
     Args:
         patterns_path: Optional path to specific patterns file.
     """
@@ -36,22 +62,25 @@ def load_bash_patterns(patterns_path: Path | None = None) -> List[Dict[str, str]
             return []
         with patterns_path.open() as f:
             data = yaml.safe_load(f)
-        return data.get("deny_patterns", [])
-    
+        patterns: list[dict[str, str]] = (
+            data.get("deny_patterns", []) if isinstance(data, dict) else []
+        )
+        return patterns
+
     return get_policy_engine().load_bash_patterns()
 
 
-def load_sensitive_patterns() -> List[Dict[str, str]]:
+def load_sensitive_patterns() -> list[dict[str, str]]:
     """Load sensitive file patterns."""
     return get_policy_engine().load_sensitive_patterns()
 
 
-def load_communication_patterns() -> List[Dict[str, str]]:
+def load_communication_patterns() -> list[dict[str, str]]:
     """Load prohibited communication patterns."""
     return get_policy_engine().load_communication_patterns()
 
 
-def load_api_limit_patterns() -> List[str]:
+def load_api_limit_patterns() -> list[str]:
     """Load API limit patterns."""
     return get_policy_engine().load_api_limit_patterns()
 
@@ -73,58 +102,60 @@ def parse_code_fence_output(output: str) -> str:
     return cleaned
 
 
-def parse_completion_marker(output: str) -> Dict[str, Any]:
+def parse_completion_marker(output: str) -> CompletionMarker:
     """Parse completion marker from worker output."""
     if "WORK DONE" in output:
-        return {"type": "work_done", "content": None}
+        return CompletionMarker(type="work_done", content=None)
 
     feedback_match = re.search(r"FEEDBACK:\s*(.+)", output, re.DOTALL)
     if feedback_match:
-        return {"type": "feedback", "content": feedback_match.group(1).strip()}
+        return CompletionMarker(
+            type="feedback", content=feedback_match.group(1).strip()
+        )
 
-    return {"type": "none", "content": None}
+    return CompletionMarker(type="none", content=None)
 
 
-def parse_moderator_result(output: str) -> Dict[str, Any]:
+def parse_moderator_result(output: str) -> ModeratorResult:
     """Parse moderator validation result."""
     if "PASS" in output:
-        return {"status": "pass", "reason": None}
+        return ModeratorResult(status="pass", reason=None)
 
     fail_match = re.search(r"FAIL:\s*(.+)", output, re.DOTALL)
     if fail_match:
-        return {"status": "fail", "reason": fail_match.group(1).strip()}
+        return ModeratorResult(status="fail", reason=fail_match.group(1).strip())
 
-    return {"status": "fail", "reason": "Moderator validation unclear - no explicit PASS or FAIL in output"}
+    return ModeratorResult(
+        status="fail",
+        reason="Moderator validation unclear - no explicit PASS or FAIL in output",
+    )
 
 
 # Greeting patterns to ignore
-GREETING_PATTERNS = [
-    r"^hello\b",
-    r"^hi\b",
-    r"^hey\b"
-]
+GREETING_PATTERNS = [r"^hello\b", r"^hi\b", r"^hey\b"]
 
-def parse_json_block(output: str) -> Dict[str, Any]:
+
+def parse_json_block(
+    output: str,
+) -> dict[str, str | int | float | bool | None | list[object] | dict[str, object]]:
     """Parse JSON block from LLM output, handling markdown fences."""
     cleaned = output.strip()
-    
+
     # Try finding JSON block
     json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned)
     if json_match:
         cleaned = json_match.group(1).strip()
-    
+
     # If no block, assume the whole output might be JSON if it starts with {
     elif not cleaned.startswith("{") and "{" in cleaned:
-        # Fallback: find the first { and last }
+        # Find the first { and last }
         start = cleaned.find("{")
         end = cleaned.rfind("}")
         if start != -1 and end != -1:
-            cleaned = cleaned[start:end+1]
-            
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        # Last ditch: fix common LLM JSON errors (trailing commas)
-        # Not implemented here to keep it safe, just re-raise
-        raise ValueError(f"Invalid JSON in output: {str(e)}") from e
+            cleaned = cleaned[start : end + 1]
 
+    try:
+        result = json.loads(cleaned)
+        return result if isinstance(result, dict) else {"data": result}
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in output: {e!s}") from e

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# ami-repo: Git repository server management CLI
+# Wrapper for ami_repo.py
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AMI_ROOT="$("$SCRIPT_DIR/ami-pwd")"
+export AMI_ROOT
+
+# Add .boot-linux/bin to PATH so git/ssh tools are available (bootstrapped tools)
+export PATH="$AMI_ROOT/.boot-linux/bin:$PATH"
+
+# Use venv from AMI_ROOT
+exec "$AMI_ROOT/.venv/bin/python" "$SCRIPT_DIR/ami_repo.py" "$@"

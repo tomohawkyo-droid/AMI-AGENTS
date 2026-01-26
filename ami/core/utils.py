@@ -4,7 +4,6 @@ Now leverages consolidated logic from logic.py.
 """
 
 from pathlib import Path
-from typing import Any
 
 
 def detect_language(file_path: Path) -> str | None:

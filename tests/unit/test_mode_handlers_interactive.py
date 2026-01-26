@@ -1,11 +1,14 @@
 """Unit tests for interactive mode handlers."""
 
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from ami.cli.mode_handlers import get_user_confirmation, mode_interactive_editor
+
+# Test constants
+EXPECTED_EDITOR_RUN_CALLS = 2
 
 
 class TestInteractiveHelpers:
@@ -44,14 +47,21 @@ class TestModeInteractiveEditor:
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
     @patch("ami.cli.mode_handlers.display_final_output")
-    def test_interactive_editor_success(self, mock_display, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay):
+    def test_interactive_editor_success(
+        self,
+        mock_display,
+        MockCreateBootloader,
+        MockTextEditor,
+        mock_isatty,
+        MockTimerDisplay,
+    ):
         """Test successful execution flow."""
         # Setup mocks
         mock_editor = MockTextEditor.return_value
         # First call returns instruction, second call returns None to break the loop
         mock_editor.run.side_effect = ["Do something", None]
         mock_editor.lines = ["Do something"]
-        
+
         mock_agent = MockCreateBootloader.return_value
         mock_agent.run.return_value = ("Output", "sess-id")
 
@@ -60,21 +70,23 @@ class TestModeInteractiveEditor:
 
         # Verify
         assert exit_code == 0
-        assert mock_editor.run.call_count == 2
+        assert mock_editor.run.call_count == EXPECTED_EDITOR_RUN_CALLS
         mock_display.assert_called_with(["Do something"], "✅ Sent to agent")
         mock_agent.run.assert_called_once()
-        args, kwargs = mock_agent.run.call_args
-        assert kwargs["instruction"] == "Do something"
-        assert kwargs["input_func"] == get_user_confirmation
+        call_ctx = mock_agent.run.call_args[0][0]  # First positional arg is RunContext
+        assert call_ctx.instruction == "Do something"
+        assert call_ctx.input_func == get_user_confirmation
 
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
-    def test_interactive_editor_cancel(self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay):
+    def test_interactive_editor_cancel(
+        self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay
+    ):
         """Test user cancellation in editor."""
         mock_editor = MockTextEditor.return_value
-        mock_editor.run.return_value = None # None means cancelled
+        mock_editor.run.return_value = None  # None means cancelled
 
         exit_code = mode_interactive_editor()
 
@@ -85,10 +97,12 @@ class TestModeInteractiveEditor:
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
-    def test_interactive_editor_empty(self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay):
+    def test_interactive_editor_empty(
+        self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay
+    ):
         """Test empty input."""
         mock_editor = MockTextEditor.return_value
-        mock_editor.run.return_value = "   " # Empty/whitespace
+        mock_editor.run.return_value = "   "  # Empty/whitespace
 
         exit_code = mode_interactive_editor()
 
@@ -99,16 +113,18 @@ class TestModeInteractiveEditor:
     @patch("sys.stdin.isatty", return_value=False)
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
-    def test_interactive_editor_agent_error(self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay):
+    def test_interactive_editor_agent_error(
+        self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay
+    ):
         """Test exception during agent execution."""
         mock_editor = MockTextEditor.return_value
         mock_editor.run.side_effect = ["Do task", None]
-        
+
         mock_agent = MockCreateBootloader.return_value
         mock_agent.run.side_effect = Exception("Agent crashed")
 
-        with patch.object(sys.stderr, 'write') as mock_stderr:
+        with patch.object(sys.stderr, "write") as mock_stderr:
             exit_code = mode_interactive_editor()
-            
+
             assert exit_code == 1
             mock_stderr.assert_any_call("Error calling agent: Agent crashed\n")

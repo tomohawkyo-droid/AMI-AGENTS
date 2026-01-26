@@ -13,7 +13,9 @@ class CursorManager:
         self.lines: list[str] = lines
         # Current cursor position (line, column)
         self.current_line: int = len(lines) - 1 if lines else 0
-        self.current_col: int = len(lines[self.current_line]) if lines and lines[self.current_line] else 0
+        self.current_col: int = (
+            len(lines[self.current_line]) if lines and lines[self.current_line] else 0
+        )
 
     def move_cursor_up(self) -> None:
         """Move cursor up one line."""
@@ -75,7 +77,9 @@ class CursorManager:
         current_line_content = self.lines[self.current_line]
         pos = self.current_col
         # Move forward to skip the current word
-        while pos < len(current_line_content) and not current_line_content[pos].isspace():
+        while (
+            pos < len(current_line_content) and not current_line_content[pos].isspace()
+        ):
             pos += 1
         # Skip spaces until we reach the next word
         while pos < len(current_line_content) and current_line_content[pos].isspace():

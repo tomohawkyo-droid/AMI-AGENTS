@@ -4,9 +4,10 @@ Provides a pure Python implementation of UUIDv7 (RFC 9562) to avoid external dep
 or waiting for Python 3.14.
 """
 
-import time
 import random
+import time
 import uuid
+
 
 def uuid7() -> str:
     """
@@ -15,7 +16,7 @@ def uuid7() -> str:
     This implementation uses a 48-bit Unix timestamp in milliseconds,
     a 12-bit pseudo-random 'rand_a' field, a 4-bit version (7),
     a 2-bit RFC 4122 variant (10), and a 62-bit pseudo-random 'rand_b' field.
-    
+
     Returns:
         str: A UUIDv7 string.
     """
@@ -53,11 +54,9 @@ def uuid7() -> str:
     #
     # Total bits: 48 + 4 + 12 + 2 + 62 = 128 bits
 
-    uuid_int = (unixts_ms << 80) | \
-               (version << 76) | \
-               (rand_a << 64) | \
-               (variant << 62) | \
-               rand_b
+    uuid_int = (
+        (unixts_ms << 80) | (version << 76) | (rand_a << 64) | (variant << 62) | rand_b
+    )
 
     # Create a UUID object from the 128-bit integer and return its string representation.
     return str(uuid.UUID(int=uuid_int))

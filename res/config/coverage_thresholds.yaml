@@ -1,0 +1,12 @@
+# Test Coverage Thresholds Configuration
+# Used by verify_coverage.py to enforce minimum coverage levels
+
+unit:
+  path: "tests/unit"
+  min_coverage: 90
+  source_path: "."
+
+integration:
+  path: "tests/integration"
+  min_coverage: 75
+  source_path: "."

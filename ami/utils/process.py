@@ -8,23 +8,77 @@ import os
 import selectors
 import subprocess
 import time
+from io import TextIOWrapper
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TypedDict, cast
+
+# Return code for timeout
+TIMEOUT_RETURN_CODE = 124
+
+# Selector poll interval in seconds
+SELECTOR_POLL_INTERVAL = 0.1
+
+
+class ProcessResult(TypedDict):
+    """Result from process execution."""
+
+    stdout: str
+    stderr: str
+    returncode: int
+
+
+def _create_result(stdout: str, stderr: str, returncode: int) -> ProcessResult:
+    """Create a standardized result dictionary."""
+    return {
+        "stdout": stdout,
+        "stderr": stderr,
+        "returncode": returncode,
+    }
+
+
+def _drain_pipes(
+    sel: selectors.DefaultSelector,
+    stdout_data: list[str],
+    stderr_data: list[str],
+) -> None:
+    """Drain remaining data from all registered pipes."""
+    for key in list(sel.get_map().values()):
+        fileobj = cast(TextIOWrapper, key.fileobj)
+        remaining = fileobj.read()
+        if remaining:
+            key.data.append(remaining)
+        sel.unregister(key.fileobj)
+
+
+def _process_pipe_events(
+    sel: selectors.DefaultSelector,
+    events: list[tuple[selectors.SelectorKey, int]],
+) -> None:
+    """Process read events from pipes."""
+    for key, _ in events:
+        fileobj = key.fileobj
+        if not isinstance(fileobj, TextIOWrapper):
+            continue
+        line = fileobj.readline()
+        if line:
+            key.data.append(line)
+        else:
+            sel.unregister(key.fileobj)
 
 
 class ProcessExecutor:
     """Synchronous process executor using memory-based pipes and selectors."""
 
-    def __init__(self, work_dir: Optional[Path] = None):
+    def __init__(self, work_dir: Path | None = None):
         self.work_dir = work_dir or Path.cwd()
 
     def run(
         self,
-        command: Union[str, List[str]],
-        cwd: Optional[Path] = None,
-        env: Optional[Dict[str, str]] = None,
-        timeout: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        command: str | list[str],
+        cwd: Path | None = None,
+        env: dict[str, str] | None = None,
+        timeout: int | None = None,
+    ) -> ProcessResult:
         """
         Run a command and capture output via pipes.
 
@@ -35,93 +89,95 @@ class ProcessExecutor:
             timeout: Execution timeout in seconds.
 
         Returns:
-            Dict containing 'stdout', 'stderr', 'returncode'.
+            ProcessResult containing stdout, stderr, returncode.
         """
-        # Resolve working directory
         cwd = cwd or self.work_dir
         if not cwd.exists():
-            return {
-                "stdout": "",
-                "stderr": f"Working directory does not exist: {cwd}",
-                "returncode": 1
-            }
+            return _create_result("", f"Working directory does not exist: {cwd}", 1)
 
-        # Prepare environment
         run_env = os.environ.copy()
         if env:
             run_env.update(env)
 
-        # Normalize command to list if string (shell=True handling)
-        shell_mode = isinstance(command, str)
-        
         try:
-            process = subprocess.Popen(
-                command,
-                cwd=str(cwd),
-                env=run_env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=shell_mode,
-                text=True,
-                bufsize=1,  # Line buffered
-            )
-
-            stdout_data = []
-            stderr_data = []
-            
-            # Use selectors to read from both pipes concurrently without deadlocks
-            sel = selectors.DefaultSelector()
-            if process.stdout:
-                sel.register(process.stdout, selectors.EVENT_READ, stdout_data)
-            if process.stderr:
-                sel.register(process.stderr, selectors.EVENT_READ, stderr_data)
-
-            start_time = time.time()
-            while sel.get_map():
-                # Check timeout
-                if timeout is not None and (time.time() - start_time) > timeout:
-                    process.kill()
-                    process.wait()
-                    sel.close()
-                    return {
-                        "stdout": "".join(stdout_data).strip(),
-                        "stderr": f"Process timed out after {timeout} seconds.\n" + "".join(stderr_data).strip(),
-                        "returncode": 124
-                    }
-
-                # Wait for data with short timeout to allow loop to check process status
-                events = sel.select(timeout=0.1)
-                for key, _ in events:
-                    if hasattr(key.fileobj, 'readline'):
-                        # fileobj is a pipe (text mode)
-                        line = key.fileobj.readline()
-                        if line:
-                            key.data.append(line)
-                        else:
-                            # EOF
-                            sel.unregister(key.fileobj)
-                
-                # If no events but process finished, ensure we close pipes
-                if not events and process.poll() is not None:
-                    # Final drain
-                    for key in list(sel.get_map().values()):
-                        line = key.fileobj.read()
-                        if line:
-                            key.data.append(line)
-                        sel.unregister(key.fileobj)
-            
-            sel.close()
-            process.wait()
-
-            return {
-                "stdout": "".join(stdout_data).strip(),
-                "stderr": "".join(stderr_data).strip(),
-                "returncode": process.returncode
-            }
-
+            return self._execute_command(command, cwd, run_env, timeout)
         except Exception as e:
-            return {
-                "stdout": "",
-                "stderr": f"Execution failed: {str(e)}",
-                "returncode": 1
-            }
+            return _create_result("", f"Execution failed: {e!s}", 1)
+
+    def _execute_command(
+        self,
+        command: str | list[str],
+        cwd: Path,
+        run_env: dict[str, str],
+        timeout: int | None,
+    ) -> ProcessResult:
+        """Execute command and collect output."""
+        process = subprocess.Popen(
+            command,
+            cwd=str(cwd),
+            env=run_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=isinstance(command, str),
+            text=True,
+            bufsize=1,
+        )
+
+        stdout_data: list[str] = []
+        stderr_data: list[str] = []
+
+        sel = selectors.DefaultSelector()
+        if process.stdout:
+            sel.register(process.stdout, selectors.EVENT_READ, stdout_data)
+        if process.stderr:
+            sel.register(process.stderr, selectors.EVENT_READ, stderr_data)
+
+        result = self._collect_output(process, sel, stdout_data, stderr_data, timeout)
+        sel.close()
+        return result
+
+    def _collect_output(
+        self,
+        process: subprocess.Popen[str],
+        sel: selectors.DefaultSelector,
+        stdout_data: list[str],
+        stderr_data: list[str],
+        timeout: int | None,
+    ) -> ProcessResult:
+        """Collect output from process pipes."""
+        start_time = time.time()
+
+        while sel.get_map():
+            if timeout is not None and (time.time() - start_time) > timeout:
+                return self._handle_timeout(process, stdout_data, stderr_data, timeout)
+
+            events = sel.select(timeout=SELECTOR_POLL_INTERVAL)
+            _process_pipe_events(sel, events)
+
+            if not events and process.poll() is not None:
+                _drain_pipes(sel, stdout_data, stderr_data)
+
+        process.wait()
+        return _create_result(
+            "".join(stdout_data).strip(),
+            "".join(stderr_data).strip(),
+            process.returncode or 0,
+        )
+
+    def _handle_timeout(
+        self,
+        process: subprocess.Popen[str],
+        stdout_data: list[str],
+        stderr_data: list[str],
+        timeout: int,
+    ) -> ProcessResult:
+        """Handle process timeout."""
+        process.kill()
+        process.wait()
+        stderr_msg = (
+            f"Process timed out after {timeout} seconds.\n"
+            + "".join(stderr_data).strip()
+        )
+        return _create_result(
+            "".join(stdout_data).strip(), stderr_msg, TIMEOUT_RETURN_CODE
+        )

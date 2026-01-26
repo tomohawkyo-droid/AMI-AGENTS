@@ -19,7 +19,10 @@ class AgentTimeoutError(AgentError):
         self.timeout = timeout
         self.cmd = cmd
         self.duration = duration
-        super().__init__(f"Agent command timed out after {timeout}s: {' '.join(cmd)}" + (f" (actual duration: {duration}s)" if duration is not None else ""))
+        super().__init__(
+            f"Agent command timed out after {timeout}s: {' '.join(cmd)}"
+            + (f" (actual duration: {duration}s)" if duration is not None else "")
+        )
 
 
 class AgentCommandNotFoundError(AgentError):
@@ -51,7 +54,9 @@ class AgentExecutionError(AgentError):
         self.stdout = stdout
         self.stderr = stderr
         self.cmd = cmd
-        super().__init__(f"Agent command failed with exit code {exit_code}:\nCommand: {' '.join(cmd)}\nStdout: {stdout}\nStderr: {stderr}")
+        super().__init__(
+            f"Agent command failed with exit code {exit_code}:\nCommand: {' '.join(cmd)}\nStdout: {stdout}\nStderr: {stderr}"
+        )
 
 
 class AgentProcessKillError(AgentError):

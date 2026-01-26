@@ -1,4 +1,14 @@
 repos:
+  # CRITICAL: Stage all changes FIRST to prevent stash rollback conflicts
+  - repo: local
+    hooks:
+      - id: stage-all-changes
+        name: Stage All Changes
+        entry: git add -A
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
@@ -12,13 +22,6 @@ repos:
         args: [ --config, res/config/ruff.toml, --fix, --exit-non-zero-on-fix, . ]
   - repo: local
     hooks:
-      - id: mypy
-        name: mypy
-        entry: uv run mypy
-        language: system
-        pass_filenames: false
-        args: [ --config-file, pyproject.toml, . ]
-        files: \.py$
       - id: check-dependency-versions
         name: Check Dependency Versions
         entry: ./scripts/ci/check_dependency_versions.py
@@ -31,13 +34,14 @@ repos:
         language: python
         additional_dependencies: [PyYAML]
         pass_filenames: false
-      - id: block-coauthored
-        name: Block Co-authored Commits
-        entry: ./scripts/ci/block_coauthored.py
-        language: system
-        stages: [commit-msg]
+      - id: check-file-length
+        name: Check File Length (max 512 lines)
+        entry: ./scripts/ci/check_file_length.py
+        language: python
+        additional_dependencies: [PyYAML]
+        pass_filenames: false
       - id: check-init-files
-        name: Forbid Logic in __init__.py
+        name: Enforce Empty __init__.py Files (CRITICAL SECURITY REQUIREMENT)
         entry: ./scripts/ci/check_init_files.py
         language: system
         files: __init__\.py$
@@ -47,6 +51,19 @@ repos:
         language: system
         pass_filenames: false
         files: ^frontend/
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        args: [ --config-file, res/config/mypy.toml, --exclude, projects/, ami, scripts ]
+        files: \.py$
+        exclude: ^(projects/|tests/)
+      - id: block-coauthored
+        name: Block Co-authored Commits
+        entry: ./scripts/ci/block_coauthored.py
+        language: system
+        stages: [commit-msg]
   - repo: local
     hooks:
       - id: verify-coverage

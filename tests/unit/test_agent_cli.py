@@ -1,7 +1,7 @@
 """Unit tests for automation.agent_cli module."""
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,8 +10,6 @@ from ami.cli.claude_cli import ClaudeAgentCLI
 from ami.cli.config import AgentConfig, AgentConfigPresets
 from ami.cli.factory import get_agent_cli
 from ami.cli.provider_type import ProviderType
-from ami.cli.qwen_cli import QwenAgentCLI
-
 
 # Test constants
 DEFAULT_TIMEOUT = 180
@@ -26,7 +24,11 @@ class TestAgentConfig:
 
     def test_create_basic_config(self):
         """AgentConfig creates with required fields."""
-        config = AgentConfig(model="claude-sonnet-4-5", session_id="test-session", provider=ProviderType.CLAUDE)
+        config = AgentConfig(
+            model="claude-sonnet-4-5",
+            session_id="test-session",
+            provider=ProviderType.CLAUDE,
+        )
 
         assert config.model == "claude-sonnet-4-5"
         assert config.session_id == "test-session"
@@ -37,19 +39,25 @@ class TestAgentConfig:
 
     def test_default_allowed_tools(self):
         """AgentConfig defaults allowed_tools to None."""
-        config = AgentConfig(model="test-model", session_id="test-session", provider=ProviderType.CLAUDE)
+        config = AgentConfig(
+            model="test-model", session_id="test-session", provider=ProviderType.CLAUDE
+        )
 
         assert config.allowed_tools is None  # All tools allowed
 
     def test_default_enable_hooks(self):
         """AgentConfig defaults enable_hooks to True."""
-        config = AgentConfig(model="test-model", session_id="test-session", provider=ProviderType.CLAUDE)
+        config = AgentConfig(
+            model="test-model", session_id="test-session", provider=ProviderType.CLAUDE
+        )
 
         assert config.enable_hooks is True
 
     def test_default_timeout(self):
         """AgentConfig defaults timeout to 180."""
-        config = AgentConfig(model="test-model", session_id="test-session", provider=ProviderType.CLAUDE)
+        config = AgentConfig(
+            model="test-model", session_id="test-session", provider=ProviderType.CLAUDE
+        )
 
         assert config.timeout == DEFAULT_TIMEOUT
 
@@ -63,17 +71,21 @@ class TestAgentConfigPresets:
         with patch("ami.cli.config.get_config") as mock_get_config:
             mock_config_instance = MagicMock()
             mock_get_config.return_value = mock_config_instance
-            
+
             # Setup default return values
             def get_side_effect(key, default=None):
                 if key == "agent.provider":
                     return "claude"
                 return default
-            
+
             mock_config_instance.get.side_effect = get_side_effect
-            mock_config_instance.get_provider_audit_model.return_value = "claude-sonnet-4-5"
-            mock_config_instance.get_provider_default_model.return_value = "claude-sonnet-4-5"
-            
+            mock_config_instance.get_provider_audit_model.return_value = (
+                "claude-sonnet-4-5"
+            )
+            mock_config_instance.get_provider_default_model.return_value = (
+                "claude-sonnet-4-5"
+            )
+
             yield mock_config_instance
 
     def test_worker_preset(self, mock_config):
@@ -84,12 +96,11 @@ class TestAgentConfigPresets:
         assert config.allowed_tools is None  # All tools allowed
         assert config.enable_hooks is True
 
-
     def test_interactive_preset(self, mock_config):
         """interactive() preset has correct config."""
         # Mock specific paths for interactive preset
         mock_config.root = Path("/mock/root")
-        
+
         config = AgentConfigPresets.interactive(session_id="test-session")
 
         assert config.model == "claude-sonnet-4-5"
@@ -153,7 +164,7 @@ class TestClaudeAgentCLI:
         mock_config = MagicMock()
         mock_config.get.return_value = "claude"
         mock_get_config.return_value = mock_config
-        
+
         cli = get_agent_cli()
 
         assert isinstance(cli, ClaudeAgentCLI)
