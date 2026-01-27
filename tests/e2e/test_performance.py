@@ -84,7 +84,9 @@ def test_performance_scaling() -> None:
         prompt_content = full_content[:size]
         # Using --query with the full text. The QwenAgentCLI should now handle this
         # by passing it via stdin, avoiding shell/process arg limits/hangs.
-        prompt_text = f"Please analyze this transcript segment and summarize key events:\n\n{prompt_content}"
+        prefix = "Please analyze this transcript segment"
+        prefix += " and summarize key events:\n\n"
+        prompt_text = f"{prefix}{prompt_content}"
 
         start_time = time.time()
 

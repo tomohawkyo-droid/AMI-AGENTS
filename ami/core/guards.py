@@ -56,10 +56,12 @@ def check_edit_safety(command: str) -> tuple[bool, str]:
         pattern = config.get("pattern", "")
         desc = config.get("description", "Sensitive file")
         if re.search(pattern, command):
-            return (
-                False,
-                f"SECURITY VIOLATION: Direct modification of '{desc}' ({pattern}) via shell is forbidden. Use dedicated tools or edit manually.",
+            msg = (
+                f"SECURITY VIOLATION: Direct modification of '{desc}' "
+                f"({pattern}) via shell is forbidden. "
+                "Use dedicated tools or edit manually."
             )
+            return (False, msg)
 
     return True, ""
 

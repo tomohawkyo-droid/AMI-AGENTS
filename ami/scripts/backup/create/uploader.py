@@ -158,11 +158,13 @@ class BackupUploader:
                 )
 
         except Exception as e:
-            raise UploadError(f"Upload failed: {e}") from e
+            msg = f"Upload failed: {e}"
+            raise UploadError(msg) from e
 
         raw_file_id = file.get("id")
         if not raw_file_id or not isinstance(raw_file_id, str):
-            raise UploadError("Upload succeeded but no file ID returned")
+            msg = "Upload succeeded but no file ID returned"
+            raise UploadError(msg)
         file_id: str = raw_file_id
 
         # Log success

@@ -42,7 +42,8 @@ class RestoreCLI:
     def _require_service(self) -> BackupRestoreService:
         """Get the service, raising an error if not initialized."""
         if self.service is None:
-            raise RuntimeError("Restore service not initialized")
+            msg = "Restore service not initialized"
+            raise RuntimeError(msg)
         return self.service
 
     def create_parser(self) -> argparse.ArgumentParser:
@@ -105,7 +106,7 @@ Examples:
         source_group.add_argument(
             "--revision",
             type=int,
-            help="Go back N revisions (like Git: ~1, ~2, etc.) - requires Google Drive access",
+            help="Go back N revisions (like Git ~1, ~2) - requires Drive access",
         )
         source_group.add_argument(
             "--list-revisions",
@@ -137,7 +138,7 @@ Examples:
             "paths",
             nargs="*",
             type=Path,
-            help="Specific file/directory paths to restore from the backup (for selective restoration)",
+            help="Specific file/directory paths to restore (selective restoration)",
         )
 
         return parser
@@ -355,7 +356,8 @@ Examples:
         if not handled:
             if args.paths:
                 logger.error(
-                    "Paths specified but no source provided. Use --file-id, --local-path, or --revision."
+                    "Paths specified but no source. "
+                    "Use --file-id, --local-path, or --revision."
                 )
             else:
                 self.create_parser().print_help()

@@ -387,9 +387,10 @@ class TestExtensionBinaries:
             pytest.xfail(f"No binary defined for {ext_name}")
 
         # Should be relative path
-        assert not ext.binary.startswith(
-            "/"
-        ), f"Extension {ext_name} binary should be relative path, not absolute: {ext.binary}"
+        assert not ext.binary.startswith("/"), (
+            f"Extension {ext_name} binary should be"
+            f" relative path, not absolute: {ext.binary}"
+        )
 
         # Should not contain ..
         assert (

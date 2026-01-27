@@ -46,9 +46,8 @@ def get_project_root() -> Path:
         current = current.parent
 
     # No project markers found in any parent directory
-    raise RuntimeError(
-        "Could not determine project root. Set AMI_PROJECT_ROOT env var."
-    )
+    msg = "project root not found"
+    raise RuntimeError(msg)
 
 
 def setup_agent_env() -> None:

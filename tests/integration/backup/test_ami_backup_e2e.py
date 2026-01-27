@@ -86,7 +86,8 @@ async def test_ami_backup_command_execution():
             or "BackupConfigError" in stderr
         ):
             print(
-                "[E2E] Command failed at config/auth stage as expected (archiving likely skipped)."
+                "[E2E] Command failed at config/auth stage"
+                " as expected (archiving likely skipped)."
             )
             # Wait, if it fails at config, it might not run archiving.
             # For a TRUE E2E of archiving, we need config to pass but upload to fail.

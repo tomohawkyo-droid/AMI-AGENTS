@@ -10,6 +10,7 @@ from ami.cli.claude_cli import ClaudeAgentCLI
 from ami.cli.config import AgentConfig, AgentConfigPresets
 from ami.cli.factory import get_agent_cli
 from ami.cli.provider_type import ProviderType
+from ami.cli.streaming_utils import load_instruction_with_replacements
 
 # Test constants
 DEFAULT_TIMEOUT = 180
@@ -72,19 +73,28 @@ class TestAgentConfigPresets:
             mock_config_instance = MagicMock()
             mock_get_config.return_value = mock_config_instance
 
-            # Setup default return values
-            def get_side_effect(key, default=None):
-                if key == "agent.provider":
-                    return "claude"
-                return default
+            # Setup default return values - use get_value which is what the code uses
+            def get_value_side_effect(key, default=None):
+                values = {
+                    "agent.provider": "claude",
+                    "agent.worker.provider": "claude",
+                    "agent.worker.model": "claude-sonnet-4-5",
+                    "agent.moderator.provider": "claude",
+                    "agent.moderator.model": "claude-sonnet-4-5",
+                }
+                return values.get(key, default)
 
-            mock_config_instance.get.side_effect = get_side_effect
+            mock_config_instance.get_value.side_effect = get_value_side_effect
+            mock_config_instance.get.side_effect = (
+                get_value_side_effect  # Also mock get for older interface support
+            )
             mock_config_instance.get_provider_audit_model.return_value = (
                 "claude-sonnet-4-5"
             )
             mock_config_instance.get_provider_default_model.return_value = (
                 "claude-sonnet-4-5"
             )
+            mock_config_instance.root = Path("/mock/root")
 
             yield mock_config_instance
 
@@ -128,9 +138,6 @@ class TestClaudeAgentCLI:
             temp_path = Path(f.name)
 
         try:
-            # Use the utility function directly since ClaudeAgentCLI doesn't have _load_instruction
-            from ami.cli.streaming_utils import load_instruction_with_replacements
-
             result = load_instruction_with_replacements(temp_path)
 
             assert "Test instruction" in result
@@ -145,9 +152,6 @@ class TestClaudeAgentCLI:
             temp_path = Path(f.name)
 
         try:
-            # Use the utility function directly since ClaudeAgentCLI doesn't have _load_instruction
-            from ami.cli.streaming_utils import load_instruction_with_replacements
-
             result = load_instruction_with_replacements(temp_path)
 
             # {date} should be replaced

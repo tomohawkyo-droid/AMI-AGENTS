@@ -151,7 +151,7 @@ class CLIProvider(ABC):
         """Run agent interactively with CLI.
 
         Args:
-            params: RunInteractiveParams containing instruction, cwd, session_id, mcp_servers
+            params: RunInteractiveParams with instruction, cwd, session_id
 
         Returns:
             Tuple of (output, metadata) where metadata includes session info
@@ -199,19 +199,18 @@ class CLIProvider(ABC):
 
         if instruction_file is not None:
             if instruction is not None:
-                raise ValueError("Cannot specify both instruction and instruction_file")
+                msg = "Cannot provide both instruction and instruction_file"
+                raise ValueError(msg)
             instruction_content = load_instruction_with_replacements(instruction_file)
             if cwd is None:
                 cwd = instruction_file.parent
         elif isinstance(instruction, Path):
-            raise ValueError(
-                "Path objects should be passed as instruction_file parameter, not instruction parameter"
-            )
+            msg = "Use instruction_file parameter for Path instructions"
+            raise ValueError(msg)
         else:
             if instruction is None:
-                raise ValueError(
-                    "instruction cannot be None when instruction_file is not provided"
-                )
+                msg = "Either instruction or instruction_file is required"
+                raise ValueError(msg)
             instruction_content = instruction
 
         config = agent_config or self._get_default_config()

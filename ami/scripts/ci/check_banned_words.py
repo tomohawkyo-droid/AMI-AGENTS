@@ -9,7 +9,7 @@ Configuration is loaded from res/config/banned_words.yaml (v3.0.0 format):
 - ignored_files: files to skip during scanning
 """
 
-import contextlib
+import argparse
 import os
 import re
 import sys
@@ -18,7 +18,7 @@ from typing import TypedDict, cast
 
 import yaml
 
-CONFIG_PATH = "res/config/banned_words.yaml"
+DEFAULT_CONFIG_PATH = "res/config/banned_words.yaml"
 
 # Directories to always ignore
 IGNORE_DIRS = {
@@ -95,8 +95,10 @@ class PatternRule:
         # Pre-compile exception pattern
         self._exception_compiled: re.Pattern[str] | None = None
         if self.exception_regex:
-            with contextlib.suppress(re.error):
+            try:
                 self._exception_compiled = re.compile(self.exception_regex)
+            except re.error:
+                self._exception_compiled = None
 
     def matches(self, line: str, filepath: str) -> bool:
         """Check if pattern matches line, respecting exceptions."""
@@ -112,12 +114,12 @@ class PatternRule:
         return self.pattern in line
 
 
-def load_config() -> BannedWordsConfig:
+def load_config(config_path: str) -> BannedWordsConfig:
     """Load banned words configuration."""
-    if not os.path.exists(CONFIG_PATH):
-        print(f"Error: Configuration file {CONFIG_PATH} not found.")
+    if not os.path.exists(config_path):
+        print(f"Error: Configuration file {config_path} not found.")
         sys.exit(1)
-    with open(CONFIG_PATH) as f:
+    with open(config_path) as f:
         loaded = yaml.safe_load(f)
         if not loaded:
             return cast(BannedWordsConfig, {})
@@ -237,7 +239,15 @@ def print_errors(errors: list[dict[str, str | int]]) -> None:
 
 def main() -> None:
     """Main entry point."""
-    config = load_config()
+    parser = argparse.ArgumentParser(description="Check for banned words/patterns")
+    parser.add_argument(
+        "--config",
+        default=DEFAULT_CONFIG_PATH,
+        help=f"Path to config file (default: {DEFAULT_CONFIG_PATH})",
+    )
+    args = parser.parse_args()
+
+    config = load_config(args.config)
 
     # Parse configuration
     banned_configs = config.get("banned", [])
@@ -256,9 +266,8 @@ def main() -> None:
 
     print("Scanning repository for banned patterns...")
     print(f"  Global rules: {len(global_rules)}")
-    print(
-        f"  Directory-specific rules: {sum(len(v) for v in dir_rules_compiled.values())}"
-    )
+    dir_rule_count = sum(len(v) for v in dir_rules_compiled.values())
+    print(f"  Directory-specific rules: {dir_rule_count}")
     print(f"  Filename rules: {len(filename_rules)}")
 
     for root, dirs, files in os.walk(root_dir):

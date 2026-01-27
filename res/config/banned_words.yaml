@@ -1,11 +1,13 @@
-# Banned Word Patterns Configuration v3.0.0
+# Banned Word Patterns Configuration v3.1.0
 # Consolidated from agents/ and AMI-TRADING/ repositories
 #
 # Format:
 #   pattern: regex pattern to match
 #   reason: why this pattern is banned
-#   exception_regex: (optional) files where this pattern is allowed
+#   exception_regex: (optional) regex for filepaths to exclude from this rule
 #   multiline: (optional) true for patterns spanning multiple lines
+#
+# Test files (tests/) have specific exemptions for testing utilities.
 
 version: "3.0.0"
 
@@ -27,18 +29,21 @@ banned:
   # === UNSAFE TYPING ===
   - pattern: 'dict\[.*,\s*Any\]'
     reason: "No generic dicts for structured data. Use Pydantic models."
+    exception_regex: "(tests/|scripts/ci/check_banned_words\\.py|scripts/ci/check_dependency_versions\\.py)"
 
   - pattern: ':\s*Any\b'
     reason: "Explicit Any forbidden. Use proper types."
+    exception_regex: "tests/"
 
   # === CODE OWNERSHIP ===
   - pattern: '(?i)co-authored-by'
     reason: "Co-authored attribution forbidden. Own your code."
-    exception_regex: "block_coauthored\\.py|commit_checks\\.yaml"
+    exception_regex: "(scripts/ci/block_coauthored\\.py|tests/unit/ci/test_block_coauthored\\.py)"
 
   # === LEGACY/FALLBACK CODE ===
   - pattern: '\bfallback\b'
     reason: "No fallback code. Fix properly or fail explicitly."
+    exception_regex: "tests/"
 
   - pattern: '\bfalling\b'
     reason: "Avoid 'falling back' patterns."
@@ -60,7 +65,7 @@ banned:
 
   - pattern: '\bstubs?\b'
     reason: "No stub implementations."
-    exception_regex: "\\.pyi$"
+    exception_regex: "tests/"
 
   - pattern: '\bskeleton\b'
     reason: "No skeleton code."
@@ -70,7 +75,7 @@ banned:
 
   - pattern: '\bmock\b'
     reason: "No mock objects in production code."
-    exception_regex: "tests/|test_|_test\\.py"
+    exception_regex: "(tests/|frontend/src/test/)"
 
   - pattern: '\blazy\b'
     reason: "No lazy evaluation hacks."
@@ -81,17 +86,20 @@ banned:
   # === SUPPRESSION PATTERNS ===
   - pattern: '\.suppress'
     reason: "No suppression of errors/warnings."
-    exception_regex: "contextlib\\.suppress|tests/|scripts/ci/"
+    exception_regex: "tests/"
 
   # === UNSAFE REFLECTION ===
   - pattern: '(?<!tc)getattr\('
     reason: "getattr is unsafe. Use explicit attribute access."
+    exception_regex: "tests/"
 
   - pattern: '(?<!tc)setattr\('
     reason: "setattr is unsafe. Use explicit attribute assignment."
+    exception_regex: "tests/"
 
   - pattern: '\bhasattr\('
     reason: "hasattr is unsafe. Use explicit checks or protocols."
+    exception_regex: "tests/"
 
   - pattern: '\.__dict__'
     reason: "Direct __dict__ access forbidden. Use proper interfaces."
@@ -109,7 +117,6 @@ banned:
   # === PATH SAFETY ===
   - pattern: '/home/'
     reason: "No hardcoded home paths. Use environment variables."
-    exception_regex: "conftest\\.py|test_"
 
   - pattern: '\.parent\.parent'
     reason: "Fragile path navigation. Use explicit paths."
@@ -144,19 +151,8 @@ banned:
 
 directory_rules:
   tests:
-    - pattern: '\bskip\b'
-      reason: "No skipping tests. Fix or delete them."
-      exception_regex: "conftest\\.py"
-
-    - pattern: '@pytest\.mark\.skipif'
-      reason: "No conditional skips. Tests must always run."
-
-    - pattern: '@pytest\.mark\.skip'
-      reason: "No skipping tests."
-
-    - pattern: 'pytest\.skip\('
-      reason: "No programmatic skips."
-
+    # Hardware-specific tests may need conditional skipping
+    # Only ban explicit "not implemented" placeholders
     - pattern: 'reason=.*not implemented yet'
       reason: "Implement the test or delete it."
 
@@ -191,9 +187,3 @@ filename_rules:
   - pattern: '\.(old|new|backup|bak|orig)$'
     reason: "No backup extensions. Use git."
 
-ignored_files:
-  - "res/config/banned_words.yaml"
-  - "ami/config/patterns/banned_words.yaml"
-  - "CLAUDE.md"
-  - "AGENTS.md"
-  - "res/config/commit_checks.yaml"

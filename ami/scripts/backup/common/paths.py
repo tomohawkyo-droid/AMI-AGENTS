@@ -52,7 +52,8 @@ def get_project_root() -> Path:
     except Exception:
         pass
 
-    raise RuntimeError("Could not find project root. Set AMI_PROJECT_ROOT env var.")
+    msg = "project root not found"
+    raise RuntimeError(msg)
 
 
 def setup_sys_path() -> None:

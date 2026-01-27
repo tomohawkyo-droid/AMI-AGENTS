@@ -154,9 +154,7 @@ def send_email_core(args: argparse.Namespace) -> None:
 
 def cmd_send(args: argparse.Namespace) -> None:
     send_email_core(args)
-    print(
-        "[*] Reminder: Run 'ami-mail fetch' manually from time to time if automation is not configured."
-    )
+    print("[*] Reminder: Run 'ami-mail fetch' manually if automation isn't set up.")
 
 
 def _decode_payload(payload: object) -> str:
@@ -183,9 +181,7 @@ def cmd_send_block(args: argparse.Namespace) -> None:
     # 1. Send the email
     send_email_core(args)
 
-    print(
-        f"[*] Blocking: Waiting for reply from {args.recipient} (Timeout: {args.timeout}s)..."
-    )
+    print(f"[*] Blocking: Waiting for reply from {args.recipient} ({args.timeout}s)...")
     start_time = time.time()
 
     while (time.time() - start_time) < args.timeout:
@@ -214,11 +210,11 @@ def cmd_send_block(args: argparse.Namespace) -> None:
                                     encoding if encoding else "utf-8"
                                 )
 
-                            # Simple matching: Check if reply subject contains original subject
-                            # or just accept it if it's new enough?
-                            # Let's check date? Parsing date is annoying.
-                            # Let's rely on Subject or just assume the latest from them is the reply?
-                            # Stricter: Check if Subject contains original subject (ignoring Re:)
+                            # Simple matching: Check if reply subject contains original
+                            # subject or just accept it if it's new enough?
+                            # Let's check date? Parsing date is annoying. Let's rely
+                            # on Subject or assume the latest from them is the reply?
+                            # Stricter: Check if Subject contains original (ignore Re:)
                             clean_reply_subj = (
                                 subject.lower().replace("re:", "").strip()
                             )
@@ -265,9 +261,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
 
         mail_ids = messages[0].split()
         total = len(mail_ids)
-        print(
-            f"[+] Found {total} messages in {args.folder}. Fetching last {args.limit}..."
-        )
+        print(f"[+] Found {total} messages in {args.folder}. Fetching {args.limit}...")
 
         # Fetch last N messages
         start = max(0, total - args.limit)

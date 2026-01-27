@@ -340,10 +340,9 @@ def main() -> None:
         print("\nNothing to delete.")
         return
 
-    should_proceed = confirm(
-        f"This will delete {len(all_to_delete)} items and free approx {format_size(total_freed)}.",
-        "PERMANENT DELETION WARNING",
-    )
+    size_str = format_size(total_freed)
+    msg = f"This will delete {len(all_to_delete)} items and free approx {size_str}."
+    should_proceed = confirm(msg, "PERMANENT DELETION WARNING")
 
     if not should_proceed:
         print("Cleanup cancelled.")

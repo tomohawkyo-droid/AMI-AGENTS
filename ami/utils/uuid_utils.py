@@ -1,7 +1,7 @@
 """UUID utilities for AMI Agents.
 
-Provides a pure Python implementation of UUIDv7 (RFC 9562) to avoid external dependencies
-or waiting for Python 3.14.
+Provides a pure Python implementation of UUIDv7 (RFC 9562) to avoid
+external dependencies or waiting for Python 3.14.
 """
 
 import random
@@ -43,7 +43,7 @@ def uuid7() -> str:
 
     # Combine all parts into a single 128-bit integer.
     # The fields are concatenated directly in order of significance:
-    # unixts_ms (48 bits) | version (4 bits) | rand_a (12 bits) | variant (2 bits) | rand_b (62 bits)
+    # unixts_ms (48) | version (4) | rand_a (12) | variant (2) | rand_b (62)
     #
     # Bit positions (from MSB 127 down to LSB 0):
     # unixts_ms:   [127-80] (48 bits)
@@ -58,5 +58,5 @@ def uuid7() -> str:
         (unixts_ms << 80) | (version << 76) | (rand_a << 64) | (variant << 62) | rand_b
     )
 
-    # Create a UUID object from the 128-bit integer and return its string representation.
+    # Create a UUID object from the 128-bit integer and return as string.
     return str(uuid.UUID(int=uuid_int))

@@ -54,5 +54,6 @@ def load_instruction_with_replacements(instruction_file: Path) -> str:
             patterns_content = patterns_file.read_text()
             content = content.replace("{PATTERNS}", patterns_content)
 
-    # Use str.replace() instead of .format() to avoid conflicts with code examples containing braces
+    # Use str.replace() instead of .format() to avoid conflicts
+    # with code examples containing braces
     return content.replace("{date}", datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z"))

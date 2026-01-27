@@ -17,7 +17,8 @@ class AgentCLI(ABC):
         """Run agent interactively with CLI.
 
         Args:
-            params: RunInteractiveParams containing instruction, cwd, session_id, mcp_servers
+            params: RunInteractiveParams with instruction, cwd,
+                session_id, mcp_servers
 
         Returns:
             Tuple of (output, metadata) where metadata includes session info
@@ -34,7 +35,8 @@ class AgentCLI(ABC):
         """Run agent in print mode with CLI.
 
         Args:
-            params: RunPrintParams containing instruction, cwd, agent_config, instruction_file, stdin, audit_log_path
+            params: RunPrintParams with instruction, cwd, agent_config,
+                instruction_file, stdin, audit_log_path
 
         Returns:
             Tuple of (output, metadata) where metadata includes session info

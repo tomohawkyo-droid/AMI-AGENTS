@@ -6,11 +6,5 @@ target-version = "py311"
 select = [
     "E", "F", "W", "I", "C", "B", "PL", "PT", "SIM", "UP", "RUF", "TRY", "FLY", "PERF", "FURB", "PYI", "TID", "PLC0415"
 ]
-ignore = ["E501", "TRY003"]
-
-# Scripts that must set up sys.path before imports (legitimate E402)
-# Tests that need to import modules fresh inside test functions (legitimate PLC0415)
-[lint.per-file-ignores]
-"scripts/bootstrap_installer.py" = ["E402"]
-"tests/**/*.py" = ["PLC0415"]
+# NO IGNORES ALLOWED. FIX THE CODE.
 

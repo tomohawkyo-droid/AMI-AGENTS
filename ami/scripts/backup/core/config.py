@@ -30,10 +30,8 @@ class BackupRestoreConfig(BackupConfig):
         """Load impersonation authentication configuration."""
         service_account_email = os.getenv("GDRIVE_SERVICE_ACCOUNT_EMAIL")
         if not service_account_email:
-            raise BackupConfigError(
-                "GDRIVE_SERVICE_ACCOUNT_EMAIL must be set when using impersonation auth method.\n"
-                "Example: GDRIVE_SERVICE_ACCOUNT_EMAIL=backup@project.iam.gserviceaccount.com"
-            )
+            msg = "GDRIVE_SERVICE_ACCOUNT_EMAIL required"
+            raise BackupConfigError(msg)
 
         config.service_account_email = service_account_email
         config.gcloud_path = find_gcloud()
@@ -43,27 +41,30 @@ class BackupRestoreConfig(BackupConfig):
 
         if not config.gcloud_path:
             logger.error("  ❌ gcloud CLI not found!")
-            raise BackupConfigError("gcloud CLI required for impersonation auth method")
+            msg = "gcloud CLI required"
+            raise BackupConfigError(msg)
 
     @classmethod
     def _load_key_auth(cls, config: "BackupRestoreConfig", root_dir: Path) -> None:
         """Load key file authentication configuration."""
         credentials_file = os.getenv("GDRIVE_CREDENTIALS_FILE")
         if not credentials_file:
-            raise BackupConfigError(
-                "GDRIVE_CREDENTIALS_FILE must be set when using key auth method.\n"
+            msg = (
+                "GDRIVE_CREDENTIALS_FILE must be set for key auth. "
                 "Example: GDRIVE_CREDENTIALS_FILE=/path/to/service-account.json"
             )
+            raise BackupConfigError(msg)
 
         credentials_path = Path(credentials_file)
         if not credentials_path.is_absolute():
             credentials_path = root_dir / credentials_path
 
         if not credentials_path.exists():
-            raise BackupConfigError(
-                f"Credentials file not found at {credentials_path}\n"
-                "Create a service account and download the JSON key from Google Cloud Console"
+            msg = (
+                f"Credentials file not found at {credentials_path}. "
+                "Download the JSON key from Google Cloud Console."
             )
+            raise BackupConfigError(msg)
 
         config.credentials_file = str(credentials_path)
 
@@ -83,9 +84,8 @@ class BackupRestoreConfig(BackupConfig):
         try:
             config.restore_timeout = int(restore_timeout_str)
         except ValueError as e:
-            raise BackupConfigError(
-                f"Invalid RESTORE_TIMEOUT value: {restore_timeout_str}. Must be an integer."
-            ) from e
+            msg = f"Invalid RESTORE_TIMEOUT: {restore_timeout_str}. Must be integer."
+            raise BackupConfigError(msg) from e
 
         truthy_values = ["true", "1", "yes", "on"]
         preserve_permissions_str = os.getenv(
@@ -103,17 +103,18 @@ class BackupRestoreConfig(BackupConfig):
         """Load restore configuration from .env file."""
         env_path = root_dir / ".env"
         if not env_path.exists():
-            raise BackupConfigError(f".env file not found at {env_path}")
+            msg = f".env file not found at {env_path}"
+            raise BackupConfigError(msg)
 
         load_dotenv(env_path)
 
         config = cls(root_dir)
 
         auth_method = os.getenv("GDRIVE_AUTH_METHOD", "oauth")
-        if auth_method not in ["impersonation", "key", "oauth"]:
-            raise BackupConfigError(
-                f"Invalid GDRIVE_AUTH_METHOD: {auth_method}. Must be 'impersonation', 'key', or 'oauth'."
-            )
+        valid_methods = ["impersonation", "key", "oauth"]
+        if auth_method not in valid_methods:
+            msg = f"Invalid GDRIVE_AUTH_METHOD: {auth_method}. Use: {valid_methods}"
+            raise BackupConfigError(msg)
 
         config.auth_method = auth_method
 

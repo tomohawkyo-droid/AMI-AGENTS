@@ -72,7 +72,8 @@ class BootloaderAgent:
         """Get the runtime. Raises if not provided."""
         if self.runtime:
             return self.runtime
-        raise RuntimeError("Agent runtime not provided to BootloaderAgent")
+        msg = "Agent runtime not provided to BootloaderAgent"
+        raise RuntimeError(msg)
 
     def _get_banner(self) -> str:
         """Get environment context by sourcing .bashrc."""
@@ -90,9 +91,10 @@ class BootloaderAgent:
             )
 
             content = result.stdout + "\n" + result.stderr
-            clean_content = content.replace(
-                "bash: cannot set terminal process group (-1): Inappropriate ioctl for device",
-                "",
+            # Remove common bash errors when running non-interactively
+            bash_ioctl_err = "bash: cannot set terminal process group (-1):"
+            clean_content = content.replace(bash_ioctl_err, "").replace(
+                "Inappropriate ioctl for device", ""
             )
             clean_content = clean_content.replace(
                 "bash: no job control in this shell", ""
@@ -127,7 +129,7 @@ class BootloaderAgent:
         input_func: Callable[[str], bool],
         stream_callback: StreamCallbackType,
     ) -> str | None:
-        """Handle user confirmation for script execution. Returns error message or None."""
+        """Handle user confirmation for script execution. Returns error or None."""
         try:
             confirmed = input_func(script)
             if not confirmed:
@@ -218,7 +220,10 @@ class BootloaderAgent:
                 "Use the explicitly allowed tools for non-shell operations:"
                 + "\n".join([f"- {t}" for t in allowed_tools])
             )
-        return "No internal tools are available by default. Rely on shell commands for all operations."
+        return (
+            "No internal tools are available by default. "
+            "Rely on shell commands for all operations."
+        )
 
     def _build_initial_prompt(self, instruction: str, allowed_tools: list[str]) -> str:
         """Build the initial prompt with banner and tools message."""
@@ -226,9 +231,8 @@ class BootloaderAgent:
         tools_msg = self._build_tools_message(allowed_tools)
 
         if not self.prompt_template.exists():
-            raise FileNotFoundError(
-                f"CRITICAL: Agent prompt template missing at {self.prompt_template}"
-            )
+            msg = f"Agent prompt template missing at {self.prompt_template}"
+            raise FileNotFoundError(msg)
 
         template = self.prompt_template.read_text()
         return template.format(

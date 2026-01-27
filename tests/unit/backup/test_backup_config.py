@@ -1,11 +1,20 @@
 """Unit tests for backup configuration."""
 
 import os
+import subprocess
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ami.scripts.backup.backup_config import BackupConfig
+from ami.scripts.backup.backup_config import (
+    BackupConfig,
+    _check_and_refresh_adc_token,
+    check_adc_credentials_valid,
+    refresh_adc_credentials,
+)
 from ami.scripts.backup.backup_exceptions import BackupConfigError
+
+EXPECTED_SUBPROCESS_CALL_COUNT = 2
 
 
 @pytest.fixture(autouse=True)
@@ -107,3 +116,271 @@ class TestBackupConfig:
     def test_valid_auth_methods(self):
         """Test that valid auth methods constant is correct."""
         assert BackupConfig.VALID_AUTH_METHODS == ("impersonation", "key", "oauth")
+
+    def test_load_impersonation_with_valid_config(self, tmp_path, monkeypatch):
+        """Test loading impersonation auth with valid config."""
+        env_file = tmp_path / ".env"
+        env_file.write_text(
+            "GDRIVE_AUTH_METHOD=impersonation\n"
+            "GDRIVE_SERVICE_ACCOUNT_EMAIL=test@project.iam.gserviceaccount.com\n"
+        )
+
+        # Mock find_gcloud to return a valid path
+        monkeypatch.setattr(
+            "ami.scripts.backup.backup_config.find_gcloud",
+            lambda: "/usr/bin/gcloud",
+        )
+        # Mock the ADC check
+        monkeypatch.setattr(
+            "ami.scripts.backup.backup_config.check_adc_credentials_valid",
+            lambda: True,
+        )
+
+        config = BackupConfig.load(tmp_path)
+
+        assert config.auth_method == "impersonation"
+        assert config.service_account_email == "test@project.iam.gserviceaccount.com"
+        assert config.gcloud_path == "/usr/bin/gcloud"
+
+    def test_load_impersonation_without_gcloud_raises(self, tmp_path, monkeypatch):
+        """Test that impersonation without gcloud CLI raises."""
+        env_file = tmp_path / ".env"
+        env_file.write_text(
+            "GDRIVE_AUTH_METHOD=impersonation\n"
+            "GDRIVE_SERVICE_ACCOUNT_EMAIL=test@project.iam.gserviceaccount.com\n"
+        )
+
+        # Mock find_gcloud to return None
+        monkeypatch.setattr(
+            "ami.scripts.backup.backup_config.find_gcloud",
+            lambda: None,
+        )
+
+        with pytest.raises(BackupConfigError) as exc_info:
+            BackupConfig.load(tmp_path)
+
+        assert "gcloud CLI required" in str(exc_info.value)
+
+    def test_load_key_with_relative_path(self, tmp_path):
+        """Test loading key auth with relative credentials path."""
+        creds_file = tmp_path / "creds.json"
+        creds_file.write_text("{}")
+
+        env_file = tmp_path / ".env"
+        env_file.write_text(
+            "GDRIVE_AUTH_METHOD=key\nGDRIVE_CREDENTIALS_FILE=creds.json\n"
+        )
+
+        config = BackupConfig.load(tmp_path)
+
+        assert config.auth_method == "key"
+        assert config.credentials_file == str(creds_file)
+
+    def test_load_oauth_config(self, tmp_path):
+        """Test loading oauth config logs appropriate messages."""
+        env_file = tmp_path / ".env"
+        env_file.write_text("GDRIVE_AUTH_METHOD=oauth\n")
+
+        config = BackupConfig.load(tmp_path)
+
+        assert config.auth_method == "oauth"
+        # oauth doesn't require additional config
+        assert config.credentials_file is None
+        assert config.service_account_email is None
+
+
+class TestCheckAdcCredentialsValid:
+    """Tests for check_adc_credentials_valid function."""
+
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_when_no_gcloud(self, mock_find_gcloud):
+        """Test returns False when gcloud not found."""
+        mock_find_gcloud.return_value = None
+
+        result = check_adc_credentials_valid()
+
+        assert result is False
+
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_when_no_adc_file(self, mock_find_gcloud, mock_adc_path):
+        """Test returns False when ADC file doesn't exist."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = False
+
+        result = check_adc_credentials_valid()
+
+        assert result is False
+
+    @patch("ami.scripts.backup.backup_config.subprocess.run")
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_true_when_token_valid(
+        self, mock_find_gcloud, mock_adc_path, mock_run
+    ):
+        """Test returns True when token is valid."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = True
+        mock_run.return_value = MagicMock(returncode=0)
+
+        result = check_adc_credentials_valid()
+
+        assert result is True
+        mock_run.assert_called_once()
+
+    @patch("ami.scripts.backup.backup_config.subprocess.run")
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_when_token_invalid(
+        self, mock_find_gcloud, mock_adc_path, mock_run
+    ):
+        """Test returns False when token is invalid."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = True
+        mock_run.return_value = MagicMock(returncode=1)
+
+        result = check_adc_credentials_valid()
+
+        assert result is False
+
+    @patch("ami.scripts.backup.backup_config.subprocess.run")
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_on_timeout(self, mock_find_gcloud, mock_adc_path, mock_run):
+        """Test returns False on subprocess timeout."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = True
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="gcloud", timeout=30)
+
+        result = check_adc_credentials_valid()
+
+        assert result is False
+
+    @patch("ami.scripts.backup.backup_config.subprocess.run")
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_on_exception(
+        self, mock_find_gcloud, mock_adc_path, mock_run
+    ):
+        """Test returns False on unexpected exception."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = True
+        mock_run.side_effect = Exception("Unexpected error")
+
+        result = check_adc_credentials_valid()
+
+        assert result is False
+
+
+class TestRefreshAdcCredentials:
+    """Tests for refresh_adc_credentials function."""
+
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_when_no_gcloud(self, mock_find_gcloud):
+        """Test returns False when gcloud not found."""
+        mock_find_gcloud.return_value = None
+
+        result = refresh_adc_credentials()
+
+        assert result is False
+
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_when_no_adc_file(self, mock_find_gcloud, mock_adc_path):
+        """Test returns False when ADC file doesn't exist."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = False
+
+        result = refresh_adc_credentials()
+
+        assert result is False
+
+    @patch("ami.scripts.backup.backup_config._check_and_refresh_adc_token")
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_delegates_to_check_and_refresh(
+        self, mock_find_gcloud, mock_adc_path, mock_check_refresh
+    ):
+        """Test delegates to _check_and_refresh_adc_token."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = True
+        mock_check_refresh.return_value = True
+
+        result = refresh_adc_credentials()
+
+        assert result is True
+        mock_check_refresh.assert_called_once_with("/usr/bin/gcloud")
+
+    @patch("ami.scripts.backup.backup_config._check_and_refresh_adc_token")
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_on_timeout(
+        self, mock_find_gcloud, mock_adc_path, mock_check_refresh
+    ):
+        """Test returns False on timeout."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = True
+        mock_check_refresh.side_effect = subprocess.TimeoutExpired(
+            cmd="gcloud", timeout=30
+        )
+
+        result = refresh_adc_credentials()
+
+        assert result is False
+
+    @patch("ami.scripts.backup.backup_config._check_and_refresh_adc_token")
+    @patch("ami.scripts.backup.backup_config.ADC_CREDENTIALS_PATH")
+    @patch("ami.scripts.backup.backup_config.find_gcloud")
+    def test_returns_false_on_exception(
+        self, mock_find_gcloud, mock_adc_path, mock_check_refresh
+    ):
+        """Test returns False on unexpected exception."""
+        mock_find_gcloud.return_value = "/usr/bin/gcloud"
+        mock_adc_path.exists.return_value = True
+        mock_check_refresh.side_effect = Exception("Unexpected error")
+
+        result = refresh_adc_credentials()
+
+        assert result is False
+
+
+class TestCheckAndRefreshAdcToken:
+    """Tests for _check_and_refresh_adc_token function."""
+
+    @patch("ami.scripts.backup.backup_config.subprocess.run")
+    def test_returns_true_when_token_valid(self, mock_run):
+        """Test returns True when existing token is valid."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        result = _check_and_refresh_adc_token("/usr/bin/gcloud")
+
+        assert result is True
+        assert mock_run.call_count == 1  # Only print-access-token called
+
+    @patch("ami.scripts.backup.backup_config.subprocess.run")
+    def test_refreshes_when_token_invalid(self, mock_run):
+        """Test refreshes token when invalid."""
+        # First call (print-access-token) fails, second call (login) succeeds
+        mock_run.side_effect = [
+            MagicMock(returncode=1, stderr="Token expired"),
+            MagicMock(returncode=0),
+        ]
+
+        result = _check_and_refresh_adc_token("/usr/bin/gcloud")
+
+        assert result is True
+        assert mock_run.call_count == EXPECTED_SUBPROCESS_CALL_COUNT
+
+    @patch("ami.scripts.backup.backup_config.subprocess.run")
+    def test_returns_false_when_refresh_fails(self, mock_run):
+        """Test returns False when refresh also fails."""
+        # Both calls fail
+        mock_run.side_effect = [
+            MagicMock(returncode=1, stderr="Token expired"),
+            MagicMock(returncode=1, stderr="Login failed"),
+        ]
+
+        result = _check_and_refresh_adc_token("/usr/bin/gcloud")
+
+        assert result is False
+        assert mock_run.call_count == EXPECTED_SUBPROCESS_CALL_COUNT

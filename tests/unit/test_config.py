@@ -9,6 +9,7 @@ import pytest
 import yaml
 
 import ami.core.config as config_module
+from ami.cli.provider_type import ProviderType
 from ami.core.config import Config, get_config
 
 
@@ -173,3 +174,206 @@ class TestConfig:
         assert config.root is not None
         assert isinstance(config.root, Path)
         assert config.root.is_absolute()
+
+    def test_empty_config_raises_error(self) -> None:
+        """Config raises error if YAML is empty."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write("")  # Empty file
+            temp_path = Path(f.name)
+
+        try:
+            with pytest.raises(ValueError, match=r"(?i)empty"):
+                Config(config_file=temp_path)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_get_value_returns_default_for_non_dict_path(
+        self, temp_config_file: Path
+    ) -> None:
+        """Config.get_value returns default when path goes through non-dict."""
+        config = Config(config_file=temp_config_file)
+
+        # logging.level is "INFO" (a string), so logging.level.subkey should fail
+        result = config.get_value("logging.level.subkey", "default_val")
+
+        assert result == "default_val"
+
+    def test_resolve_path_type_error(self, temp_config_file: Path) -> None:
+        """Config.resolve_path raises TypeError for non-string template."""
+        config = Config(config_file=temp_config_file)
+
+        # Manually set a non-string value
+        config._data["non_string_path"] = 12345
+
+        with pytest.raises(TypeError) as exc_info:
+            config.resolve_path("non_string_path")
+
+        assert "must be a string" in str(exc_info.value)
+
+    def test_list_env_substitution(self) -> None:
+        """Config substitutes env vars in list values."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            config_data = {
+                "list_values": ["${LIST_VAR:item1}", "static", "${OTHER_VAR:item2}"]
+            }
+            yaml.dump(config_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            config = Config(config_file=temp_path)
+            assert config._data["list_values"][0] == "item1"
+            assert config._data["list_values"][1] == "static"
+            assert config._data["list_values"][2] == "item2"
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_ami_test_mode_creates_tasks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Config creates tasks dict when AMI_TEST_MODE=1."""
+        monkeypatch.setenv("AMI_TEST_MODE", "1")
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            # Config without tasks key
+            config_data = {"version": "2.0.0"}
+            yaml.dump(config_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            config = Config(config_file=temp_path)
+            assert "tasks" in config._data
+            assert config._data["tasks"]["file_locking"] is False
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_ami_test_mode_updates_existing_tasks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Config updates existing tasks when AMI_TEST_MODE=1."""
+        monkeypatch.setenv("AMI_TEST_MODE", "1")
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            config_data = {"version": "2.0.0", "tasks": {"other": "value"}}
+            yaml.dump(config_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            config = Config(config_file=temp_path)
+            assert config._data["tasks"]["file_locking"] is False
+            assert config._data["tasks"]["other"] == "value"
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+
+class TestConfigProviderMethods:
+    """Tests for provider-related methods in Config."""
+
+    @pytest.fixture
+    def config_with_providers(self) -> Generator[Config, None, None]:
+        """Create config with provider settings."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            config_data = {
+                "version": "2.0.0",
+                "agent": {
+                    "claude": {"command": "custom-claude"},
+                    "qwen": {"command": "/usr/local/bin/qwen"},
+                },
+            }
+            yaml.dump(config_data, f)
+            temp_path = Path(f.name)
+
+        config = Config(config_file=temp_path)
+        yield config
+
+        if temp_path.exists():
+            temp_path.unlink()
+
+    def test_get_provider_command_custom(self, config_with_providers: Config) -> None:
+        """Test getting custom provider command."""
+        cmd = config_with_providers.get_provider_command(ProviderType.CLAUDE)
+        # Should be absolute path resolved from relative "custom-claude"
+        assert "custom-claude" in cmd
+
+    def test_get_provider_command_absolute(self, config_with_providers: Config) -> None:
+        """Test getting absolute provider command."""
+        cmd = config_with_providers.get_provider_command(ProviderType.QWEN)
+        # Already absolute, should stay as is
+        assert cmd == "/usr/local/bin/qwen"
+
+    def test_get_provider_command_default(self) -> None:
+        """Test getting default provider command when not configured."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            config_data = {"version": "2.0.0"}
+            yaml.dump(config_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            config = Config(config_file=temp_path)
+            cmd = config.get_provider_command(ProviderType.GEMINI)
+            # Should use default "gemini" resolved to absolute path
+            assert "gemini" in cmd
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_get_provider_command_non_string_config(self) -> None:
+        """Test provider command when config value is not a string."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            config_data = {"version": "2.0.0", "agent": {"claude": {"command": 12345}}}
+            yaml.dump(config_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            config = Config(config_file=temp_path)
+            cmd = config.get_provider_command(ProviderType.CLAUDE)
+            # Should fall back to default "claude"
+            assert "claude" in cmd
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_get_provider_default_model(self) -> None:
+        """Test getting default models for providers."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            config_data = {"version": "2.0.0"}
+            yaml.dump(config_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            config = Config(config_file=temp_path)
+
+            assert (
+                config.get_provider_default_model(ProviderType.CLAUDE)
+                == "claude-sonnet-4-5"
+            )
+            assert config.get_provider_default_model(ProviderType.QWEN) == "qwen-coder"
+            assert (
+                config.get_provider_default_model(ProviderType.GEMINI) == "gemini-3-pro"
+            )
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_get_provider_audit_model(self) -> None:
+        """Test getting audit models for providers."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            config_data = {"version": "2.0.0"}
+            yaml.dump(config_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            config = Config(config_file=temp_path)
+
+            assert (
+                config.get_provider_audit_model(ProviderType.CLAUDE)
+                == "claude-sonnet-4-5"
+            )
+            assert config.get_provider_audit_model(ProviderType.QWEN) == "qwen-coder"
+            assert (
+                config.get_provider_audit_model(ProviderType.GEMINI) == "gemini-3-flash"
+            )
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()

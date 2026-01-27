@@ -47,32 +47,39 @@ class Config:
             PermissionError: If config file cannot be read
         """
         if not self.config_file.exists():
-            raise FileNotFoundError(f"Config file not found: {self.config_file}")
+            msg = f"Config file not found: {self.config_file}"
+            raise FileNotFoundError(msg)
 
         try:
             with self.config_file.open() as f:
                 data = yaml.safe_load(f)
         except yaml.YAMLError as e:
-            raise ValueError(f"Malformed YAML in {self.config_file}: {e}") from e
+            msg = f"Malformed YAML in {self.config_file}: {e}"
+            raise ValueError(msg) from e
         except PermissionError as e:
-            raise PermissionError(f"Cannot read config file: {self.config_file}") from e
+            msg = f"Cannot read config file: {self.config_file}"
+            raise PermissionError(msg) from e
 
         if not data or not isinstance(data, dict):
-            raise ValueError(f"Config is empty or invalid: {self.config_file}")
+            msg = f"Config is empty or invalid: {self.config_file}"
+            raise ValueError(msg)
 
         # Substitute environment variables
         substituted = self._substitute_env(data)
         if not isinstance(substituted, dict):
-            raise TypeError(f"Config must be a dict, got {type(substituted)}")
+            msg = f"Config must be a dict, got {type(substituted)}"
+            raise TypeError(msg)
 
-        # Test mode override: explicitly disable file locking when AMI_TEST_MODE environment variable is set to "1"
-        # This is required for integration tests to run without sudo permissions
+        # Test mode override: explicitly disable file locking when
+        # AMI_TEST_MODE environment variable is set to "1".
+        # This is required for integration tests to run without sudo
         test_mode_value = os.environ.get("AMI_TEST_MODE", "")
         if test_mode_value == "1":
             if "tasks" not in substituted:
                 substituted["tasks"] = {}
             if not isinstance(substituted["tasks"], dict):
-                raise ValueError("tasks config must be a dict")
+                msg = "tasks config must be a dict"
+                raise ValueError(msg)
             substituted["tasks"]["file_locking"] = False
 
         return substituted
@@ -119,9 +126,8 @@ class Config:
         """
         template = self.get_value(key)
         if not isinstance(template, str):
-            raise TypeError(
-                f"Path template at '{key}' must be a string, got {type(template)}"
-            )
+            msg = f"Path template at '{key}' must be string, got {type(template)}"
+            raise TypeError(msg)
         path_str = template.format(**kwargs)
         return self.root / path_str
 
@@ -156,7 +162,8 @@ class Config:
         }
 
         if provider not in provider_to_command:
-            raise ValueError(f"CRITICAL: Unknown provider: {provider}")
+            msg = f"Unknown provider: {provider}"
+            raise ValueError(msg)
 
         # Get the configured command or default
         cmd = self.get_value(

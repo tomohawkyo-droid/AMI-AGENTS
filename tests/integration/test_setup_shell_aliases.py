@@ -96,7 +96,8 @@ def test_aliases_exist_and_respond_to_help() -> None:
                 output=$( {func_name} -h 2>&1 )
                 exit_code=$?
 
-                if echo "$output" | grep -q 'No such file or directory\|command not found'; then
+                if echo "$output" | grep -q \
+                  'No such file or directory\|command not found'; then
                     echo "$output"
                     exit 1
                 fi
@@ -115,18 +116,16 @@ def test_aliases_exist_and_respond_to_help() -> None:
         except subprocess.TimeoutExpired:
             continue  # Skip to next function
         except Exception as e:
-            raise AssertionError(
-                f"Command {func_name} failed during execution: {e!s}"
-            ) from e
+            msg = f"Command {func_name} failed during execution: {e!s}"
+            raise AssertionError(msg) from e
 
         combined_output = result.stdout + result.stderr
         if (
             "No such file or directory" in combined_output
             or "command not found" in combined_output
         ):
-            raise AssertionError(
-                f"Command {func_name} failed with file error: {combined_output}"
-            )
+            msg = f"Command {func_name} failed with file error: {combined_output}"
+            raise AssertionError(msg)
 
     for alias_name in expected_aliases:
         bash_test_cmd = [

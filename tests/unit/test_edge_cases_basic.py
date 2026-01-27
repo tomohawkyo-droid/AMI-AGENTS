@@ -1,4 +1,7 @@
-"""Comprehensive tests for basic edge cases and error conditions in ami-agent interactive mode."""
+"""Comprehensive tests for basic edge cases and error conditions.
+
+Covers ami-agent interactive mode.
+"""
 
 from unittest.mock import MagicMock, patch
 

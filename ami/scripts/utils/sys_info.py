@@ -91,33 +91,42 @@ def get_size_str(bytes_val: int) -> str:
 
 def main() -> None:
     try:
-        items = []
+
+        class _Item:
+            __slots__ = ("label", "percent", "value")
+
+            def __init__(self, label: str, percent: float, value: str) -> None:
+                self.label = label
+                self.percent = percent
+                self.value = value
+
+        items: list[_Item] = []
         # Data collection
         disk = psutil.disk_usage(".")
         items.append(
-            {
-                "label": "  > Storage (Root)",
-                "percent": disk.percent,
-                "value": f"{get_size_str(disk.used)} / {get_size_str(disk.total)}",
-            }
+            _Item(
+                label="  > Storage (Root)",
+                percent=disk.percent,
+                value=f"{get_size_str(disk.used)} / {get_size_str(disk.total)}",
+            )
         )
 
         mem = psutil.virtual_memory()
         items.append(
-            {
-                "label": "  > Memory (RAM)",
-                "percent": mem.percent,
-                "value": f"{get_size_str(mem.used)} / {get_size_str(mem.total)}",
-            }
+            _Item(
+                label="  > Memory (RAM)",
+                percent=mem.percent,
+                value=f"{get_size_str(mem.used)} / {get_size_str(mem.total)}",
+            )
         )
 
         cpu_pct = psutil.cpu_percent(interval=0.1)
         items.append(
-            {
-                "label": "  > CPU Usage",
-                "percent": cpu_pct,
-                "value": f"{psutil.cpu_count()} Cores",
-            }
+            _Item(
+                label="  > CPU Usage",
+                percent=cpu_pct,
+                value=f"{psutil.cpu_count()} Cores",
+            )
         )
 
         # Layout Calculation (Standardize to 80 chars)
@@ -125,7 +134,7 @@ def main() -> None:
         LABEL_WIDTH = 20
         SPACING = 1
 
-        max_val_len = max(len(item["value"]) for item in items)
+        max_val_len = max(len(item.value) for item in items)
 
         # BarWidth = 80 - 20 - 1 - max_val_len
         common_bar_width = BANNER_WIDTH - LABEL_WIDTH - SPACING - max_val_len
@@ -136,9 +145,7 @@ def main() -> None:
         print(f"{BOLD}\033[38;5;33m📊 System Status:{RESET}\n")
         for item in items:
             print(
-                bar_renderer.render(
-                    item["percent"], item["label"], item["value"], LABEL_WIDTH
-                )
+                bar_renderer.render(item.percent, item.label, item.value, LABEL_WIDTH)
             )
         print()
 

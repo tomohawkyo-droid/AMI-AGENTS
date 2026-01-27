@@ -1,14 +1,4 @@
 repos:
-  # CRITICAL: Stage all changes FIRST to prevent stash rollback conflicts
-  - repo: local
-    hooks:
-      - id: stage-all-changes
-        name: Stage All Changes
-        entry: git add -A
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-commit]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
@@ -23,26 +13,26 @@ repos:
   - repo: local
     hooks:
       - id: check-dependency-versions
-        name: Check Dependency Versions
-        entry: ./scripts/ci/check_dependency_versions.py
+        name: Check Dependency Versions (strict pinning + latest)
+        entry: ./ami/scripts/ci/check_dependency_versions.py
         language: system
         pass_filenames: false
-        files: res/config/pyproject\.base\.toml$
+        files: pyproject\.toml$
       - id: check-banned-words
         name: Check Banned Words
-        entry: ./scripts/ci/check_banned_words.py
+        entry: ./ami/scripts/ci/check_banned_words.py
         language: python
         additional_dependencies: [PyYAML]
         pass_filenames: false
       - id: check-file-length
         name: Check File Length (max 512 lines)
-        entry: ./scripts/ci/check_file_length.py
+        entry: ./ami/scripts/ci/check_file_length.py
         language: python
         additional_dependencies: [PyYAML]
         pass_filenames: false
       - id: check-init-files
         name: Enforce Empty __init__.py Files (CRITICAL SECURITY REQUIREMENT)
-        entry: ./scripts/ci/check_init_files.py
+        entry: ./ami/scripts/ci/check_init_files.py
         language: system
         files: __init__\.py$
       - id: frontend-preflight
@@ -56,19 +46,19 @@ repos:
         entry: uv run mypy
         language: system
         pass_filenames: false
-        args: [ --config-file, res/config/mypy.toml, --exclude, projects/, ami, scripts ]
+        args: [ --config-file, res/config/mypy.toml, --exclude, projects/, ami ]
         files: \.py$
-        exclude: ^(projects/|tests/)
+        exclude: ^projects/
       - id: block-coauthored
         name: Block Co-authored Commits
-        entry: ./scripts/ci/block_coauthored.py
+        entry: ./ami/scripts/ci/block_coauthored.py
         language: system
         stages: [commit-msg]
   - repo: local
     hooks:
       - id: verify-coverage
         name: Verify Test Coverage (Unit >90%, Integration >75%)
-        entry: ./scripts/ci/verify_coverage.py
+        entry: ./ami/scripts/ci/verify_coverage.py
         language: system
         stages: [pre-push]
         pass_filenames: false

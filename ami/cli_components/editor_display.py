@@ -36,10 +36,12 @@ class EditorDisplay:
             header_lines + 2 + len(lines) + 1
         )  # header + 2 for borders + content + 1 for status
 
-        # For subsequent displays (after first), clear previous content using a more robust approach
+        # For subsequent displays (after first), clear previous content
+        # using a more robust approach
         if self.previous_display_lines > 0:
-            # Use a safer clearing approach: move to bottom of previous display, then clear upward
-            # This prevents cursor positioning issues during rapid updates
+            # Use a safer clearing approach: move to bottom of previous
+            # display, then clear upward. This prevents cursor positioning
+            # issues during rapid updates
             for _ in range(self.previous_display_lines):
                 AnsiTerminal.move_up(1)
                 AnsiTerminal.clear_line()
@@ -48,7 +50,11 @@ class EditorDisplay:
         # Print a header with instructions (no borders) if show_help is True
         effective_width = 80  # Fixed to 80 characters wide
         if self.show_help:
-            content_text = f" Arrows: nav {Colors.CYAN}|{Colors.YELLOW} Alt/Ctrl+Enter: newline {Colors.CYAN}|{Colors.YELLOW} Enter: send {Colors.CYAN}|{Colors.GREEN} F1: toggle help"
+            content_text = (
+                f" Arrows: nav {Colors.CYAN}|{Colors.YELLOW} "
+                f"Alt/Ctrl+Enter: newline {Colors.CYAN}|{Colors.YELLOW} "
+                f"Enter: send {Colors.CYAN}|{Colors.GREEN} F1: toggle help"
+            )
             content_width = effective_width  # Full width for header without borders
             content_text = (
                 content_text[:content_width]
@@ -69,14 +75,17 @@ class EditorDisplay:
                 # Highlight current line by inverting the line number
                 # Apply inverted video to the character at cursor position
                 if -len(line_content) <= current_col < len(line_content):
-                    # Split the line to apply reverse video to the character at cursor position
-                    # This handles both positive and valid negative indexing (e.g., -1 for last char)
+                    # Split line to apply reverse video to char at cursor.
+                    # Handles positive and valid negative indexing.
                     before_cursor = line_content[:current_col]
                     cursor_char = line_content[current_col]
                     after_cursor = line_content[current_col + 1 :]
-                    formatted_line = f"{before_cursor}{Colors.REVERSE}{cursor_char}{Colors.RESET}{after_cursor}"
+                    formatted_line = (
+                        f"{before_cursor}{Colors.REVERSE}"
+                        f"{cursor_char}{Colors.RESET}{after_cursor}"
+                    )
                 else:
-                    # If cursor position is invalid (too negative or beyond line length), just append a space with reverse video
+                    # Invalid cursor pos: append space with reverse video
                     formatted_line = f"{line_content}{Colors.REVERSE} {Colors.RESET}"
 
                 sys.stdout.write(
@@ -135,7 +144,7 @@ class EditorDisplay:
                         "\033[B\033[1G"
                     )  # Move cursor down to next line and to beginning of that line
                     sys.stdout.flush()
-            # The cursor is now at the last cleared line. Move back up to print new content
+            # Cursor is at last cleared line. Move back up to print new content
             if self.previous_display_lines > 1:
                 sys.stdout.write(
                     f"\033[{self.previous_display_lines - 1}A"

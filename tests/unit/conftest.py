@@ -19,7 +19,7 @@ def _find_project_root() -> Path:
 
 # Add project paths for imports
 _root_dir = _find_project_root()
-_scripts_dir = _root_dir / "scripts"
+_scripts_dir = _root_dir / "ami" / "scripts"
 
 # Insert at beginning of path so our modules take precedence
 if str(_scripts_dir) not in sys.path:

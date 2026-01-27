@@ -57,7 +57,7 @@ def load_bash_patterns(patterns_path: Path | None = None) -> list[dict[str, str]
         patterns_path: Optional path to specific patterns file.
     """
     if patterns_path:
-        # If specific path given, load it manually (for now) or update engine to handle absolute paths
+        # If specific path given, load it manually
         if not patterns_path.exists():
             return []
         with patterns_path.open() as f:
@@ -158,4 +158,5 @@ def parse_json_block(
         result = json.loads(cleaned)
         return result if isinstance(result, dict) else {"data": result}
     except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in output: {e!s}") from e
+        msg = "invalid JSON in output"
+        raise ValueError(msg) from e

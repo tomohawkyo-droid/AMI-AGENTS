@@ -38,9 +38,8 @@ class ImpersonationCredentialsProvider:
     def get_credentials(self) -> GoogleAuthCredentials:
         """Get impersonated credentials."""
         if not self.config.service_account_email:
-            raise BackupConfigError(
-                "Service account email is required for impersonation auth method"
-            )
+            msg = "GDRIVE_SERVICE_ACCOUNT_EMAIL env var required for impersonation"
+            raise BackupConfigError(msg)
 
         try:
             # Get source credentials (user credentials from gcloud)
@@ -62,10 +61,8 @@ class ImpersonationCredentialsProvider:
             request = Request()
             credentials.refresh(request)
         except Exception as e:
-            raise BackupError(
-                f"Failed to impersonate service account: {e}. "
-                "Ensure you have roles/iam.serviceAccountTokenCreator permission"
-            ) from e
+            msg = f"Service account impersonation failed: {e}"
+            raise BackupError(msg) from e
         else:
             return credentials
 
@@ -79,15 +76,13 @@ class ServiceAccountCredentialsProvider:
     def get_credentials(self) -> GoogleAuthCredentials:
         """Get service account credentials from file."""
         if not self.config.credentials_file:
-            raise BackupConfigError(
-                "Credentials file path is required for key auth method"
-            )
+            msg = "GDRIVE_CREDENTIALS_FILE env var required for key auth"
+            raise BackupConfigError(msg)
 
         credentials_file_path = Path(self.config.credentials_file)
         if not credentials_file_path.exists():
-            raise BackupError(
-                f"Credentials file does not exist: {credentials_file_path}"
-            )
+            msg = f"Credentials file not found: {credentials_file_path}"
+            raise BackupError(msg)
 
         return cast(
             GoogleAuthCredentials,
@@ -126,11 +121,8 @@ class OAuthCredentialsProvider:
                 # Check if credentials.json exists for the OAuth flow
                 credentials_json_path = self.config.root_dir / "credentials.json"
                 if not credentials_json_path.exists():
-                    raise BackupError(
-                        f"credentials.json not found at {credentials_json_path}\n"
-                        "For OAuth method, create credentials.json from Google Cloud Console.\n"
-                        "Go to APIs & Services > Credentials, create OAuth 2.0 Client ID for Desktop application."
-                    )
+                    msg = f"credentials.json not found at {credentials_json_path}"
+                    raise BackupError(msg)
 
                 # Use Local Server Flow (OOB is deprecated)
                 flow = InstalledAppFlow.from_client_secrets_file(
@@ -161,7 +153,8 @@ class AuthenticationManager:
         elif self.config.auth_method == "oauth":
             return OAuthCredentialsProvider(self.config)
         else:
-            raise BackupConfigError(f"Unknown auth method: {self.config.auth_method}")
+            msg = f"Unknown auth method: {self.config.auth_method}"
+            raise BackupConfigError(msg)
 
     def update_config(self, config: BackupConfig) -> None:
         """Update the configuration and recreate the provider."""

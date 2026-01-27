@@ -54,9 +54,14 @@ class AgentExecutionError(AgentError):
         self.stdout = stdout
         self.stderr = stderr
         self.cmd = cmd
-        super().__init__(
-            f"Agent command failed with exit code {exit_code}:\nCommand: {' '.join(cmd)}\nStdout: {stdout}\nStderr: {stderr}"
+        cmd_str = " ".join(cmd)
+        msg = (
+            f"Agent command failed with exit code {exit_code}:\n"
+            f"Command: {cmd_str}\n"
+            f"Stdout: {stdout}\n"
+            f"Stderr: {stderr}"
         )
+        super().__init__(msg)
 
 
 class AgentProcessKillError(AgentError):

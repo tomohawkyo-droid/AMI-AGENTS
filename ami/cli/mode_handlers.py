@@ -66,8 +66,10 @@ def mode_query(query: str) -> int:
         # Get CLI instance
         cli = get_agent_cli()
 
-        # Enable streaming mode with content capture in configuration, but disable hooks for query mode
-        # Pass session_id=None to let provider manage session creation (avoids Qwen --resume failure)
+        # Enable streaming mode with content capture in config,
+        # but disable hooks for query mode.
+        # Pass session_id=None to let provider manage session creation
+        # (avoids Qwen --resume failure)
         config = AgentConfigPresets.worker(session_id=None)
         config.enable_hooks = (
             False  # Disable hooks for query mode to avoid quality violations
@@ -186,11 +188,13 @@ def mode_interactive_editor() -> int:
 
         # Initial input (from first editor run)
         current_instruction = content
-        # Start fresh session (don't auto-resume - provider sessions may not match local logs)
+        # Start fresh session (don't auto-resume - provider sessions
+        # may not match local logs)
         current_session_id: str | None = None
 
         while True:
-            # Prepare initial text for next editor run (defaults to empty unless cancelled)
+            # Prepare initial text for next editor run
+            # (defaults to empty unless cancelled)
             next_initial_text = ""
 
             try:

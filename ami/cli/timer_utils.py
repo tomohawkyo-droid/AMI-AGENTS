@@ -36,7 +36,8 @@ def wrap_text_in_box(text: str, width: int = 80) -> str:
         if len(line) <= content_width:
             wrapped_lines.append(line)
         else:
-            # Use textwrap to break the line properly with 76 char width for content (80 total - 4 for borders/indentation)
+            # Use textwrap to break the line properly with 76 char width
+            # for content (80 total - 4 for borders/indentation)
             wrapped_sublines = textwrap.fill(line, width=76).split("\n")
             wrapped_lines.extend(wrapped_sublines)
 

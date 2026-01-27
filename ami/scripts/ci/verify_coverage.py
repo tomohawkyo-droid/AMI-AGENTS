@@ -37,29 +37,33 @@ def run_coverage(
 ) -> bool:
     print(f"\n--- Running {context_name} Tests (Threshold: {min_coverage}%) ---")
 
-    # Run pytest with coverage - allow test failures but check coverage separately
+    # Run pytest with coverage
     cmd = [
         "uv",
         "run",
+        "--extra",
+        "torch-cpu",
         "pytest",
         test_path,
         f"--cov={source_path}",
         "--cov-report=term-missing",
         f"--cov-fail-under={min_coverage}",
-        "--tb=no",  # Don't show tracebacks to reduce noise
+        "--tb=short",  # Show short tracebacks for debugging
         "-q",  # Quiet mode
     ]
 
     result = subprocess.run(cmd, capture_output=False, check=False)
 
-    # Exit code 1 = test failures, exit code 2 = coverage failure
-    # We only fail on coverage failure (exit code 2)
-    if result.returncode == EXIT_CODE_COVERAGE_FAILURE:
-        print(f"❌ {context_name} Coverage FAILED (Required: {min_coverage}%)")
+    # Fail on ANY non-zero exit code (test failures OR coverage failures)
+    if result.returncode != 0:
+        if result.returncode == EXIT_CODE_COVERAGE_FAILURE:
+            print(f"❌ {context_name} Coverage FAILED (Required: {min_coverage}%)")
+        else:
+            print(f"❌ {context_name} Tests FAILED (exit code {result.returncode})")
         return False
-    else:
-        print(f"✅ {context_name} Coverage Passed (>={min_coverage}%)")
-        return True
+
+    print(f"✅ {context_name} Tests and Coverage Passed (>={min_coverage}%)")
+    return True
 
 
 def main() -> None:

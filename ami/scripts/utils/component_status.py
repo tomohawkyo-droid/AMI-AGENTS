@@ -17,7 +17,8 @@ def _find_project_root() -> Path:
         if (current / "pyproject.toml").exists() or (current / ".git").exists():
             return current
         current = current.parent
-    raise RuntimeError("Could not find project root")
+    msg = "Could not find project root"
+    raise RuntimeError(msg)
 
 
 PROJECT_ROOT = _find_project_root()

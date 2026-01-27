@@ -142,7 +142,8 @@ def _check_paste_sequences(ord3: int) -> str:
     # Check for bracketed paste sequences: ESC[200~ (start) and ESC[201~ (end)
     if ord3 == ord("2"):  # Check for '2' - could be bracketed paste
         return _check_bracketed_paste_sequence()
-    # Alternative bracketed paste sequences: ESC0~ (start) and ESC01~ (end) - some terminals
+    # Alternative bracketed paste sequences: ESC0~ (start) and ESC01~ (end)
+    # Some terminals use these sequences
     if ord3 == ord("0"):
         return _check_alternative_paste_sequence()
     return "ESC_NOT_HANDLED"
@@ -257,9 +258,9 @@ def read_key_sequence() -> str | int | None:
     if PRINTABLE_MIN <= ord1 <= PRINTABLE_MAX:  # Printable ASCII characters
         return ch1
 
-    # Filter out other control characters to prevent them from appearing in content
-    # Control characters are typically 0-31 and 127, we've already handled the useful ones
-    # So we'll return a special code for unhandled control characters to skip them
+    # Filter out other control characters to prevent them from appearing in content.
+    # Control chars are 0-31 and 127; we've already handled the useful ones.
+    # Return special code for unhandled control characters to skip them.
     if 0 <= ord1 <= CONTROL_MAX and ord1 not in [
         CTRL_C,
         TAB,

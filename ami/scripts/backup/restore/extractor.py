@@ -26,7 +26,7 @@ async def extract_specific_paths(
     If paths is None, extracts all files.
 
     Implements the required behavior:
-    1. Overwrites matching documents (files that exist in both current system and backup)
+    1. Overwrites matching documents (files in both current system and backup)
     2. Restores deleted files (files that exist in backup but not in current system)
     3. Preserves new files (files that exist in current system but not in backup)
 
@@ -114,12 +114,14 @@ def _run_extraction_pipeline(zstd_cmd: list[str], tar_cmd: list[str]) -> None:
 
 def _raise_decompression_error(msg: str) -> None:
     """Raise ArchiveError for decompression failure."""
-    raise ArchiveError(f"Decompression failed: {msg}")
+    err_msg = f"Decompression failed: {msg}"
+    raise ArchiveError(err_msg)
 
 
 def _raise_extraction_error(msg: str) -> None:
     """Raise ArchiveError for extraction failure."""
-    raise ArchiveError(f"Extraction failed: {msg}")
+    err_msg = f"Extraction failed: {msg}"
+    raise ArchiveError(err_msg)
 
 
 def _extract_specific_paths_sync(
@@ -130,7 +132,8 @@ def _extract_specific_paths_sync(
     Uses a direct OS pipe (zstd | tar) for maximum memory and disk efficiency.
     """
     if not archive_path.exists():
-        raise ArchiveError(f"Archive file does not exist: {archive_path}")
+        msg = f"Archive file does not exist: {archive_path}"
+        raise ArchiveError(msg)
 
     logger.info(f"Extracting from archive: {archive_path} via direct OS pipe")
     if paths:
@@ -152,12 +155,12 @@ def _extract_specific_paths_sync(
 
         _run_extraction_pipeline(zstd_cmd, tar_cmd)
 
-        logger.info(
-            f"Successfully extracted {'all' if paths is None else len(paths)} items to {dest}"
-        )
+        count = "all" if paths is None else len(paths)
+        logger.info(f"Successfully extracted {count} items to {dest}")
 
     except Exception as e:
-        raise ArchiveError(f"Failed to extract from tar.zst archive: {e}") from e
+        msg = f"Failed to extract from tar.zst archive: {e}"
+        raise ArchiveError(msg) from e
 
     return True
 
@@ -181,7 +184,8 @@ def _list_archive_contents_sync(archive_path: Path) -> list[str]:
     Uses streaming to avoid loading entire decompressed archive into memory.
     """
     if not archive_path.exists():
-        raise ArchiveError(f"Archive file does not exist: {archive_path}")
+        msg = f"Archive file does not exist: {archive_path}"
+        raise ArchiveError(msg)
 
     try:
         dctx = zstd.ZstdDecompressor()
@@ -194,7 +198,8 @@ def _list_archive_contents_sync(archive_path: Path) -> list[str]:
             contents = [member.name for member in tar]
 
     except Exception as e:
-        raise ArchiveError(f"Failed to list archive contents: {e}") from e
+        msg = f"Failed to list archive contents: {e}"
+        raise ArchiveError(msg) from e
 
     return contents
 

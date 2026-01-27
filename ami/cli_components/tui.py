@@ -18,6 +18,31 @@ def _visible_len(text: str) -> int:
     return len(_ANSI_ESCAPE.sub("", text))
 
 
+def _format_box_row(
+    line: str, width: int, border_color: str, text_color: str, center: bool
+) -> str:
+    """Format a single content row for a box."""
+    inner_width = width - 2
+    visible_line_len = _visible_len(line)
+    fill_len = max(inner_width - visible_line_len, 0)
+
+    if center:
+        l_pad = fill_len // 2
+        r_pad = fill_len - l_pad
+        return (
+            f"{border_color}│{Colors.RESET}"
+            f"{' ' * l_pad}{text_color}{line}{Colors.RESET}"
+            f"{' ' * r_pad}{border_color}│{Colors.RESET}"
+        )
+    # Left aligned with 2 spaces padding
+    right_pad = max(fill_len - 2, 0)
+    return (
+        f"{border_color}│{Colors.RESET}  "
+        f"{text_color}{line}{Colors.RESET}"
+        f"{' ' * right_pad}{border_color}│{Colors.RESET}"
+    )
+
+
 class BoxStyle(BaseModel):
     """Style configuration for drawing boxes."""
 
@@ -77,7 +102,11 @@ class TUI:
             # Adjust for odd widths to ensure alignment
             right_border_len = width - len(safe_title) - border_len
 
-            top_line = f"{border_color}┌{'─' * border_len}{Colors.RESET}{Colors.BOLD}{safe_title}{Colors.RESET}{border_color}{'─' * (right_border_len - 2)}┐{Colors.RESET}"
+            left_border = f"{border_color}┌{'─' * border_len}{Colors.RESET}"
+            title_part = f"{Colors.BOLD}{safe_title}{Colors.RESET}"
+            rb_dash = "─" * (right_border_len - 2)
+            right_border = f"{border_color}{rb_dash}┐{Colors.RESET}"
+            top_line = f"{left_border}{title_part}{right_border}"
         else:
             top_line = f"{border_color}┌{'─' * (width - 2)}┐{Colors.RESET}"
 
@@ -86,73 +115,18 @@ class TUI:
 
         # 2. Content
         # Add a blank line at top padding
-        sys.stdout.write(
-            f"{border_color}│{Colors.RESET}{' ' * (width - 2)}{border_color}│{Colors.RESET}\n"
-        )
+        pad = " " * (width - 2)
+        blank_row = f"{border_color}│{Colors.RESET}{pad}{border_color}│{Colors.RESET}\n"
+        sys.stdout.write(blank_row)
         lines_printed += 1
 
         for line in content:
-            # Handle length / truncation / wrapping?
-            # For now, assume pre-wrapped or truncate
-            # We need to calculate visible length stripping colors for padding,
-            # but that's complex. Assuming simple strings for now or manual color handling.
-
-            # Simple truncation for safety
-            # Note: This doesn't handle color codes well if they are cut off.
-            # Assuming content fits or is handled by caller.
-
-            # Padding
-            # Re-construct box line
-            # Hacky robust box line:
-            # Use format string with fixed width? No, color codes mess it up.
-            # Let's assume the caller provides clean lines or we trust simple len() for now.
-            # For robust TUI, we'd need a strip_ansi function.
-
-            # Better approach: Caller formats the line content to fit width-4.
-            # We just wrap in border.
-
-            # Let's try to center if requested, but naively.
-            inner_width = width - 2
-
-            if center_content:
-                # Strip colors to measure length?
-                # Too expensive to implement full ANSI parser here.
-                # Let's assume content is pre-formatted or simple.
-
-                # Alternative: Just write the line and let terminal handle it? No, box breaks.
-
-                # Let's implement a simple strip_colors if possible?
-                pass
-
-            # Fallback to simple leftpad + fill
-            # We construct the line: │  CONTENT  │
-
-            # We need to know the printable length.
-            # Let's import strip logic or assume clean input for now.
-            # Or just use the one from text_input_utils if it existed? It doesn't.
-
-            # Calculate visible length (excluding ANSI codes)
-            visible_line_len = _visible_len(line)
-            fill_len = inner_width - visible_line_len
-            fill_len = max(fill_len, 0)
-
-            if center_content:
-                l_pad = fill_len // 2
-                r_pad = fill_len - l_pad
-                row = f"{border_color}│{Colors.RESET}{' ' * l_pad}{text_color}{line}{Colors.RESET}{' ' * r_pad}{border_color}│{Colors.RESET}"
-            else:
-                # Left aligned with 2 spaces padding
-                # Adjust fill for the 2-space left padding
-                right_pad = max(fill_len - 2, 0)
-                row = f"{border_color}│{Colors.RESET}  {text_color}{line}{Colors.RESET}{' ' * right_pad}{border_color}│{Colors.RESET}"
-
+            row = _format_box_row(line, width, border_color, text_color, center_content)
             sys.stdout.write(row + "\n")
             lines_printed += 1
 
         # Add a blank line at bottom padding
-        sys.stdout.write(
-            f"{border_color}│{Colors.RESET}{' ' * (width - 2)}{border_color}│{Colors.RESET}\n"
-        )
+        sys.stdout.write(blank_row)
         lines_printed += 1
 
         # 3. Bottom Border

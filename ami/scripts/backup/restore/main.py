@@ -44,7 +44,7 @@ def main() -> int:
         auth_manager = AuthenticationManager(config)
         drive_client = DriveRestoreClient(auth_manager)
 
-        # Service now uses functional modules for extraction, only needs clients and auth
+        # Service uses functional modules for extraction, only needs clients and auth
         service = BackupRestoreService(drive_client, auth_manager)
 
         cli = RestoreCLI(service)

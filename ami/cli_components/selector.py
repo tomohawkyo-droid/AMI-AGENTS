@@ -98,11 +98,16 @@ def display_backup_list(
 
         print(f"{Colors.GREEN}{i:2d}.{Colors.RESET} {name}")
         print(
-            f"    {Colors.YELLOW}Modified:{Colors.RESET} {modified_time} {Colors.CYAN}|{Colors.RESET} {Colors.YELLOW}Size:{Colors.RESET} {size_str}"
+            f"    {Colors.YELLOW}Modified:{Colors.RESET} {modified_time} "
+            f"{Colors.CYAN}|{Colors.RESET} "
+            f"{Colors.YELLOW}Size:{Colors.RESET} {size_str}"
         )
-        print(
-            f"    {Colors.YELLOW}File ID:{Colors.RESET} {file_id[:8]}...{file_id[-4:] if len(file_id) > FILE_ID_DISPLAY_THRESHOLD else file_id}"
+        truncated_id = (
+            f"{file_id[:8]}...{file_id[-4:]}"
+            if len(file_id) > FILE_ID_DISPLAY_THRESHOLD
+            else file_id
         )
+        print(f"    {Colors.YELLOW}File ID:{Colors.RESET} {truncated_id}")
 
     print(f"{Colors.CYAN}└{'─' * 78}┘{Colors.RESET}")
 

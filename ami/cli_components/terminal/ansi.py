@@ -1,7 +1,7 @@
 """ANSI Escape Code Abstraction for Terminal UI.
 
-Provides a clean interface for terminal colors, cursor management, and screen operations,
-encapsulating raw escape sequences.
+Provides a clean interface for terminal colors, cursor management,
+and screen operations, encapsulating raw escape sequences.
 """
 
 import sys

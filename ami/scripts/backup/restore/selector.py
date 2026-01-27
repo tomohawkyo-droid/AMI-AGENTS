@@ -7,7 +7,8 @@ def select_backup_interactive(backup_files: list[DriveFileMetadata]) -> str | No
     """Interactively select a backup file from the list.
 
     Args:
-        backup_files: List of backup file metadata dicts with 'id', 'name', 'modifiedTime', 'size'
+        backup_files: List of backup file metadata dicts with 'id', 'name',
+            'modifiedTime', 'size'
 
     Returns:
         The file ID of the selected backup, or None if cancelled

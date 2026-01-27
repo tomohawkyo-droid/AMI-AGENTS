@@ -33,7 +33,7 @@ install: ## Install AMI Agents in editable mode with all setup (CPU version)
 
 .PHONY: install-bootstrap
 install-bootstrap: ## Interactive TUI to select and install optional bootstrap components
-	@python3 scripts/bootstrap_installer.py
+	@python3 ami/scripts/bootstrap_installer.py
 
 .PHONY: install-shell
 install-shell: ## Install AMI shell environment to ~/.bashrc
@@ -208,7 +208,7 @@ setup-extensions: ## Setup extensions configuration
 .PHONY: register-extensions
 register-extensions: ## Register extensions in .bashrc
 	@echo "🔌 Registering extensions in ~/.bashrc..."
-	@python3 scripts/register_extensions.py
+	@python3 ami/scripts/register_extensions.py
 
 .PHONY: clean
 clean: ## Clean build artifacts
@@ -227,13 +227,18 @@ install-hooks: ## Install pre-commit and pre-push hooks
 	@echo "🔗 Installing pre-commit hooks..."
 	uv run pre-commit install
 	uv run pre-commit install --hook-type pre-push
-	@echo "✅ Pre-commit and pre-push hooks installed"
+	@# Inject auto-staging before pre-commit's stash mechanism (prevents rollback conflicts)
+	@if [ -f .git/hooks/pre-commit ] && ! grep -q 'git add -A' .git/hooks/pre-commit; then \
+		sed -i '/^if \[ -x "\$$INSTALL_PYTHON" \]/i # Auto-stage all files before pre-commit stashes\ngit add -A\n' .git/hooks/pre-commit; \
+		echo "✅ Injected auto-staging into .git/hooks/pre-commit"; \
+	fi
+	@echo "✅ Pre-commit and pre-push hooks installed (with auto-staging)"
 
 .PHONY: install-safety-scripts
 install-safety-scripts: ## Install git and podman safety scripts
 	@echo "🔒 Installing safety scripts..."
-	@bash scripts/utils/disable_no_verify_patcher.sh
-	@bash scripts/utils/podman_safety_wrapper.sh
+	@bash ami/scripts/utils/disable_no_verify_patcher.sh
+	@bash ami/scripts/utils/podman_safety_wrapper.sh
 	@echo "✅ Safety scripts installed"
 
 .PHONY: test

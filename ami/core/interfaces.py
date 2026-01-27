@@ -1,6 +1,6 @@
 """Core interfaces for AMI Agent orchestration.
 
-This module defines the protocols that decouple core logic from interface implementations.
+This module defines protocols that decouple core logic from implementations.
 """
 
 from __future__ import annotations

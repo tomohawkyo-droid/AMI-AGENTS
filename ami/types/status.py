@@ -41,6 +41,14 @@ class SystemdService(BaseModel):
     managed_container: str | None = None
     compose_file: str | None = None
     compose_profiles: list[str] = Field(default_factory=list)
+    # Enhanced fields
+    restart: str = ""  # Restart policy (always, on-failure, no)
+    enabled: str = ""  # UnitFileState (enabled, disabled, static)
+    memory_bytes: int = 0  # MemoryCurrent in bytes
+    cpu_ns: int = 0  # CPUUsageNSec
+    start_time: str = ""  # ExecMainStartTimestamp
+    description: str = ""  # Description
+    exec_start: str = ""  # ExecStart command
 
 
 class ServiceDisplayInfo(BaseModel):

@@ -7,7 +7,7 @@ import yaml
 
 DEFAULT_CONFIG = {
     "forbidden_patterns": ["Co-authored-by:", "co-authored-by"],
-    "error_message": "FAILED: Co-authored commits are strictly forbidden in this repository.",
+    "error_message": "FAILED: Co-authored commits are forbidden in this repository.",
 }
 
 

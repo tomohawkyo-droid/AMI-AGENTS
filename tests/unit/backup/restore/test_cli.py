@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from ami.scripts.backup.restore.cli import RestoreCLI
 from ami.scripts.backup.restore.service import BackupRestoreService
 
@@ -32,6 +34,7 @@ class TestRestoreCLI:
         assert str(args.paths[0]) == "path1.txt"
         assert str(args.paths[1]) == "path2.txt"
 
+    @pytest.mark.asyncio
     @patch("ami.scripts.backup.restore.service.extract_specific_paths")
     @patch("ami.scripts.backup.restore.service.DriveRestoreClient")
     @patch("ami.scripts.backup.restore.service.AuthenticationManager")
@@ -53,6 +56,7 @@ class TestRestoreCLI:
         assert result is True
         mock_extract.assert_called_once()
 
+    @pytest.mark.asyncio
     @patch("ami.scripts.backup.restore.service.extract_specific_paths")
     @patch("ami.scripts.backup.restore.service.DriveRestoreClient")
     @patch("ami.scripts.backup.restore.service.AuthenticationManager")
@@ -86,6 +90,7 @@ class TestRestoreCLI:
         assert result is True
         mock_extract.assert_called_once()
 
+    @pytest.mark.asyncio
     @patch("ami.scripts.backup.restore.service.extract_specific_paths")
     @patch("ami.scripts.backup.restore.service.local_client.verify_backup_exists")
     @patch("ami.scripts.backup.restore.service.DriveRestoreClient")

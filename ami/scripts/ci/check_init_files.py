@@ -29,7 +29,7 @@ def check_file(filepath: str) -> list[str]:
         ):  # Allow string literals (docstrings)
             pass
 
-        # Heuristic: Detect function defs, class defs, variable assignments (other than dunder), logic
+        # Heuristic: Detect func/class defs, variable assignments (non-dunder), logic
         if re.match(r"^(def |class |if |for |while |try:|with |async )", line):
             errors.append(f"Line {i + 1}: Found logic code '{line}'")
         elif "=" in line and not line.startswith("__"):

@@ -112,16 +112,16 @@ class BackupConfig:
         """Load configuration from .env file."""
         env_path = root_dir / ".env"
         if not env_path.exists():
-            raise BackupConfigError(f".env file not found at {env_path}")
+            msg = ".env file not found"
+            raise BackupConfigError(msg)
 
         load_dotenv(env_path)
         config = cls(root_dir)
 
         auth_method = os.getenv("GDRIVE_AUTH_METHOD", "oauth")
         if auth_method not in cls.VALID_AUTH_METHODS:
-            raise BackupConfigError(
-                f"Invalid GDRIVE_AUTH_METHOD: {auth_method}. Must be one of {cls.VALID_AUTH_METHODS}."
-            )
+            msg = "invalid auth method"
+            raise BackupConfigError(msg)
 
         config.auth_method = auth_method
         config._configure_auth_method(root_dir)
@@ -141,10 +141,8 @@ class BackupConfig:
         """Configure service account impersonation authentication."""
         service_account_email = os.getenv("GDRIVE_SERVICE_ACCOUNT_EMAIL")
         if not service_account_email:
-            raise BackupConfigError(
-                "GDRIVE_SERVICE_ACCOUNT_EMAIL must be set when using impersonation auth method.\n"
-                "Example: GDRIVE_SERVICE_ACCOUNT_EMAIL=backup@project.iam.gserviceaccount.com"
-            )
+            msg = "GDRIVE_SERVICE_ACCOUNT_EMAIL required"
+            raise BackupConfigError(msg)
 
         self.service_account_email = service_account_email
         self.gcloud_path = find_gcloud()
@@ -155,7 +153,8 @@ class BackupConfig:
         if not self.gcloud_path:
             logger.error("  ❌ gcloud CLI not found!")
             logger.error("  Install with: ./scripts/install_gcloud.sh")
-            raise BackupConfigError("gcloud CLI required for impersonation auth method")
+            msg = "gcloud CLI required"
+            raise BackupConfigError(msg)
 
         self._log_gcloud_status()
 
@@ -177,20 +176,16 @@ class BackupConfig:
         """Configure service account key file authentication."""
         credentials_file = os.getenv("GDRIVE_CREDENTIALS_FILE")
         if not credentials_file:
-            raise BackupConfigError(
-                "GDRIVE_CREDENTIALS_FILE must be set when using key auth method.\n"
-                "Example: GDRIVE_CREDENTIALS_FILE=/path/to/service-account.json"
-            )
+            msg = "GDRIVE_CREDENTIALS_FILE required"
+            raise BackupConfigError(msg)
 
         credentials_path = Path(credentials_file)
         if not credentials_path.is_absolute():
             credentials_path = root_dir / credentials_path
 
         if not credentials_path.exists():
-            raise BackupConfigError(
-                f"Credentials file not found at {credentials_path}\n"
-                "Create a service account and download the JSON key from Google Cloud Console"
-            )
+            msg = "credentials file not found"
+            raise BackupConfigError(msg)
 
         self.credentials_file = str(credentials_path)
 

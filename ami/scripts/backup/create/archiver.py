@@ -9,11 +9,11 @@ from pathlib import Path
 
 from ami.scripts.backup.backup_exceptions import ArchiveError as BackupArchiveError
 from ami.scripts.backup.common.constants import DEFAULT_EXCLUSION_PATTERNS
-from scripts.utils.archive_utils import ArchiveError as UtilsArchiveError
-from scripts.utils.archive_utils import (
+from ami.scripts.utils.archive_utils import ArchiveError as UtilsArchiveError
+from ami.scripts.utils.archive_utils import (
     _should_exclude_path as utils_should_exclude_path,
 )
-from scripts.utils.archive_utils import create_archive as utils_create_archive
+from ami.scripts.utils.archive_utils import create_archive as utils_create_archive
 
 
 # Wrapper function using project-specific default patterns
@@ -26,13 +26,13 @@ def _should_exclude_path(
     )
 
 
-# We can keep _is_illegal_filename if it's used elsewhere or move it too
-# It wasn't in the new utility because it wasn't strictly used in the find-based implementation
+# Keep _is_illegal_filename if used elsewhere; it wasn't in
+# the new utility since it wasn't used in find-based implementation
 def _is_illegal_filename(name: str) -> bool:
     return any(c in name for c in "\n\r\t") or bool(re.search(r"[\x00-\x1f\x7f]", name))
 
 
-# _get_files_to_backup_robust was internal, we don't strictly need to expose it if main logic uses create_zip_archive
+# _get_files_to_backup_robust was internal; expose only if needed
 
 
 async def create_zip_archive(
@@ -44,7 +44,7 @@ async def create_zip_archive(
     """
     Create a timestamped tar.zst archive.
 
-    Delegates to scripts.utils.archive_utils.create_archive using default exclusion patterns.
+    Delegates to archive_utils.create_archive using default exclusion patterns.
     """
     try:
         return await utils_create_archive(

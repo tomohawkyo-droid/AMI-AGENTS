@@ -76,13 +76,13 @@ Examples:
 
         parser.add_argument(
             "--name",
-            help="Custom name for the backup file (defaults to auto-generated with timestamp)",
+            help="Custom name for the backup file (default: auto-generated)",
         )
 
         parser.add_argument(
             "--include-all",
             action="store_true",
-            help="Include all files (disable default exclusions like .git, node_modules)",
+            help="Include all files (disable .git, node_modules exclusions)",
         )
 
         # Backup operation options
@@ -148,15 +148,13 @@ Examples:
                 )
             elif "GDRIVE_AUTH_METHOD" in str(e):
                 logger.info(
-                    "  GDRIVE_AUTH_METHOD can be set in your .env file to 'impersonation', 'key', or 'oauth'. "
-                    "Or use --auth-mode command line option."
+                    "  Set GDRIVE_AUTH_METHOD in .env (impersonation/key/oauth) "
+                    "or use --auth-mode option."
                 )
         elif isinstance(e, UploadError):
             error_str = str(e).lower()
             if "reauthentication" in error_str or "authenticated" in error_str:
-                logger.info(
-                    "  Authentication may be needed. To set up authentication, run: backup_to_gdrive --setup-auth"
-                )
+                logger.info("  Auth may be needed. Run: backup_to_gdrive --setup-auth")
                 if auth_retry_enabled:
                     logger.info("  (Auth retry was attempted but failed)")
 

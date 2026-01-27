@@ -67,7 +67,7 @@ class BackupService:
         self.auth_manager.update_config(config)
 
         # Create zip archive from source_dir
-        # Use CWD as output directory for the zip file to avoid polluting source or permission issues
+        # Use CWD as output directory to avoid polluting source
         output_dir = Path.cwd()
 
         # Use default backup name if not specified
@@ -140,9 +140,7 @@ class BackupService:
             return 1
 
         logger.info(f"Using gcloud binary: {gcloud_path}")
-        logger.info(
-            "Please follow the instructions in your browser to complete authentication..."
-        )
+        logger.info("Please follow browser instructions to complete authentication...")
 
         try:
             # Run the gcloud auth command
@@ -161,9 +159,7 @@ class BackupService:
                 logger.info("You can now run the backup script.")
                 return 0
             else:
-                logger.error(
-                    f"Authentication setup failed with return code: {process.returncode}"
-                )
+                logger.error(f"Authentication setup failed: {process.returncode}")
                 if stderr:
                     logger.error(f"Error output: {stderr.decode()}")
                 return process.returncode or 1
@@ -181,7 +177,7 @@ class BackupService:
         adc_path = Path.home() / ".config/gcloud/application_default_credentials.json"
         if not adc_path.exists():
             logger.warning(
-                "Application Default Credentials file not found, need to set up auth first."
+                "Application Default Credentials not found, set up auth first."
             )
             return False
 
@@ -208,7 +204,8 @@ class BackupService:
             _stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30)
         except TimeoutError:
             process.kill()
-            raise TimeoutError("gcloud auth timed out") from None
+            msg = "gcloud auth timed out"
+            raise TimeoutError(msg) from None
 
         if process.returncode == 0:
             logger.info("Access token is still valid.")

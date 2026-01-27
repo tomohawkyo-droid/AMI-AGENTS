@@ -6,6 +6,7 @@ import pytest
 
 from ami.cli.exceptions import AgentTimeoutError
 from ami.cli.stream_processor import StreamProcessor
+from ami.types.api import StreamEventData, StreamMetadata
 
 # Test constants
 EXPECTED_EVENT_COUNT_WITH_COMPLETE = 3  # chunk1, chunk2, complete
@@ -50,8 +51,6 @@ class TestStreamProcessor:
         assert events[1].data == "chunk2"
         assert events[2].type == "complete"
         # Complete event data is StreamEventData, not a dict
-        from ami.types.api import StreamEventData
-
         complete_data = events[2].data
         assert isinstance(complete_data, StreamEventData)
         assert complete_data.output == "chunk1\nchunk2\n"
@@ -89,13 +88,19 @@ class TestStreamProcessor:
         mock_process = MagicMock()
         mock_start.return_value = mock_process
 
-        # Simulate timeout
+        # Simulate timeout - return None with is_timeout=True
         mock_read.return_value = (None, True)
 
         processor = StreamProcessor(cmd=["test"], timeout=1)
 
+        # Patch time.time in the correct module and provide enough values
+        # Flow: started_at, then loop iterations checking timeout, then error message
+        # Provide many values to cover all calls
         with (
-            patch("time.time", side_effect=[0, 0.2, 0.3, 0.4]),
+            patch(
+                "ami.cli.stream_processor.time.time",
+                side_effect=[0, 0.2, 0.5, 0.8, 1.5, 1.6, 2.0, 2.5],  # Extra values
+            ),
             pytest.raises(AgentTimeoutError),
         ):
             list(processor.run())
@@ -116,8 +121,6 @@ class TestStreamProcessor:
             (None, False),
             (None, False),
         ]
-
-        from ami.types.api import StreamMetadata
 
         mock_provider = MagicMock()
         # Returns (text, metadata) - metadata is StreamMetadata object

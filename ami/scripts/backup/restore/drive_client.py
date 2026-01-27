@@ -82,7 +82,8 @@ class DriveRestoreClient:
             config: Backup configuration
 
         Returns:
-            List of backup file metadata dicts with 'id', 'name', 'modifiedTime', and 'size' keys
+            List of backup file metadata dicts with 'id', 'name',
+            'modifiedTime', and 'size' keys
         """
         try:
             service = await self._get_service()
@@ -155,9 +156,9 @@ class DriveRestoreClient:
                 .execute(),
             )
 
-            logger.info(
-                f"Downloading file: {file_metadata.get('name', 'Unknown')} ({file_metadata.get('size', 'Unknown')} bytes)"
-            )
+            name = file_metadata.get("name", "Unknown")
+            size = file_metadata.get("size", "Unknown")
+            logger.info(f"Downloading file: {name} ({size} bytes)")
 
             # Create destination directory if it doesn't exist
             destination.parent.mkdir(parents=True, exist_ok=True)

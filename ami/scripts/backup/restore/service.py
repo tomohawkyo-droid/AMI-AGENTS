@@ -47,9 +47,7 @@ class BackupRestoreService:
         Returns:
             True if restore was successful, False otherwise
         """
-        logger.info(
-            f"Fetching backup files from Google Drive to go back {revision} revision(s)..."
-        )
+        logger.info(f"Fetching Drive backups to go back {revision} revision(s)...")
 
         backup_files = await self.drive_client.list_backup_files(config)
 
@@ -58,9 +56,8 @@ class BackupRestoreService:
             return False
 
         if revision >= len(backup_files):
-            logger.error(
-                f"Revision {revision} is beyond the available backups (only {len(backup_files)} available)"
-            )
+            count = len(backup_files)
+            logger.error(f"Revision {revision} is beyond available backups ({count})")
             return False
 
         selected_file = backup_files[revision]  # 0 = latest, 1 = previous, etc.
@@ -161,7 +158,8 @@ class BackupRestoreService:
             True if restore was successful, False otherwise
         """
         if not await local_client.verify_backup_exists(backup_path):
-            raise BackupError(f"Backup file not found: {backup_path}")
+            msg = f"Backup file not found: {backup_path}"
+            raise BackupError(msg)
 
         logger.info(f"Restoring from local backup: {backup_path}")
         logger.info(f"Restoring to: {restore_path}")
@@ -310,7 +308,7 @@ class BackupRestoreService:
         self, revision: int, paths: list[Path], restore_path: Path, config: BackupConfig
     ) -> bool:
         """
-        Restore specific paths from Google Drive backup by going back specified number of revisions.
+        Restore specific paths from Drive backup by going back specified revisions.
 
         Args:
             revision: Number of revisions to go back (0 = latest, 1 = previous, etc.)
@@ -322,7 +320,7 @@ class BackupRestoreService:
             True if restore was successful, False otherwise
         """
         logger.info(
-            f"Fetching backup files from Google Drive to go back {revision} revision(s) for selective restore..."
+            f"Fetching Drive backups to go back {revision} revision(s) for restore..."
         )
 
         backup_files = await self.drive_client.list_backup_files(config)
@@ -332,9 +330,8 @@ class BackupRestoreService:
             return False
 
         if revision >= len(backup_files):
-            logger.error(
-                f"Revision {revision} is beyond the available backups (only {len(backup_files)} available)"
-            )
+            count = len(backup_files)
+            logger.error(f"Revision {revision} is beyond available backups ({count})")
             return False
 
         selected_file = backup_files[revision]  # 0 = latest, 1 = previous, etc.
@@ -370,7 +367,8 @@ class BackupRestoreService:
             True if restore was successful, False otherwise
         """
         if not await local_client.verify_backup_exists(backup_path):
-            raise BackupError(f"Backup file not found: {backup_path}")
+            msg = f"Backup file not found: {backup_path}"
+            raise BackupError(msg)
 
         logger.info(f"Restoring specific paths from local backup: {backup_path}")
         logger.info(f"Target paths: {[str(p) for p in paths]}")

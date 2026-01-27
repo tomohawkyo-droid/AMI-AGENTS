@@ -1,6 +1,7 @@
 """Integration test for the backup creation workflow.
 
-REPRODUCTION ATTEMPT: Runs against the REAL project root to trigger the scale-based segfault.
+Tests the archiver against the .git directory which provides a realistic
+stress test without attempting to backup 280k+ files.
 
 Note: Path setup is handled by tests/conftest.py.
 """
@@ -15,39 +16,36 @@ from ami.scripts.backup.create import archiver
 
 
 @pytest.mark.asyncio
-async def test_reproduce_real_world_segfault():
+async def test_backup_workflow_on_git_directory():
     """
-    Test the full backup creation process against the ACTUAL project root.
-    This is the only way to reproduce the segfault if it's caused by
-    specific files or the sheer scale (280k+ files) of the repo.
+    Test the full backup creation process against the .git directory.
+    This provides a realistic stress test with many small files and
+    nested directories without the insane scale of the full repo.
     """
-    # Use the actual project root
-    real_root = Path.cwd()
+    git_dir = Path.cwd() / ".git"
 
-    print(f"\n[Reproduction] Running backup against real root: {real_root}")
+    if not git_dir.exists():
+        pytest.skip("No .git directory found")
 
-    # Create a temp directory for the output to avoid polluting the repo
+    print(f"\n[Backup Test] Running backup against: {git_dir}")
+
     with tempfile.TemporaryDirectory() as temp_dir:
         output_dir = Path(temp_dir)
 
-        print("[Reproduction] Starting create_zip_archive...")
-        try:
-            # We use the real archiver logic
-            # This will scan 280k+ files and attempt to tar them
-            archive_path = await archiver.create_zip_archive(
-                real_root,
-                output_dir=output_dir,
-                ignore_exclusions=False,  # Respect exclusions like real run
-            )
+        print("[Backup Test] Starting create_zip_archive...")
+        archive_path = await archiver.create_zip_archive(
+            git_dir,
+            output_dir=output_dir,
+            ignore_exclusions=True,
+        )
 
-            print(f"[Reproduction] Archive created successfully at: {archive_path}")
-            print(f"[Reproduction] Archive size: {archive_path.stat().st_size} bytes")
+        print(f"[Backup Test] Archive created: {archive_path}")
+        archive_size = archive_path.stat().st_size
+        print(f"[Backup Test] Archive size: {archive_size / 1024 / 1024:.2f} MB")
 
-        except Exception as e:
-            print(f"[Reproduction] Failed with error: {e}")
-            raise
+        assert archive_path.exists()
+        assert archive_size > 0
 
 
 if __name__ == "__main__":
-    # Allow running directly
-    asyncio.run(test_reproduce_real_world_segfault())
+    asyncio.run(test_backup_workflow_on_git_directory())

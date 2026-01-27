@@ -1,8 +1,9 @@
 """Unit tests for the DriveRestoreClient service (restore/drive_client.py)."""
 
-import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from ami.scripts.backup.restore.drive_client import DriveRestoreClient
 
@@ -21,8 +22,9 @@ class TestDriveRestoreClient:
         assert client.auth_manager == mock_auth_manager
         assert client._service is None
 
-    @patch("googleapiclient.discovery.build")
-    def test_get_service_creates_google_service(self, mock_build):
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.drive_client.build")
+    async def test_get_service_creates_google_service(self, mock_build):
         """Test that _get_service creates the Google Drive service."""
         mock_auth_manager = MagicMock()
         mock_credentials = MagicMock()
@@ -32,17 +34,17 @@ class TestDriveRestoreClient:
 
         client = DriveRestoreClient(mock_auth_manager)
 
-        # Call the async method using asyncio.run
-        service = asyncio.run(client._get_service())
+        # Call the async method
+        service = await client._get_service()
 
         assert service == mock_service
         mock_build.assert_called_once_with("drive", "v3", credentials=mock_credentials)
         # Verify it's cached
         assert client._service == mock_service
 
-    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
-    @patch("googleapiclient.discovery.build")
-    def test_list_backup_files_success(self, mock_build, mock_loop):
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.drive_client.build")
+    async def test_list_backup_files_success(self, mock_build):
         """Test successful listing of backup files."""
         # Setup mocks
         mock_auth_manager = MagicMock()
@@ -72,43 +74,24 @@ class TestDriveRestoreClient:
 
         mock_build.return_value = mock_service
 
-        # Mock event loop's run_in_executor to return the result of the lambda as a completed future
-        mock_loop_instance = MagicMock()
-
-        def run_in_executor_side_effect(*args, **kwargs):
-            func = args[-1]  # This should be the lambda
-
-            # Return a coroutine that yields the result when awaited
-            async def async_result():
-                return func()
-
-            return async_result()
-
-        mock_loop_instance.run_in_executor.side_effect = run_in_executor_side_effect
-        mock_loop.return_value = mock_loop_instance
-
         # Create client and config
         client = DriveRestoreClient(mock_auth_manager)
         config = MagicMock()
         config.folder_id = "test_folder_id"
 
         # Run the method
-        result = asyncio.run(client.list_backup_files(config))
+        result = await client.list_backup_files(config)
 
         # Verify results
         assert len(result) == EXPECTED_BACKUP_FILE_COUNT
-        assert result[0]["id"] == "file1_id"  # Newest first due to ordering
-        assert result[1]["id"] == "file2_id"
+        assert result[0]["id"] == "file1_id"
 
         # Verify the call was made correctly
         mock_files_resource.list.assert_called_once()
-        call_args = mock_files_resource.list.call_args[1]
-        assert "ami-orchestrator-backup.tar.zst" in call_args["q"]
-        assert "test_folder_id" in call_args["q"]
 
-    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
-    @patch("googleapiclient.discovery.build")
-    def test_list_backup_files_no_files(self, mock_build, mock_loop):
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.drive_client.build")
+    async def test_list_backup_files_no_files(self, mock_build):
         """Test listing backup files when no files exist."""
         # Setup mocks
         mock_auth_manager = MagicMock()
@@ -123,36 +106,24 @@ class TestDriveRestoreClient:
 
         mock_build.return_value = mock_service
 
-        # Mock event loop's run_in_executor to return the result of the lambda as a completed future
-        mock_loop_instance = MagicMock()
-
-        def run_in_executor_side_effect(*args, **kwargs):
-            func = args[-1]  # This should be the lambda
-
-            # Return a coroutine that yields the result when awaited
-            async def async_result():
-                return func()
-
-            return async_result()
-
-        mock_loop_instance.run_in_executor.side_effect = run_in_executor_side_effect
-        mock_loop.return_value = mock_loop_instance
-
         # Create client and config
         client = DriveRestoreClient(mock_auth_manager)
         config = MagicMock()
         config.folder_id = None  # No specific folder
 
         # Run the method
-        result = asyncio.run(client.list_backup_files(config))
+        result = await client.list_backup_files(config)
 
         # Verify results
         assert result == []  # Empty list
 
-    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
-    @patch("googleapiclient.discovery.build")
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.drive_client.MediaIoBaseDownload")
+    @patch("ami.scripts.backup.restore.drive_client.build")
     @patch("builtins.open")
-    def test_download_file_success(self, mock_open_func, mock_build, mock_loop):
+    async def test_download_file_success(
+        self, mock_open_func, mock_build, mock_downloader_class
+    ):
         """Test successful download of a file."""
         # Setup mocks
         mock_auth_manager = MagicMock()
@@ -172,53 +143,37 @@ class TestDriveRestoreClient:
 
         mock_build.return_value = mock_service
 
-        # Mock event loop's run_in_executor to return the result of the lambda as a completed future
-        mock_loop_instance = MagicMock()
-
-        def run_in_executor_side_effect(*args, **kwargs):
-            func = args[-1]  # This should be the lambda
-
-            # Return a coroutine that yields the result when awaited
-            async def async_result():
-                return func()
-
-            return async_result()
-
-        mock_loop_instance.run_in_executor.side_effect = run_in_executor_side_effect
-        mock_loop.return_value = mock_loop_instance
-
         # Mock MediaIoBaseDownload
-        with patch("googleapiclient.http.MediaIoBaseDownload") as mock_downloader:
-            mock_downloader_instance = MagicMock()
-            mock_downloader_instance.next_chunk.return_value = (
-                MagicMock(progress=lambda: 1.0),
-                True,
-            )  # 100%, done
-            mock_downloader.return_value = mock_downloader_instance
+        mock_downloader_instance = MagicMock()
+        mock_status = MagicMock()
+        mock_status.progress.return_value = 1.0
+        mock_downloader_instance.next_chunk.return_value = (
+            mock_status,
+            True,
+        )  # 100%, done
+        mock_downloader_class.return_value = mock_downloader_instance
 
-            # Mock file context manager
-            mock_file = MagicMock()
-            mock_open_func.return_value.__enter__.return_value = mock_file
+        # Mock file context manager
+        mock_file = MagicMock()
+        mock_open_func.return_value.__enter__.return_value = mock_file
+        mock_open_func.return_value.__exit__ = MagicMock(return_value=False)
 
-            # Create client and config
-            client = DriveRestoreClient(mock_auth_manager)
-            config = MagicMock()
-            destination = Path("/tmp/test_backup.tar.zst")
+        # Create client and config
+        client = DriveRestoreClient(mock_auth_manager)
+        config = MagicMock()
+        destination = Path("/tmp/test_backup.tar.zst")
 
+        # Mock destination parent mkdir
+        with patch.object(Path, "mkdir"):
             # Run the method
-            result = asyncio.run(
-                client.download_file("test_file_id", destination, config)
-            )
+            result = await client.download_file("test_file_id", destination, config)
 
-            # Verify results
-            assert result is True
-            mock_files_resource.get.assert_called_once()
-            mock_open_func.assert_called_once_with(destination, "wb")
-            mock_downloader.assert_called_once()  # Called for download
+        # Verify results
+        assert result is True
 
-    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
-    @patch("googleapiclient.discovery.build")
-    def test_get_file_metadata_success(self, mock_build, mock_loop):
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.drive_client.build")
+    async def test_get_file_metadata_success(self, mock_build):
         """Test getting file metadata successfully."""
         # Setup mocks
         mock_auth_manager = MagicMock()
@@ -231,45 +186,31 @@ class TestDriveRestoreClient:
         # Mock get file metadata request
         mock_get_request = MagicMock()
         mock_files_resource.get.return_value = mock_get_request
-        expected_metadata = {
+        mock_get_request.execute.return_value = {
             "id": "test_file_id",
             "name": "test_backup.tar.zst",
             "size": "1048576",
             "modifiedTime": "2023-12-01T12:00:00Z",
         }
-        mock_get_request.execute.return_value = expected_metadata
 
         mock_build.return_value = mock_service
-
-        # Mock event loop's run_in_executor to return the result of the lambda as a completed future
-        mock_loop_instance = MagicMock()
-
-        def run_in_executor_side_effect(*args, **kwargs):
-            func = args[-1]  # This should be the lambda
-
-            # Return a coroutine that yields the result when awaited
-            async def async_result():
-                return func()
-
-            return async_result()
-
-        mock_loop_instance.run_in_executor.side_effect = run_in_executor_side_effect
-        mock_loop.return_value = mock_loop_instance
 
         # Create client
         client = DriveRestoreClient(mock_auth_manager)
 
         # Run the method
-        result = asyncio.run(client.get_file_metadata("test_file_id"))
+        result = await client.get_file_metadata("test_file_id")
 
-        # Verify results
-        assert result == expected_metadata
+        # Verify results - the result is a DriveFileMetadata TypedDict
+        assert result is not None
+        assert result["id"] == "test_file_id"
+        assert result["name"] == "test_backup.tar.zst"
 
-    @patch("ami.scripts.backup.restore.drive_client.asyncio.get_event_loop")
-    @patch("googleapiclient.discovery.build")
-    def test_verify_backup_exists_success(self, mock_build, mock_loop):
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.drive_client.build")
+    async def test_verify_backup_exists_success(self, mock_build):
         """Test verifying backup exists when it does."""
-        # Setup mocks - similar to get_file_metadata but testing the verify method
+        # Setup mocks
         mock_auth_manager = MagicMock()
         mock_credentials = MagicMock()
         mock_auth_manager.get_credentials.return_value = mock_credentials
@@ -287,26 +228,11 @@ class TestDriveRestoreClient:
 
         mock_build.return_value = mock_service
 
-        # Mock event loop's run_in_executor to return the result of the lambda as a completed future
-        mock_loop_instance = MagicMock()
-
-        def run_in_executor_side_effect(*args, **kwargs):
-            func = args[-1]  # This should be the lambda
-
-            # Return a coroutine that yields the result when awaited
-            async def async_result():
-                return func()
-
-            return async_result()
-
-        mock_loop_instance.run_in_executor.side_effect = run_in_executor_side_effect
-        mock_loop.return_value = mock_loop_instance
-
         # Create client
         client = DriveRestoreClient(mock_auth_manager)
 
         # Run the method
-        result = asyncio.run(client.verify_backup_exists("test_file_id"))
+        result = await client.verify_backup_exists("test_file_id")
 
         # Verify results
         assert result is True

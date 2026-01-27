@@ -1,0 +1,913 @@
+PLC0415 `import` should be at the top-level of a file
+  --> tests/integration/test_guards_integration.py:20:5
+   |
+18 |     """Fixture that uses the real PolicyEngine with actual config files."""
+19 |     # Reset singleton to ensure fresh load
+20 |     import ami.core.policies.engine
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+21 |
+22 |     ami.core.policies.engine._engine = None
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/backup/common/test_paths.py:15:9
+   |
+13 |     def test_get_project_root(self):
+14 |         """Test finding project root via environment variable."""
+15 |         import os
+   |         ^^^^^^^^^
+16 |
+17 |         # Test with environment variable (cleanest approach)
+   |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/common/test_paths.py:140:9
+    |
+138 |     def test_falls_back_to_cwd(self, mock_find_root, tmp_path: Path):
+139 |         """Test falls back to CWD when file location fails."""
+140 |         import os
+    |         ^^^^^^^^^
+141 |
+142 |         # Remove env var if set
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/common/test_paths.py:163:9
+    |
+161 |     def test_raises_when_not_found(self, mock_find_root):
+162 |         """Test raises RuntimeError when root not found anywhere."""
+163 |         import os
+    |         ^^^^^^^^^
+164 |
+165 |         env_backup = os.environ.pop("AMI_PROJECT_ROOT", None)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/common/test_paths.py:171:13
+    |
+170 |         try:
+171 |             import pytest
+    |             ^^^^^^^^^^^^^
+172 |
+173 |             with pytest.raises(RuntimeError) as exc_info:
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/common/test_paths.py:184:9
+    |
+182 |     def test_handles_exception_from_file_path(self, mock_find_root):
+183 |         """Test handles exception when finding root from __file__."""
+184 |         import os
+    |         ^^^^^^^^^
+185 |
+186 |         env_backup = os.environ.pop("AMI_PROJECT_ROOT", None)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/common/test_paths.py:201:9
+    |
+199 |     def test_handles_exception_from_cwd(self, mock_find_root):
+200 |         """Test handles exception when finding root from CWD."""
+201 |         import os
+    |         ^^^^^^^^^
+202 |
+203 |         import pytest
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/common/test_paths.py:203:9
+    |
+201 |         import os
+202 |
+203 |         import pytest
+    |         ^^^^^^^^^^^^^
+204 |
+205 |         env_backup = os.environ.pop("AMI_PROJECT_ROOT", None)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/create/test_backup_create_utils.py:230:9
+    |
+228 |     def test_validate_backup_file_timeout(self, mock_validate_sync, mock_exists):
+229 |         """Test validation handles timeout."""
+230 |         import subprocess
+    |         ^^^^^^^^^^^^^^^^^
+231 |
+232 |         mock_exists.return_value = True
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_extractor.py:227:9
+    |
+225 |     def test_run_extraction_pipeline_zstd_fails(self, mock_popen):
+226 |         """Test extraction pipeline when zstd fails."""
+227 |         from ami.scripts.backup.backup_exceptions import ArchiveError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+228 |
+229 |         mock_zstd_proc = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_extractor.py:251:9
+    |
+249 |     def test_run_extraction_pipeline_tar_fails_with_error(self, mock_popen):
+250 |         """Test extraction pipeline when tar fails with error."""
+251 |         from ami.scripts.backup.backup_exceptions import ArchiveError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+252 |
+253 |         mock_zstd_proc = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_extractor.py:297:9
+    |
+295 |     def test_raise_decompression_error(self):
+296 |         """Test _raise_decompression_error raises ArchiveError."""
+297 |         from ami.scripts.backup.backup_exceptions import ArchiveError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+298 |
+299 |         with pytest.raises(ArchiveError) as exc_info:
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_extractor.py:307:9
+    |
+305 |     def test_raise_extraction_error(self):
+306 |         """Test _raise_extraction_error raises ArchiveError."""
+307 |         from ami.scripts.backup.backup_exceptions import ArchiveError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+308 |
+309 |         with pytest.raises(ArchiveError) as exc_info:
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_extractor.py:318:9
+    |
+316 |     def test_extract_specific_paths_sync_archive_not_exists(self, mock_exists):
+317 |         """Test extraction fails when archive doesn't exist."""
+318 |         from ami.scripts.backup.backup_exceptions import ArchiveError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+319 |
+320 |         mock_exists.return_value = False
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_extractor.py:362:9
+    |
+360 |     ):
+361 |         """Test extraction wraps exceptions in ArchiveError."""
+362 |         from ami.scripts.backup.backup_exceptions import ArchiveError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+363 |
+364 |         mock_exists.return_value = True
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_extractor.py:380:9
+    |
+378 |     def test_list_archive_contents_sync_archive_not_exists(self, mock_exists):
+379 |         """Test listing fails when archive doesn't exist."""
+380 |         from ami.scripts.backup.backup_exceptions import ArchiveError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+381 |
+382 |         mock_exists.return_value = False
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_extractor.py:396:9
+    |
+394 |     ):
+395 |         """Test listing wraps exceptions in ArchiveError."""
+396 |         from ami.scripts.backup.backup_exceptions import ArchiveError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+397 |
+398 |         mock_exists.return_value = True
+    |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/backup/restore/test_local_client.py:46:9
+   |
+44 |     async def test_finds_latest_of_multiple_backups(self, tmp_path: Path) -> None:
+45 |         """Test finding the latest backup among multiple."""
+46 |         import time
+   |         ^^^^^^^^^^^
+47 |
+48 |         old_backup = tmp_path / "old.tar.zst"
+   |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_local_client.py:156:9
+    |
+154 |     async def test_finds_latest_match(self, tmp_path: Path) -> None:
+155 |         """Test finds latest matching backup."""
+156 |         import time
+    |         ^^^^^^^^^^^
+157 |
+158 |         old = tmp_path / "backup-2024-01-01.tar.zst"
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/restore/test_local_client.py:213:9
+    |
+211 |     async def test_sorted_by_mtime_newest_first(self, tmp_path: Path) -> None:
+212 |         """Test backups are sorted newest first."""
+213 |         import time
+    |         ^^^^^^^^^^^
+214 |
+215 |         old = tmp_path / "old.tar.zst"
+    |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/backup/test_backup_main.py:14:13
+   |
+12 |         os.chdir(tmp_path)
+13 |         with patch("sys.argv", ["ami-backup", "--help"]):
+14 |             from ami.scripts.backup.create.main import main
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |
+16 |             result = main()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/backup/test_backup_main.py:23:13
+   |
+21 |         os.chdir(tmp_path)
+22 |         with patch("sys.argv", ["ami-backup", "-h"]):
+23 |             from ami.scripts.backup.create.main import main
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+24 |
+25 |             result = main()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/backup/test_backup_main.py:32:13
+   |
+30 |         os.chdir(tmp_path)
+31 |         with patch("sys.argv", ["ami-backup"]):
+32 |             from ami.scripts.backup.create.main import main
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |
+34 |             result = main()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/backup/test_backup_main.py:45:13
+   |
+43 |         os.chdir(tmp_path)
+44 |         with patch("sys.argv", ["ami-restore", "--help"]):
+45 |             from ami.scripts.backup.restore.main import main
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+46 |
+47 |             result = main()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/backup/test_backup_main.py:54:13
+   |
+52 |         os.chdir(tmp_path)
+53 |         with patch("sys.argv", ["ami-restore", "-h"]):
+54 |             from ami.scripts.backup.restore.main import main
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+55 |
+56 |             result = main()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/backup/test_backup_main.py:63:13
+   |
+61 |         os.chdir(tmp_path)
+62 |         with patch("sys.argv", ["ami-restore", "--latest-local"]):
+63 |             from ami.scripts.backup.restore.main import main
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+64 |
+65 |             result = main()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/backup/test_backup_service.py:126:9
+    |
+124 |         instead of a BackupOptions object.
+125 |         """
+126 |         from ami.scripts.backup.create.cli import BackupCLI
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+127 |
+128 |         # Create a strict mock that only accepts BackupOptions
+    |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/ci/test_check_dependency_versions.py:45:9
+   |
+43 |     def test_returns_none_on_url_error(self, mock_urlopen) -> None:
+44 |         """Test returns None when URL request fails."""
+45 |         import urllib.error
+   |         ^^^^^^^^^^^^^^^^^^^
+46 |
+47 |         mock_urlopen.side_effect = urllib.error.URLError("Connection failed")
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/cli/test_editor_utils.py:38:13
+   |
+36 |         """Test that content is saved correctly to file."""
+37 |         with tempfile.TemporaryDirectory() as tmpdir:
+38 |             import os
+   |             ^^^^^^^^^
+39 |
+40 |             original_cwd = os.getcwd()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/cli/test_editor_utils.py:54:13
+   |
+52 |         """Test that filename contains timestamp."""
+53 |         with tempfile.TemporaryDirectory() as tmpdir:
+54 |             import os
+   |             ^^^^^^^^^
+55 |
+56 |             original_cwd = os.getcwd()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/cli/test_editor_utils.py:69:13
+   |
+67 |         """Test that file is saved in logs directory."""
+68 |         with tempfile.TemporaryDirectory() as tmpdir:
+69 |             import os
+   |             ^^^^^^^^^
+70 |
+71 |             original_cwd = os.getcwd()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/cli/test_editor_utils.py:83:13
+   |
+81 |         """Test that empty content is saved correctly."""
+82 |         with tempfile.TemporaryDirectory() as tmpdir:
+83 |             import os
+   |             ^^^^^^^^^
+84 |
+85 |             original_cwd = os.getcwd()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli/test_editor_utils.py:98:13
+    |
+ 96 |         """Test that unicode content is saved correctly."""
+ 97 |         with tempfile.TemporaryDirectory() as tmpdir:
+ 98 |             import os
+    |             ^^^^^^^^^
+ 99 |
+100 |             original_cwd = os.getcwd()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli/test_factory_comprehensive.py:109:9
+    |
+107 |     def test_returns_agent_cli_interface(self):
+108 |         """Test returns object implementing AgentCLI interface."""
+109 |         from ami.cli.interface import AgentCLI
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+110 |
+111 |         config = AgentConfig(
+    |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/cli/test_streaming_utils.py:78:9
+   |
+76 |         assert "{date}" not in result
+77 |         # Should contain a date-like string (YYYY-MM-DD)
+78 |         import re
+   |         ^^^^^^^^^
+79 |
+80 |         assert re.search(r"\d{4}-\d{2}-\d{2}", result)
+   |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:153:9
+    |
+151 |     def test_inherits_base_dialog(self):
+152 |         """Test AlertDialog inherits from BaseDialog."""
+153 |         from ami.cli_components.dialogs import AlertDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+154 |
+155 |         assert issubclass(AlertDialog, BaseDialog)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:159:9
+    |
+157 |     def test_init(self):
+158 |         """Test AlertDialog initialization."""
+159 |         from ami.cli_components.dialogs import AlertDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+160 |
+161 |         alert = AlertDialog(message="Test message", title="Test Alert", width=60)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:172:9
+    |
+170 |     def test_inherits_base_dialog(self):
+171 |         """Test ConfirmationDialog inherits from BaseDialog."""
+172 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+173 |
+174 |         assert issubclass(ConfirmationDialog, BaseDialog)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:178:9
+    |
+176 |     def test_init(self):
+177 |         """Test ConfirmationDialog initialization."""
+178 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+179 |
+180 |         dialog = ConfirmationDialog(message="Are you sure?", title="Confirm", width=70)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:192:9
+    |
+190 |     def test_confirm_exists(self):
+191 |         """Test confirm function exists."""
+192 |         from ami.cli_components.dialogs import confirm
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+193 |
+194 |         assert callable(confirm)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:198:9
+    |
+196 |     def test_alert_exists(self):
+197 |         """Test alert function exists."""
+198 |         from ami.cli_components.dialogs import alert
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+199 |
+200 |         assert callable(alert)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:204:9
+    |
+202 |     def test_select_exists(self):
+203 |         """Test select function exists."""
+204 |         from ami.cli_components.dialogs import select
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+205 |
+206 |         assert callable(select)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:210:9
+    |
+208 |     def test_multiselect_exists(self):
+209 |         """Test multiselect function exists."""
+210 |         from ami.cli_components.dialogs import multiselect
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+211 |
+212 |         assert callable(multiselect)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:220:9
+    |
+218 |     def test_all_exports(self):
+219 |         """Test __all__ contains expected exports."""
+220 |         from ami.cli_components import dialogs
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+221 |
+222 |         expected_exports = [
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:264:9
+    |
+262 |     def test_show_waits_for_enter(self, mock_tui, mock_read_key):
+263 |         """Test show waits for Enter key."""
+264 |         from ami.cli_components.dialogs import AlertDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+265 |
+266 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:279:9
+    |
+277 |     def test_show_waits_for_esc(self, mock_tui, mock_read_key):
+278 |         """Test show accepts Esc key."""
+279 |         from ami.cli_components.dialogs import AlertDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+280 |
+281 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:294:9
+    |
+292 |     def test_show_ignores_other_keys(self, mock_tui, mock_read_key):
+293 |         """Test show ignores other keys until Enter/Esc."""
+294 |         from ami.cli_components.dialogs import AlertDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+295 |
+296 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:309:9
+    |
+307 |     def test_render_draws_box(self, mock_tui):
+308 |         """Test _render draws box with content."""
+309 |         from ami.cli_components.dialogs import AlertDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+310 |
+311 |         mock_tui.draw_box.return_value = 7
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:328:9
+    |
+326 |     def test_run_returns_true_on_enter_with_yes_selected(self, mock_tui, mock_read_key):
+327 |         """Test run returns True when Enter pressed with Yes selected."""
+328 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+329 |
+330 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:343:9
+    |
+341 |     def test_run_returns_false_on_esc(self, mock_tui, mock_read_key):
+342 |         """Test run returns False when Esc pressed."""
+343 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+344 |
+345 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:358:9
+    |
+356 |     def test_run_y_shortcut_returns_true(self, mock_tui, mock_read_key):
+357 |         """Test run returns True when 'y' pressed."""
+358 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+359 |
+360 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:373:9
+    |
+371 |     def test_run_Y_shortcut_returns_true(self, mock_tui, mock_read_key):
+372 |         """Test run returns True when 'Y' pressed."""
+373 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+374 |
+375 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:388:9
+    |
+386 |     def test_run_n_shortcut_returns_false(self, mock_tui, mock_read_key):
+387 |         """Test run returns False when 'n' pressed."""
+388 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+389 |
+390 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:403:9
+    |
+401 |     def test_run_N_shortcut_returns_false(self, mock_tui, mock_read_key):
+402 |         """Test run returns False when 'N' pressed."""
+403 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+404 |
+405 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:418:9
+    |
+416 |     def test_run_left_right_toggles_selection(self, mock_tui, mock_read_key):
+417 |         """Test run toggles selection with Left/Right."""
+418 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+419 |
+420 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:434:9
+    |
+432 |     def test_run_right_toggles_back_to_yes(self, mock_tui, mock_read_key):
+433 |         """Test run toggles back with Right."""
+434 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+435 |
+436 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:450:9
+    |
+448 |     def test_run_returns_false_on_keyboard_interrupt(self, mock_tui, mock_read_key):
+449 |         """Test run returns False on KeyboardInterrupt."""
+450 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+451 |
+452 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:464:9
+    |
+462 |     def test_render_draws_box(self, mock_tui):
+463 |         """Test _render draws box with buttons."""
+464 |         from ami.cli_components.dialogs import ConfirmationDialog
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+465 |
+466 |         mock_tui.draw_box.return_value = 6
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:483:9
+    |
+481 |     def test_confirm_returns_true(self, mock_tui, mock_read_key):
+482 |         """Test confirm returns True on yes."""
+483 |         from ami.cli_components.dialogs import confirm
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+484 |
+485 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:497:9
+    |
+495 |     def test_confirm_returns_false(self, mock_tui, mock_read_key):
+496 |         """Test confirm returns False on no."""
+497 |         from ami.cli_components.dialogs import confirm
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+498 |
+499 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:515:9
+    |
+513 |     def test_alert_shows_and_returns(self, mock_tui, mock_read_key):
+514 |         """Test alert shows message and returns."""
+515 |         from ami.cli_components.dialogs import alert
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+516 |
+517 |         mock_tui.draw_box.return_value = 5
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:531:9
+    |
+529 |     def test_select_returns_single_item(self, mock_dialog_class):
+530 |         """Test select returns single selected item."""
+531 |         from ami.cli_components.dialogs import select
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+532 |
+533 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:544:9
+    |
+542 |     def test_select_returns_none_on_cancel(self, mock_dialog_class):
+543 |         """Test select returns None on cancel."""
+544 |         from ami.cli_components.dialogs import select
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+545 |
+546 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:557:9
+    |
+555 |     def test_select_returns_first_from_list(self, mock_dialog_class):
+556 |         """Test select returns first item if list returned."""
+557 |         from ami.cli_components.dialogs import select
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+558 |
+559 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:570:9
+    |
+568 |     def test_select_returns_none_from_empty_list(self, mock_dialog_class):
+569 |         """Test select returns None if empty list returned."""
+570 |         from ami.cli_components.dialogs import select
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+571 |
+572 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:587:9
+    |
+585 |     def test_multiselect_returns_list(self, mock_dialog_class):
+586 |         """Test multiselect returns list of selected items."""
+587 |         from ami.cli_components.dialogs import multiselect
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+588 |
+589 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:600:9
+    |
+598 |     def test_multiselect_returns_empty_on_cancel(self, mock_dialog_class):
+599 |         """Test multiselect returns empty list on cancel."""
+600 |         from ami.cli_components.dialogs import multiselect
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+601 |
+602 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:613:9
+    |
+611 |     def test_multiselect_wraps_single_item(self, mock_dialog_class):
+612 |         """Test multiselect wraps single item in list."""
+613 |         from ami.cli_components.dialogs import multiselect
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+614 |
+615 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:626:9
+    |
+624 |     def test_multiselect_passes_preselected(self, mock_dialog_class):
+625 |         """Test multiselect passes preselected items."""
+626 |         from ami.cli_components.dialogs import multiselect
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+627 |
+628 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_dialogs.py:642:9
+    |
+640 |     def test_multiselect_passes_max_height(self, mock_dialog_class):
+641 |         """Test multiselect passes max_height."""
+642 |         from ami.cli_components.dialogs import multiselect
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+643 |
+644 |         mock_dialog = MagicMock()
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/cli_components/test_text_input_utils_comprehensive.py:673:9
+    |
+671 |         captured = capsys.readouterr()
+672 |         # Should contain time format HH:MM:SS
+673 |         import re
+    |         ^^^^^^^^^
+674 |
+675 |         assert re.search(r"\d{2}:\d{2}:\d{2}", captured.out)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/test_agent_cli.py:142:13
+    |
+140 |             # Use the utility function directly since
+141 |             # ClaudeAgentCLI doesn't have _load_instruction
+142 |             from ami.cli.streaming_utils import load_instruction_with_replacements
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+143 |
+144 |             result = load_instruction_with_replacements(temp_path)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/test_agent_cli.py:160:13
+    |
+158 |             # Use the utility function directly since
+159 |             # ClaudeAgentCLI doesn't have _load_instruction
+160 |             from ami.cli.streaming_utils import load_instruction_with_replacements
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+161 |
+162 |             result = load_instruction_with_replacements(temp_path)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/test_confirmation_dialog.py:13:9
+   |
+11 |     def test_confirmation_dialog_is_imported(self) -> None:
+12 |         """Test ConfirmationDialog is re-exported from dialogs."""
+13 |         from ami.cli_components.dialogs import ConfirmationDialog as OriginalCD
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+14 |
+15 |         assert ConfirmationDialog is OriginalCD
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/test_confirmation_dialog.py:19:9
+   |
+17 |     def test_confirm_is_imported(self) -> None:
+18 |         """Test confirm function is re-exported from dialogs."""
+19 |         from ami.cli_components.dialogs import confirm as original_confirm
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+20 |
+21 |         assert confirm is original_confirm
+   |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/test_mode_handlers_interactive.py:174:9
+    |
+172 |     def test_returns_newest_session_id(self, mock_get_config):
+173 |         """Test returns stem of the newest .jsonl file."""
+174 |         import time
+    |         ^^^^^^^^^^^
+175 |
+176 |         with tempfile.TemporaryDirectory() as tmpdir:
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/test_mode_handlers_interactive.py:297:9
+    |
+295 |     ):
+296 |         """Test mode_print with AgentExecutionError."""
+297 |         from ami.cli.exceptions import AgentExecutionError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+298 |
+299 |         mock_stdin_read.return_value = ""
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/test_mode_handlers_interactive.py:323:9
+    |
+321 |     def test_mode_print_agent_error(self, mock_stderr, mock_stdin_read, mock_get_cli):
+322 |         """Test mode_print with AgentError."""
+323 |         from ami.cli.exceptions import AgentError
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+324 |
+325 |         mock_stdin_read.return_value = ""
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/test_process.py:208:9
+    |
+206 |     def test_processes_read_events(self) -> None:
+207 |         """Test that read events are processed."""
+208 |         from io import TextIOWrapper
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+209 |
+210 |         data_list: list[str] = []
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/test_process.py:230:9
+    |
+228 |     def test_unregisters_on_eof(self) -> None:
+229 |         """Test that empty read (EOF) unregisters file."""
+230 |         from io import TextIOWrapper
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+231 |
+232 |         data_list: list[str] = []
+    |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/test_status.py:48:9
+   |
+46 |     def test_returns_empty_on_exception(self, mock_run) -> None:
+47 |         """Test returns empty string on SubprocessError."""
+48 |         import subprocess
+   |         ^^^^^^^^^^^^^^^^^
+49 |
+50 |         mock_run.side_effect = subprocess.SubprocessError("Command failed")
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> tests/unit/test_stream_processor.py:53:9
+   |
+51 |         assert events[2].type == "complete"
+52 |         # Complete event data is StreamEventData, not a dict
+53 |         from ami.types.api import StreamEventData
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+54 |
+55 |         complete_data = events[2].data
+   |
+
+PLC0415 `import` should be at the top-level of a file
+   --> tests/unit/test_stream_processor.py:126:9
+    |
+124 |         ]
+125 |
+126 |         from ami.types.api import StreamMetadata
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+127 |
+128 |         mock_provider = MagicMock()
+    |
+
+Found 83 errors.

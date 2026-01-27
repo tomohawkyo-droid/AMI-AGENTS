@@ -82,16 +82,18 @@ class TestShellAliases:
     def test_ami_gemini_executable(self):
         """
         Test 'ami-gemini'.
-        If this passes, it implies 'node' is in PATH because the agent scripts use '#!/usr/bin/env node'.
+        If this passes, it implies 'node' is in PATH because
+        the agent scripts use '#!/usr/bin/env node'.
         """
         result = run_in_shell_env("ami-gemini --help")
-        # Exit code might be 0 or 1 depending on auth, but it shouldn't be 127 (not found)
+        # Exit code might be 0 or 1 depending on auth,
+        # but it shouldn't be 127 (not found)
         # or a 'env: node: No such file or directory' error.
 
         if "env: node: No such file or directory" in result.stderr:
             pytest.fail("ami-gemini failed: node interpreter not found in PATH")
 
-        # We accept 0 (success) or 1 (likely auth error/config error from the tool itself),
+        # We accept 0 (success) or 1 (likely auth/config error),
         # but NOT 127 (command not found) or 126 (permission denied)
         assert result.returncode in [0, 1]
 
@@ -115,7 +117,8 @@ class TestShellAliases:
         This triggers `launcher/scripts/launch_services.py`.
         Catches 'ModuleNotFoundError: No module named base'.
         """
-        # We run with --help (passed to python script) to avoid actually checking docker/services
+        # We run with --help (passed to python script) to avoid
+        # actually checking docker/services
         # but still trigger imports.
         # Note: 'ami status --help' passes '--help' to the status subcommand.
         # Wait, the ami wrapper logic:

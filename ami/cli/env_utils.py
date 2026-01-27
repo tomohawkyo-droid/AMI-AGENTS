@@ -36,7 +36,8 @@ def drop_privileges(config: ConfigProtocol) -> None:
     def _verify_privilege_drop(expected_uid: int, expected_gid: int) -> None:
         """Verify that privileges were successfully dropped."""
         if os.getuid() != expected_uid or os.getgid() != expected_gid:
-            raise RuntimeError("Failed to drop privileges")
+            msg = "privilege drop failed"
+            raise RuntimeError(msg)
 
     unprivileged_user_value = config.get_value("unprivileged_user")
     unprivileged_user = (
@@ -91,7 +92,8 @@ def get_unprivileged_env(config: ConfigProtocol) -> dict[str, str] | None:
             env["DISABLE_AUTOUPDATER"] = os.environ["DISABLE_AUTOUPDATER"]
     except KeyError:
         logger.warning(
-            f"Unprivileged user '{unprivileged_user}' not found. Running as current user."
+            f"Unprivileged user '{unprivileged_user}' not found. "
+            "Running as current user."
         )
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"

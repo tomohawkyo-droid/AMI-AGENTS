@@ -72,6 +72,9 @@ class TextEditor:
             prev_line = self.lines[self.cursor_manager.current_line - 1]
             current_line_content = self.lines[self.cursor_manager.current_line]
 
+            # Remember where the cursor should go (end of prev_line before joining)
+            new_col = len(prev_line)
+
             # Combine lines
             self.lines[self.cursor_manager.current_line - 1] = (
                 prev_line + current_line_content
@@ -80,11 +83,9 @@ class TextEditor:
             # Remove current line
             del self.lines[self.cursor_manager.current_line]
 
-            # Move to previous line and set column to end of that line
+            # Move to previous line and set column to the join point
             self.cursor_manager.current_line -= 1
-            self.cursor_manager.current_col = len(
-                self.lines[self.cursor_manager.current_line]
-            )
+            self.cursor_manager.current_col = new_col
 
     def process_home_key(self) -> None:
         """Process the Home key (Ctrl+A) to move cursor to beginning of line."""
@@ -197,7 +198,8 @@ class TextEditor:
                     if key is None:
                         continue
 
-                    # Any key press resets the Ctrl+C counter (unless it's another Ctrl+C which raises exception)
+                    # Any key press resets the Ctrl+C counter
+                    # (another Ctrl+C raises exception)
                     self.ctrl_c_pressed_count = 0
 
                     # Process the key
@@ -224,12 +226,8 @@ class TextEditor:
                     if self.ctrl_c_pressed_count == 0:
                         self.ctrl_c_pressed_count = 1
                         # Re-render with warning status
-                        display.display_editor(
-                            self.lines,
-                            0,
-                            0,
-                            status_override=f"{Colors.RED}Press Ctrl+C again to quit{Colors.RESET}",
-                        )
+                        warn = f"{Colors.RED}Ctrl+C again to quit{Colors.RESET}"
+                        display.display_editor(self.lines, 0, 0, status_override=warn)
                         continue
 
                     # Second Ctrl+C with empty content -> Exit
@@ -371,8 +369,8 @@ class TextEditor:
                 self.cursor_manager.current_col,
             )
         else:
-            # Some other string - treat as special key (shouldn't happen with our new handling)
-            # For safety, we'll treat as regular input if not handled elsewhere
+            # Some other string - treat as special key (shouldn't happen)
+            # For safety, treat as regular input if not handled elsewhere
             pass
 
         return False  # Don't exit

@@ -52,10 +52,12 @@ def start_streaming_process(
 
     try:
         if not isinstance(cmd, list) or not all(isinstance(arg, str) for arg in cmd):
-            raise ValueError(f"Invalid command format: {cmd}")
+            msg = "invalid command format"
+            raise ValueError(msg)
         for arg in cmd:
             if arg.startswith(("..", "/", "~")) and not Path(arg).is_absolute():
-                raise ValueError(f"Unsafe command path: {arg}")
+                msg = "unsafe command path"
+                raise ValueError(msg)
 
         return subprocess.Popen(
             cmd,
@@ -99,7 +101,8 @@ def read_streaming_line(
         if sys.stdin in ready:
             key = sys.stdin.read(1)
             if ord(key) == ESC_KEY_CODE:
-                raise KeyboardInterrupt("User interrupted with Esc")
+                msg = "user interrupted"
+                raise KeyboardInterrupt(msg)
 
         if not ready or process.stdout not in ready:
             return None, True

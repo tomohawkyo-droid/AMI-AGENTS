@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from ami.scripts.backup.create.cli import BackupCLI
 from ami.scripts.backup.create.service import BackupOptions, BackupService
 
 
@@ -123,16 +124,15 @@ class TestBackupCLIServiceIntegration:
         This test catches the bug where CLI was passing keyword arguments
         instead of a BackupOptions object.
         """
-        from ami.scripts.backup.create.cli import BackupCLI
 
         # Create a strict mock that only accepts BackupOptions
         class StrictBackupService:
             async def run_backup(self, options: BackupOptions) -> str:
                 # Verify we got a BackupOptions object, not kwargs
                 if not isinstance(options, BackupOptions):
-                    raise TypeError(
-                        f"run_backup expects BackupOptions, got {type(options).__name__}"
-                    )
+                    got = type(options).__name__
+                    msg = f"run_backup expects BackupOptions, got {got}"
+                    raise TypeError(msg)
                 return "file_id_123"
 
         cli = BackupCLI(StrictBackupService())

@@ -46,7 +46,8 @@ class TestQwenAgentCLI:
 
         # Should start with qwen command
         assert len(cmd) > 0
-        # The exact command depends on the config, but it should have model and instruction
+        # The exact command depends on the config,
+        # but it should have model and instruction
         assert "--model" in cmd
         assert "qwen-coder" in cmd
 
@@ -63,3 +64,198 @@ class TestQwenAgentCLI:
         finally:
             if temp_path.exists():
                 temp_path.unlink()
+
+    def test_build_command_with_session_id(self):
+        """_build_command() includes --resume flag with session_id."""
+        cli = QwenAgentCLI()
+        config = AgentConfig(
+            model="qwen-coder",
+            session_id="session-123",
+            provider=ProviderType.QWEN,
+        )
+
+        cmd = cli._build_command("test", None, config)
+
+        assert "--resume" in cmd
+        assert "session-123" in cmd
+
+    def test_build_command_without_session_id(self):
+        """_build_command() does not include --resume without session_id."""
+        cli = QwenAgentCLI()
+        config = AgentConfig(
+            model="qwen-coder",
+            session_id=None,
+            provider=ProviderType.QWEN,
+        )
+
+        cmd = cli._build_command("test", None, config)
+
+        assert "--resume" not in cmd
+
+    def test_build_command_with_allowed_tools(self):
+        """_build_command() includes --allowed-tools."""
+        cli = QwenAgentCLI()
+        config = AgentConfig(
+            model="qwen-coder",
+            allowed_tools=["read_file", "write_file"],
+            provider=ProviderType.QWEN,
+        )
+
+        cmd = cli._build_command("test", None, config)
+
+        assert "--allowed-tools" in cmd
+        assert "read_file" in cmd
+        assert "write_file" in cmd
+
+    def test_build_command_with_streaming(self):
+        """_build_command() includes streaming flags."""
+        cli = QwenAgentCLI()
+        config = AgentConfig(
+            model="qwen-coder",
+            enable_streaming=True,
+            provider=ProviderType.QWEN,
+        )
+
+        cmd = cli._build_command("test", None, config)
+
+        assert "--output-format" in cmd
+        assert "stream-json" in cmd
+        assert "--include-partial-messages" in cmd
+
+    def test_build_command_includes_yolo(self):
+        """_build_command() always includes --yolo flag."""
+        cli = QwenAgentCLI()
+        config = AgentConfig(
+            model="qwen-coder",
+            provider=ProviderType.QWEN,
+        )
+
+        cmd = cli._build_command("test", None, config)
+
+        assert "--yolo" in cmd
+
+
+class TestQwenStreamParsing:
+    """Tests for Qwen stream message parsing."""
+
+    def test_parse_stream_message_empty_line(self):
+        """Test parsing empty line returns empty."""
+        cli = QwenAgentCLI()
+
+        output, metadata = cli._parse_stream_message("", [], 0, None)
+
+        assert output == ""
+        assert metadata is None
+
+    def test_parse_stream_message_whitespace_line(self):
+        """Test parsing whitespace line returns empty."""
+        cli = QwenAgentCLI()
+
+        output, metadata = cli._parse_stream_message("   ", [], 0, None)
+
+        assert output == ""
+        assert metadata is None
+
+    def test_parse_stream_message_invalid_json(self):
+        """Test parsing invalid JSON returns line as-is."""
+        cli = QwenAgentCLI()
+
+        output, metadata = cli._parse_stream_message("not json", [], 0, None)
+
+        assert output == "not json"
+        assert metadata is None
+
+    def test_parse_stream_message_stream_event(self):
+        """Test parsing stream_event message."""
+        cli = QwenAgentCLI()
+        line = (
+            '{"type": "stream_event", "event":'
+            ' {"type": "content_block_delta",'
+            ' "delta": {"text": "hello"}}}'
+        )
+
+        output, _metadata = cli._parse_stream_message(line, [], 0, None)
+
+        assert output == "hello"
+
+    def test_parse_stream_message_system_init(self):
+        """Test parsing system init message."""
+        cli = QwenAgentCLI()
+        line = '{"type": "system", "subtype": "init", "session_id": "sess-123"}'
+
+        output, metadata = cli._parse_stream_message(line, [], 0, None)
+
+        assert output == ""
+        assert metadata is not None
+        assert metadata.session_id == "sess-123"
+
+    def test_parse_stream_message_result(self):
+        """Test parsing result message."""
+        cli = QwenAgentCLI()
+        line = '{"type": "result", "session_id": "sess-456"}'
+
+        output, metadata = cli._parse_stream_message(line, [], 0, None)
+
+        assert output == ""
+        assert metadata is not None
+        assert metadata.session_id == "sess-456"
+
+    def test_parse_stream_message_content_block_delta(self):
+        """Test parsing content_block_delta message."""
+        cli = QwenAgentCLI()
+        line = '{"type": "content_block_delta", "delta": {"text": "world"}}'
+
+        output, metadata = cli._parse_stream_message(line, [], 0, None)
+
+        assert output == "world"
+        assert metadata is None
+
+    def test_handle_stream_event_message_start(self):
+        """Test handling message_start event."""
+        cli = QwenAgentCLI()
+        data = {
+            "type": "stream_event",
+            "session_id": "sess-789",
+            "event": {"type": "message_start"},
+        }
+
+        output, metadata = cli._handle_stream_event(data)
+
+        assert output == ""
+        assert metadata is not None
+        assert metadata.session_id == "sess-789"
+
+    def test_handle_stream_event_with_session_id(self):
+        """Test handling event with session_id at top level."""
+        cli = QwenAgentCLI()
+        data = {
+            "type": "stream_event",
+            "session_id": "sess-abc",
+            "event": {"type": "other"},
+        }
+
+        _output, metadata = cli._handle_stream_event(data)
+
+        assert metadata is not None
+        assert metadata.session_id == "sess-abc"
+
+    def test_handle_system_init(self):
+        """Test handling system init."""
+        cli = QwenAgentCLI()
+        data = {"session_id": "sess-init"}
+
+        output, metadata = cli._handle_system_init(data)
+
+        assert output == ""
+        assert metadata is not None
+        assert metadata.session_id == "sess-init"
+
+    def test_parse_json_message_unknown_type(self):
+        """Test parsing unknown message type."""
+        cli = QwenAgentCLI()
+        data = {"type": "unknown_type", "foo": "bar"}
+
+        output, metadata = cli._parse_json_message(data)
+
+        assert output == ""
+        assert metadata is None
