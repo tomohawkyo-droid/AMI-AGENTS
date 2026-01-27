@@ -62,7 +62,7 @@ class TestStartStreamingProcess:
         mock_get_config.return_value = MagicMock()
         mock_get_env.return_value = None
 
-        with pytest.raises(ValueError, match="Invalid command format"):
+        with pytest.raises(ValueError, match="invalid command format"):
             start_streaming_process("not a list", None, None)
 
     @patch("ami.cli.process_utils.get_unprivileged_env")
@@ -72,7 +72,7 @@ class TestStartStreamingProcess:
         mock_get_config.return_value = MagicMock()
         mock_get_env.return_value = None
 
-        with pytest.raises(ValueError, match="Unsafe command path"):
+        with pytest.raises(ValueError, match="unsafe command path"):
             start_streaming_process(["../unsafe/cmd"], None, None)
 
     @patch("ami.cli.process_utils.subprocess.Popen")

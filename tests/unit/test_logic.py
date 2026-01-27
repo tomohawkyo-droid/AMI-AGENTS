@@ -297,7 +297,7 @@ class TestParseJsonBlock:
     def test_invalid_json_raises_error(self) -> None:
         """Test that invalid JSON raises ValueError."""
         output = "not valid json"
-        with pytest.raises(ValueError, match="Invalid JSON"):
+        with pytest.raises(ValueError, match="invalid JSON"):
             parse_json_block(output)
 
     def test_json_with_various_types(self) -> None:

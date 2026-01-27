@@ -53,7 +53,7 @@ class TestBackupConfig:
         with pytest.raises(BackupConfigError) as exc_info:
             BackupConfig.load(tmp_path)
 
-        assert "Invalid GDRIVE_AUTH_METHOD" in str(exc_info.value)
+        assert "invalid auth method" in str(exc_info.value)
 
     def test_load_impersonation_without_email_raises(self, tmp_path):
         """Test that impersonation without service account email raises."""
@@ -85,7 +85,7 @@ class TestBackupConfig:
         with pytest.raises(BackupConfigError) as exc_info:
             BackupConfig.load(tmp_path)
 
-        assert "Credentials file not found" in str(exc_info.value)
+        assert "credentials file not found" in str(exc_info.value)
 
     def test_load_key_with_valid_credentials_file(self, tmp_path):
         """Test loading key auth with valid credentials file."""

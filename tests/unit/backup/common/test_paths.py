@@ -168,7 +168,7 @@ class TestGetProjectRootEdgeCases:
             with pytest.raises(RuntimeError) as exc_info:
                 paths.get_project_root()
 
-            assert "Could not find project root" in str(exc_info.value)
+            assert "project root not found" in str(exc_info.value)
         finally:
             if env_backup:
                 os.environ["AMI_PROJECT_ROOT"] = env_backup

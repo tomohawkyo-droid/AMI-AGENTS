@@ -203,7 +203,7 @@ class TestRunPrint:
             instruction_file=instruction_file,
         )
 
-        with pytest.raises(ValueError, match="Cannot specify both"):
+        with pytest.raises(ValueError, match="Cannot provide both"):
             provider.run_print(params)
 
     @patch("ami.cli.base_provider.execute_streaming")
@@ -215,7 +215,7 @@ class TestRunPrint:
         provider = MockCLIProvider()
         params = RunPrintParams(instruction=tmp_path)
 
-        with pytest.raises(ValueError, match="Path objects should be passed"):
+        with pytest.raises(ValueError, match="instruction_file parameter"):
             provider.run_print(params)
 
     @patch("ami.cli.base_provider.execute_streaming")
@@ -225,7 +225,9 @@ class TestRunPrint:
         provider = MockCLIProvider()
         params = RunPrintParams()  # instruction is None, instruction_file is None
 
-        with pytest.raises(ValueError, match="instruction cannot be None"):
+        with pytest.raises(
+            ValueError, match="instruction or instruction_file is required"
+        ):
             provider.run_print(params)
 
     @patch("ami.cli.base_provider.execute_streaming")

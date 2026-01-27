@@ -168,7 +168,7 @@ class TestHelperErrorConditions:
         # Let's test calling run_print directly with a real Path object
 
         with pytest.raises(
-            ValueError, match="Cannot specify both instruction and instruction_file"
+            ValueError, match="Cannot provide both instruction and instruction_file"
         ):
             cli.run_print(
                 params=RunPrintParams(

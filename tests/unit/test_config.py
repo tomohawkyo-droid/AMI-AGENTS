@@ -209,7 +209,7 @@ class TestConfig:
         with pytest.raises(TypeError) as exc_info:
             config.resolve_path("non_string_path")
 
-        assert "must be a string" in str(exc_info.value)
+        assert "must be string" in str(exc_info.value)
 
     def test_list_env_substitution(self) -> None:
         """Config substitutes env vars in list values."""
