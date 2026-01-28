@@ -1,0 +1,43 @@
+# Dead Code Detection Configuration
+# Used by check_dead_code.py for AST-based dead code analysis
+
+scan_paths:
+  - ami
+  - tests
+
+ignore_paths:
+  - ami/__pycache__
+  - ami/scripts/ci/check_dead_code.py
+  - ami/scripts/ci/dead_code_analyzer.py
+
+# Modules that are entry points (called directly, not imported)
+entry_points:
+  - ami/scripts/ci/*.py
+  - ami/scripts/bin/*.py
+  - ami/scripts/backup/create/main.py
+  - ami/scripts/backup/create/cli.py
+  - ami/scripts/backup/restore/main.py
+  - ami/scripts/backup/restore/cli.py
+  - ami/scripts/backup/backup_to_gdrive.py
+  - ami/scripts/bootstrap_*.py
+  - ami/scripts/register_extensions.py
+  - ami/scripts/utils/sys_info.py
+  - ami/cli_components/status.py
+
+# Names to never report as dead (regardless of references)
+ignored_names:
+  - "main"
+  - "cli"
+
+# Patterns for names to ignore (regex)
+ignored_name_patterns:
+  - "^__.*__$"
+  - "^test_"
+  - "^Test"
+  - "^fixture_"
+  - "^conftest$"
+
+# Entire files to exclude from REPORTING (still scanned for references)
+reference_only_paths:
+  - tests/
+  - conftest.py

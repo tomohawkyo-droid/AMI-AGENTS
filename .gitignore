@@ -6,7 +6,7 @@ __pycache__/
 .Python
 
 # Node.js
-.node_modules/
+node_modules/
 
 build/
 develop-eggs/

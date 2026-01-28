@@ -265,6 +265,10 @@ pre-commit: ## Run pre-commit hooks on all files
 	@echo "🔍 Running pre-commit hooks on all files..."
 	uv run pre-commit run --all-files
 
+.PHONY: dead-code
+dead-code: ## Run AST-based dead code analysis
+	uv run python ami/scripts/ci/check_dead_code.py
+
 .PHONY: update
 update: ## Update dependencies
 	@echo "🔄 Updating dependencies..."

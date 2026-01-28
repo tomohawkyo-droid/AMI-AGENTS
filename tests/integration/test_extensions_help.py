@@ -439,9 +439,8 @@ class TestHiddenExtensions:
         assert "ami-pwd" in hidden_names, "ami-pwd should be marked as hidden"
 
         # Should have more visible than hidden
-        assert len(visible) > len(
-            hidden
-        ), f"Too many hidden extensions: {len(hidden)} hidden vs {len(visible)} visible"
+        msg = f"Too many hidden: {len(hidden)} vs {len(visible)} visible"
+        assert len(visible) > len(hidden), msg
 
     @pytest.mark.parametrize(
         "ext_name",
