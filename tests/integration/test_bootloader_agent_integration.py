@@ -215,29 +215,6 @@ class TestExecuteShellBlocks:
 
 
 # ---------------------------------------------------------------------------
-# Extract session ID
-# ---------------------------------------------------------------------------
-
-
-class TestExtractSessionId:
-    """Test _extract_session_id from metadata."""
-
-    def test_from_metadata(self, agent: BootloaderAgent):
-        meta = ProviderMetadata(session_id="new-sess")
-        result = agent._extract_session_id(meta, "old-sess")
-        assert result == "new-sess"
-
-    def test_no_metadata(self, agent: BootloaderAgent):
-        result = agent._extract_session_id(None, "current")
-        assert result == "current"
-
-    def test_metadata_without_session(self, agent: BootloaderAgent):
-        meta = ProviderMetadata(exit_code=0)
-        result = agent._extract_session_id(meta, "fallback")
-        assert result == "fallback"
-
-
-# ---------------------------------------------------------------------------
 # Run loop
 # ---------------------------------------------------------------------------
 
@@ -254,7 +231,7 @@ class TestRunLoop:
         ctx = RunContext(instruction="Do something simple")
         output, session = agent.run(ctx)
         assert "Task completed" in output
-        assert session == "s1"
+        assert session is None
 
     def test_shell_blocks_reprompts(self, agent: BootloaderAgent, mock_runtime):
         """When output has shell blocks, agent re-prompts with tool output."""
@@ -269,7 +246,7 @@ class TestRunLoop:
         ctx = RunContext(instruction="Check something")
         _output, session = agent.run(ctx)
         assert mock_runtime.run_print.call_count == EXPECTED_REPROMPT_COUNT
-        assert session == "s1"
+        assert session is None
 
     def test_stop_event_terminates(self, agent: BootloaderAgent, mock_runtime):
         """Stop event terminates the loop."""

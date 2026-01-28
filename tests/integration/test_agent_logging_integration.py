@@ -29,7 +29,8 @@ from ami.cli.process_utils import (
     handle_process_exit,
     start_streaming_process,
 )
-from ami.core.config import Config, _ConfigSingleton
+from ami.cli.transcript_store import TranscriptStore
+from ami.core.config import _ConfigSingleton
 from ami.types.api import ProviderMetadata
 
 # ---------------------------------------------------------------------------
@@ -114,104 +115,60 @@ class TestTranscriptModels:
 
 
 class TestTranscriptLogger:
-    """Test TranscriptLogger creates directories and writes entries."""
+    """Test TranscriptLogger writes entries via TranscriptStore."""
 
-    def test_creates_log_directory(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ):
-        """Logger should create date-based log directory."""
-        monkeypatch.setenv("AMI_TEST_MODE", "1")
-        _ConfigSingleton.instance = None
-        config = Config()
-        # Override root to use tmp_path for log isolation
-        original_root = config.root
-        config.root = tmp_path
-        _ConfigSingleton.instance = config
-        try:
-            logger = TranscriptLogger(session_id="test-session")
-            assert logger.log_dir.exists()
-            assert "transcripts" in str(logger.log_dir)
-        finally:
-            config.root = original_root
-            _ConfigSingleton.instance = None
+    def _make_logger(self, tmp_path: Path):
+        """Create a logger backed by a real store in tmp_path."""
+        store = TranscriptStore(root=tmp_path / "transcripts")
+        transcript_id = store.create_session(provider="test", model="test-model")
+        logger = TranscriptLogger(store=store, transcript_id=transcript_id)
+        return logger, store, transcript_id
 
-    def test_log_user_message(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setenv("AMI_TEST_MODE", "1")
-        _ConfigSingleton.instance = None
-        config = Config()
-        original_root = config.root
-        config.root = tmp_path
-        _ConfigSingleton.instance = config
-        try:
-            logger = TranscriptLogger(session_id="user-test")
-            logger.log_user_message("Hello agent")
-            assert logger.log_file.exists()
-            entries = logger.log_file.read_text().strip().split("\n")
-            assert len(entries) == 1
-            data = json.loads(entries[0])
-            assert data["type"] == "user"
-            assert data["message"]["content"] == "Hello agent"
-        finally:
-            config.root = original_root
-            _ConfigSingleton.instance = None
+    def test_creates_session_directory(self, tmp_path: Path):
+        """Logger should create session directory via store."""
+        _logger, store, transcript_id = self._make_logger(tmp_path)
+        session_dir = store.root / transcript_id
+        assert session_dir.exists()
+        assert (session_dir / "session.json").exists()
 
-    def test_log_assistant_message(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ):
-        monkeypatch.setenv("AMI_TEST_MODE", "1")
-        _ConfigSingleton.instance = None
-        config = Config()
-        original_root = config.root
-        config.root = tmp_path
-        _ConfigSingleton.instance = config
-        try:
-            meta = ProviderMetadata(session_id="s1", duration=2.0, exit_code=0)
-            logger = TranscriptLogger(session_id="assist-test")
-            logger.log_assistant_message("Response text", metadata=meta)
-            entries = logger.log_file.read_text().strip().split("\n")
-            data = json.loads(entries[0])
-            assert data["type"] == "assistant"
-            assert data["metadata"]["session_id"] == "s1"
-            assert data["metadata"]["duration"] == EXPECTED_DURATION
-        finally:
-            config.root = original_root
-            _ConfigSingleton.instance = None
+    def test_log_user_message(self, tmp_path: Path):
+        logger, store, transcript_id = self._make_logger(tmp_path)
+        logger.log_user_message("Hello agent")
 
-    def test_log_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setenv("AMI_TEST_MODE", "1")
-        _ConfigSingleton.instance = None
-        config = Config()
-        original_root = config.root
-        config.root = tmp_path
-        _ConfigSingleton.instance = config
-        try:
-            logger = TranscriptLogger(session_id="error-test")
-            logger.log_error("Something went wrong")
-            entries = logger.log_file.read_text().strip().split("\n")
-            data = json.loads(entries[0])
-            assert data["type"] == "error"
-            assert data["error"] == "Something went wrong"
-        finally:
-            config.root = original_root
-            _ConfigSingleton.instance = None
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == 1
+        assert entries[0].type == "user"
+        assert entries[0].message is not None
+        assert entries[0].message.content == "Hello agent"
 
-    def test_multiple_entries(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setenv("AMI_TEST_MODE", "1")
-        _ConfigSingleton.instance = None
-        config = Config()
-        original_root = config.root
-        config.root = tmp_path
-        _ConfigSingleton.instance = config
-        try:
-            logger = TranscriptLogger(session_id="multi-test")
-            logger.log_user_message("First")
-            logger.log_assistant_message("Second")
-            logger.log_error("Third")
-            entries = logger.log_file.read_text().strip().split("\n")
-            assert len(entries) == EXPECTED_ENTRY_COUNT
-        finally:
-            config.root = original_root
-            _ConfigSingleton.instance = None
+    def test_log_assistant_message(self, tmp_path: Path):
+        meta = ProviderMetadata(session_id="s1", duration=2.0, exit_code=0)
+        logger, store, transcript_id = self._make_logger(tmp_path)
+        logger.log_assistant_message("Response text", metadata=meta)
+
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == 1
+        assert entries[0].type == "assistant"
+        assert entries[0].metadata["session_id"] == "s1"
+        assert entries[0].metadata["duration"] == EXPECTED_DURATION
+
+    def test_log_error(self, tmp_path: Path):
+        logger, store, transcript_id = self._make_logger(tmp_path)
+        logger.log_error("Something went wrong")
+
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == 1
+        assert entries[0].type == "error"
+        assert entries[0].error == "Something went wrong"
+
+    def test_multiple_entries(self, tmp_path: Path):
+        logger, store, transcript_id = self._make_logger(tmp_path)
+        logger.log_user_message("First")
+        logger.log_assistant_message("Second")
+        logger.log_error("Third")
+
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == EXPECTED_ENTRY_COUNT
 
 
 # ---------------------------------------------------------------------------

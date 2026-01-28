@@ -80,7 +80,7 @@ class TestBootloaderAgent:
         response, session_id = agent.run(ctx)
 
         assert response == "Agent response"
-        assert session_id == "new-uuid"
+        assert session_id is None
 
         # Verify prompt contains banner - params is passed as a RunPrintParams object
         _args, kwargs = mock_runtime.run_print.call_args
@@ -97,9 +97,9 @@ class TestBootloaderAgent:
         response, session_id = agent.run(ctx)
 
         assert response == "Resumed response"
-        assert session_id == "existing-uuid"
+        assert session_id is None
 
         # Verify config has session_id - params is passed as a RunPrintParams object
         params = mock_runtime.run_print.call_args[1].get("params")
         assert params is not None
-        assert params.agent_config.session_id == "existing-uuid"
+        assert params.agent_config.session_id is None

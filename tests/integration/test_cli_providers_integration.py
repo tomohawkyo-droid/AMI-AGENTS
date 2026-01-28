@@ -196,14 +196,15 @@ class TestQwenAgentCLI:
 
     def test_build_command_with_session(self):
         cli = QwenAgentCLI()
+        valid_uuid = "019c0334-c453-7790-b794-15f3b446a10a"
         cfg = AgentConfig(
             model="qwen-coder",
             provider=ProviderType.QWEN,
-            session_id="session-abc",
+            session_id=valid_uuid,
         )
         cmd = cli._build_command("test", None, cfg)
         assert "--resume" in cmd
-        assert "session-abc" in cmd
+        assert valid_uuid in cmd
 
     def test_build_command_with_streaming(self):
         cli = QwenAgentCLI()

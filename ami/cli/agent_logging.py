@@ -1,19 +1,19 @@
 """Unified agent interaction logging.
 
 Ensures all agent interactions (Claude, Qwen, Gemini) are logged to a standardized
-transcript format compatible with existing analysis tools.
+transcript format via TranscriptStore (file-per-entry, session-aware).
 """
 
 import sys
-from datetime import datetime
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
-from ami.core.config import get_config
+from ami.utils.uuid_utils import uuid7
 
 if TYPE_CHECKING:
+    from ami.cli.transcript_store import TranscriptStore
     from ami.types.api import ProviderMetadata
 
 
@@ -33,6 +33,7 @@ class MessageContent(BaseModel):
 class TranscriptEntry(BaseModel):
     """A single entry in the transcript log."""
 
+    entry_id: str = Field(default_factory=uuid7)
     type: str
     timestamp: str
     message: MessageContent | None = None
@@ -41,30 +42,21 @@ class TranscriptEntry(BaseModel):
 
 
 class TranscriptLogger:
-    """Logs agent interactions to JSONL transcripts."""
+    """Logs agent interactions via TranscriptStore."""
 
-    def __init__(self, session_id: str) -> None:
-        self.session_id = session_id
-        self.config = get_config()
-        self.log_dir = self._get_log_dir()
-        self.log_file = self.log_dir / f"{session_id}.jsonl"
-
-    def _get_log_dir(self) -> Path:
-        """Get or create the transcript directory for today."""
-        base_dir = self.config.root / "logs" / "transcripts"
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        log_dir = base_dir / date_str
-        log_dir.mkdir(parents=True, exist_ok=True)
-        return log_dir
+    def __init__(self, store: "TranscriptStore", transcript_id: str) -> None:
+        self.transcript_id = transcript_id
+        self._store = store
 
     def log_user_message(self, content: str) -> None:
         """Log a user message (instruction)."""
         entry = TranscriptEntry(
+            entry_id=uuid7(),
             type="user",
             message=MessageContent(content=content),
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
         )
-        self._append_entry(entry)
+        self._write(entry)
 
     def log_assistant_message(
         self, content: str, metadata: "ProviderMetadata | None" = None
@@ -83,26 +75,27 @@ class TranscriptLogger:
             }
 
         entry = TranscriptEntry(
+            entry_id=uuid7(),
             type="assistant",
             message=MessageContent(content=msg_content),
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
             metadata=meta_dict,
         )
-        self._append_entry(entry)
+        self._write(entry)
 
     def log_error(self, error: str) -> None:
         """Log an execution error."""
         entry = TranscriptEntry(
+            entry_id=uuid7(),
             type="error",
             error=error,
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
         )
-        self._append_entry(entry)
+        self._write(entry)
 
-    def _append_entry(self, entry: TranscriptEntry) -> None:
-        """Append a JSON entry to the log file."""
+    def _write(self, entry: TranscriptEntry) -> None:
+        """Write entry to the store."""
         try:
-            with self.log_file.open("a", encoding="utf-8") as f:
-                f.write(entry.model_dump_json() + "\n")
+            self._store.add_entry(self.transcript_id, entry)
         except Exception as e:
-            print(f"FAILED TO WRITE TRANSCRIPT LOG: {e}", file=sys.stderr)
+            sys.stderr.write(f"FAILED TO WRITE TRANSCRIPT ENTRY: {e}\n")

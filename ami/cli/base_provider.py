@@ -14,6 +14,7 @@ from ami.utils.uuid_utils import uuid7
 from .agent_logging import TranscriptLogger
 from .streaming import execute_streaming
 from .streaming_utils import load_instruction_with_replacements
+from .transcript_store import TranscriptStore
 
 
 class CLIProvider(ABC):
@@ -98,7 +99,6 @@ class CLIProvider(ABC):
         cwd: Path | None,
         agent_config: AgentConfig,
         stdin_data: str | None = None,
-        audit_log_path: Path | None = None,
     ) -> tuple[str, ProviderMetadata | None]:
         """Execute CLI command with timeout handling.
 
@@ -107,7 +107,6 @@ class CLIProvider(ABC):
             cwd: Working directory for execution
             agent_config: Agent configuration
             stdin_data: Data to provide to stdin
-            audit_log_path: Path for audit logging (optional)
 
         Returns:
             Tuple of (output, metadata)
@@ -115,12 +114,16 @@ class CLIProvider(ABC):
         Raises:
             AgentError: If execution fails or times out
         """
-        _ = audit_log_path  # Mark as intentionally unused
+        transcript_id = agent_config.transcript_id or uuid7()
+        store = TranscriptStore()
+        if not store.get_session(transcript_id):
+            store.create_session(
+                provider=str(agent_config.provider),
+                model=agent_config.model,
+                session_id=transcript_id,
+            )
 
-        log_session_id = (
-            str(agent_config.session_id) if agent_config.session_id else uuid7()
-        )
-        logger = TranscriptLogger(log_session_id)
+        logger = TranscriptLogger(store=store, transcript_id=transcript_id)
 
         log_content = instruction
         if stdin_data:
@@ -195,7 +198,6 @@ class CLIProvider(ABC):
         agent_config = params.agent_config
         instruction_file = params.instruction_file
         stdin_data = params.stdin
-        audit_log_path = params.audit_log_path
 
         if instruction_file is not None:
             if instruction is not None:
@@ -219,5 +221,4 @@ class CLIProvider(ABC):
             cwd,
             config,
             stdin_data=stdin_data,
-            audit_log_path=audit_log_path,
         )

@@ -29,6 +29,7 @@ class AgentConfig(BaseModel):
     model: str
     provider: object  # CLIProvider instance - using object to avoid circular imports
     session_id: str | None = None
+    transcript_id: str | None = None
     allowed_tools: list[str] | None = None
     enable_hooks: bool = True
     enable_streaming: bool | None = False

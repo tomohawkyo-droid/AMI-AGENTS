@@ -4,7 +4,6 @@ Exercises: cli/stream_processor.py, cli/streaming.py, cli/process_utils.py,
 cli/mode_handlers.py, cli/base_provider.py
 """
 
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -188,38 +187,33 @@ class TestExecuteStreaming:
 class TestModeHandlers:
     """Test mode handler helper functions."""
 
-    def test_get_latest_session_id_no_dir(self, tmp_path: Path):
-        # With no transcripts dir, should return None
-        with patch("ami.cli.mode_handlers.get_config") as mock:
-            mock_cfg = MagicMock()
-            mock_cfg.root = tmp_path
-            mock.return_value = mock_cfg
+    def test_get_latest_session_id_no_sessions(self):
+        """get_latest_session_id returns None when store has no sessions."""
+        with patch("ami.cli.mode_handlers.TranscriptStore") as MockStore:
+            mock_store = MockStore.return_value
+            mock_store.list_sessions.return_value = []
             result = get_latest_session_id()
             assert result is None
 
-    def test_get_latest_session_id_with_files(self, tmp_path: Path):
-        transcripts = tmp_path / "logs" / "transcripts"
-        transcripts.mkdir(parents=True)
-        (transcripts / "abc123.jsonl").write_text("{}")
-        with patch("ami.cli.mode_handlers.get_config") as mock:
-            mock_cfg = MagicMock()
-            mock_cfg.root = tmp_path
-            mock.return_value = mock_cfg
+    def test_get_latest_session_id_with_sessions(self):
+        """get_latest_session_id returns the first session_id."""
+        with patch("ami.cli.mode_handlers.TranscriptStore") as MockStore:
+            mock_session = MagicMock()
+            mock_session.session_id = "abc123"
+            mock_store = MockStore.return_value
+            mock_store.list_sessions.return_value = [mock_session]
             result = get_latest_session_id()
             assert result == "abc123"
 
-    def test_get_latest_session_id_newest_first(self, tmp_path: Path):
-        transcripts = tmp_path / "logs" / "transcripts"
-        transcripts.mkdir(parents=True)
-        f1 = transcripts / "old.jsonl"
-        f1.write_text("{}")
-        time.sleep(0.05)
-        f2 = transcripts / "new.jsonl"
-        f2.write_text("{}")
-        with patch("ami.cli.mode_handlers.get_config") as mock:
-            mock_cfg = MagicMock()
-            mock_cfg.root = tmp_path
-            mock.return_value = mock_cfg
+    def test_get_latest_session_id_newest_first(self):
+        """get_latest_session_id returns newest (first in list) session."""
+        with patch("ami.cli.mode_handlers.TranscriptStore") as MockStore:
+            mock_new = MagicMock()
+            mock_new.session_id = "new"
+            mock_old = MagicMock()
+            mock_old.session_id = "old"
+            mock_store = MockStore.return_value
+            mock_store.list_sessions.return_value = [mock_new, mock_old]
             result = get_latest_session_id()
             assert result == "new"
 

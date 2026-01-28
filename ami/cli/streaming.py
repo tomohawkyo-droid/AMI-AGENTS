@@ -9,6 +9,7 @@ from ami.cli.stream_processor import StreamObserver, StreamProcessor
 from ami.cli_components.stream_renderer import StreamRenderer
 from ami.types.api import ProviderMetadata, StreamEventData
 from ami.types.events import StreamEvent, StreamEventType
+from ami.utils.uuid_utils import uuid7
 
 if TYPE_CHECKING:
     from ami.cli.stream_processor import StreamParserProtocol
@@ -49,7 +50,7 @@ def execute_streaming(
     # If streaming is enabled in config, attach the renderer
     enable_streaming = agent_config.enable_streaming if agent_config else False
     if enable_streaming:
-        session_id = (agent_config.session_id if agent_config else None) or "unknown"
+        session_id = (agent_config.session_id if agent_config else None) or uuid7()
         capture_content = agent_config.capture_content if agent_config else False
 
         renderer = StreamRenderer(session_id, capture_content)

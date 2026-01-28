@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import ClassVar
 from uuid import UUID
@@ -17,8 +18,7 @@ from ami.cli.base_provider import CLIProvider as BaseProvider
 from ami.cli.interface import AgentCLI
 from ami.cli.provider_type import ProviderType
 from ami.core.config import get_config
-from ami.core.interfaces import RunPrintParams
-from ami.types.api import ProviderMetadata, StreamMetadata
+from ami.types.api import StreamMetadata
 from ami.types.config import AgentConfig
 from ami.utils.uuid_utils import uuid7
 
@@ -59,23 +59,6 @@ class ClaudeAgentCLI(BaseProvider, AgentCLI):
             timeout=180,
         )
 
-    def run_print(
-        self,
-        params: RunPrintParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
-        """Run agent in print mode.
-
-        Args:
-            params: RunPrintParams containing instruction, cwd, agent_config, etc.
-
-        Returns:
-            Tuple of (output, metadata) where metadata includes session info
-
-        Raises:
-            AgentError: If agent execution fails
-        """
-        return super().run_print(params=params)
-
     def _build_command(
         self,
         instruction: str,
@@ -89,13 +72,15 @@ class ClaudeAgentCLI(BaseProvider, AgentCLI):
         cmd = [claude_cmd]
         cmd.extend(["--model", config.model])
 
-        if config.session_id is not None and config.session_id:
-            session_id: str = str(config.session_id)
+        if config.session_id and str(config.session_id).strip():
+            session_id_str: str = str(config.session_id)
             try:
-                UUID(session_id)
-                cmd.extend(["--session-id", session_id])
+                UUID(session_id_str)
             except ValueError:
-                pass
+                msg = f"WARNING: Invalid session_id '{session_id_str}'"
+                sys.stderr.write(f"{msg}, starting fresh session\n")
+            else:
+                cmd.extend(["--session-id", session_id_str])
 
         if config.allowed_tools is not None:
             cmd.extend(["--allowed-tools", *config.allowed_tools])

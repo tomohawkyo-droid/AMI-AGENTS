@@ -11,7 +11,6 @@ from ami.core.bootloader_agent import (
     ExecutionResult,
     RunContext,
 )
-from ami.types.api import ProviderMetadata
 
 EXPECTED_DEFAULT_TIMEOUT = 300
 EXPECTED_CUSTOM_TIMEOUT = 600
@@ -327,48 +326,3 @@ class TestBuildToolsMessage:
         result = agent._build_tools_message(["save_memory"])
 
         assert "No internal tools are available" in result
-
-
-class TestExtractSessionId:
-    """Tests for _extract_session_id method."""
-
-    @patch("ami.core.bootloader_agent.setup_agent_env")
-    @patch("ami.core.bootloader_agent.get_project_root")
-    def test_returns_current_when_no_metadata(self, mock_get_root, mock_setup_env):
-        """Test returns current session ID when no metadata."""
-        mock_get_root.return_value = Path("/project")
-        agent = BootloaderAgent()
-
-        result = agent._extract_session_id(None, "current-session")
-
-        assert result == "current-session"
-
-    @patch("ami.core.bootloader_agent.setup_agent_env")
-    @patch("ami.core.bootloader_agent.get_project_root")
-    def test_returns_metadata_session_id(self, mock_get_root, mock_setup_env):
-        """Test returns session ID from metadata."""
-        mock_get_root.return_value = Path("/project")
-        agent = BootloaderAgent()
-
-        metadata = MagicMock(spec=ProviderMetadata)
-        metadata.session_id = "new-session"
-
-        result = agent._extract_session_id(metadata, "current-session")
-
-        assert result == "new-session"
-
-    @patch("ami.core.bootloader_agent.setup_agent_env")
-    @patch("ami.core.bootloader_agent.get_project_root")
-    def test_returns_current_when_metadata_no_session(
-        self, mock_get_root, mock_setup_env
-    ):
-        """Test returns current when metadata has no session ID."""
-        mock_get_root.return_value = Path("/project")
-        agent = BootloaderAgent()
-
-        metadata = MagicMock(spec=ProviderMetadata)
-        metadata.session_id = None
-
-        result = agent._extract_session_id(metadata, "current-session")
-
-        assert result == "current-session"

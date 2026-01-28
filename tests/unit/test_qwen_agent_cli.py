@@ -66,18 +66,32 @@ class TestQwenAgentCLI:
                 temp_path.unlink()
 
     def test_build_command_with_session_id(self):
-        """_build_command() includes --resume flag with session_id."""
+        """_build_command() includes --resume flag with valid UUID session_id."""
         cli = QwenAgentCLI()
+        valid_uuid = "019c0334-c453-7790-b794-15f3b446a10a"
         config = AgentConfig(
             model="qwen-coder",
-            session_id="session-123",
+            session_id=valid_uuid,
             provider=ProviderType.QWEN,
         )
 
         cmd = cli._build_command("test", None, config)
 
         assert "--resume" in cmd
-        assert "session-123" in cmd
+        assert valid_uuid in cmd
+
+    def test_build_command_with_invalid_session_id(self):
+        """_build_command() skips --resume for invalid UUID session_id."""
+        cli = QwenAgentCLI()
+        config = AgentConfig(
+            model="qwen-coder",
+            session_id="not-a-uuid",
+            provider=ProviderType.QWEN,
+        )
+
+        cmd = cli._build_command("test", None, config)
+
+        assert "--resume" not in cmd
 
     def test_build_command_without_session_id(self):
         """_build_command() does not include --resume without session_id."""

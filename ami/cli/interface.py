@@ -36,7 +36,7 @@ class AgentCLI(ABC):
 
         Args:
             params: RunPrintParams with instruction, cwd, agent_config,
-                instruction_file, stdin, audit_log_path
+                instruction_file, stdin
 
         Returns:
             Tuple of (output, metadata) where metadata includes session info

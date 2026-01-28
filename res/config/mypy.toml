@@ -114,6 +114,15 @@ ignore_missing_imports = true
 module = "uuid_utils.*"
 ignore_missing_imports = true
 
+# Aho-Corasick - C extension, no type annotations
+[[tool.mypy.overrides]]
+module = "ahocorasick.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "ahocorasick"
+ignore_missing_imports = true
+
 # Intel XPU - dynamic module only available with IPEX
 [[tool.mypy.overrides]]
 module = "torch.xpu.*"

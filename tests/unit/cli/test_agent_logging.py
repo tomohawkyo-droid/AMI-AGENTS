@@ -1,7 +1,6 @@
 """Unit tests for ami/cli/agent_logging.py."""
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from ami.cli.agent_logging import (
@@ -10,6 +9,7 @@ from ami.cli.agent_logging import (
     TranscriptEntry,
     TranscriptLogger,
 )
+from ami.cli.transcript_store import TranscriptStore
 
 EXPECTED_CONTENT_BLOCK_COUNT = 2
 EXPECTED_TOKEN_COUNT = 100
@@ -99,6 +99,24 @@ class TestTranscriptEntry:
         assert entry.metadata["model"] == "claude"
         assert entry.metadata["tokens"] == EXPECTED_TOKEN_COUNT
 
+    def test_entry_with_entry_id(self):
+        """Test TranscriptEntry has entry_id field."""
+        entry = TranscriptEntry(
+            entry_id="test-uuid",
+            type="user",
+            timestamp="2024-01-01T00:00:00",
+        )
+        assert entry.entry_id == "test-uuid"
+
+    def test_entry_id_auto_generated(self):
+        """Test TranscriptEntry entry_id auto-generates a UUID."""
+        entry = TranscriptEntry(
+            type="user",
+            timestamp="2024-01-01T00:00:00",
+        )
+        assert len(entry.entry_id) > 0
+        assert "-" in entry.entry_id
+
     def test_json_serialization(self):
         """Test TranscriptEntry JSON serialization."""
         entry = TranscriptEntry(
@@ -114,74 +132,47 @@ class TestTranscriptEntry:
 class TestTranscriptLogger:
     """Tests for TranscriptLogger class."""
 
-    @patch("ami.cli.agent_logging.get_config")
-    def test_init(self, mock_get_config, tmp_path):
+    def _make_logger(self, tmp_path):
+        """Create a TranscriptLogger backed by a real TranscriptStore."""
+        store = TranscriptStore(root=tmp_path)
+        transcript_id = store.create_session(provider="test", model="test-model")
+        return (
+            TranscriptLogger(store=store, transcript_id=transcript_id),
+            store,
+            transcript_id,
+        )
+
+    def test_init(self, tmp_path):
         """Test TranscriptLogger initialization."""
-        mock_config = MagicMock()
-        mock_config.root = tmp_path
-        mock_get_config.return_value = mock_config
+        logger, _store, transcript_id = self._make_logger(tmp_path)
+        assert logger.transcript_id == transcript_id
 
-        logger = TranscriptLogger("test-session-123")
-
-        assert logger.session_id == "test-session-123"
-        assert logger.log_dir.exists()
-        assert logger.log_file.name == "test-session-123.jsonl"
-
-    @patch("ami.cli.agent_logging.get_config")
-    def test_get_log_dir_creates_directory(self, mock_get_config, tmp_path):
-        """Test _get_log_dir creates directory structure."""
-        mock_config = MagicMock()
-        mock_config.root = tmp_path
-        mock_get_config.return_value = mock_config
-
-        logger = TranscriptLogger("test-session")
-        log_dir = logger._get_log_dir()
-
-        assert log_dir.exists()
-        # Should be under logs/transcripts/YYYY-MM-DD/
-        assert "transcripts" in str(log_dir)
-
-    @patch("ami.cli.agent_logging.get_config")
-    def test_log_user_message(self, mock_get_config, tmp_path):
+    def test_log_user_message(self, tmp_path):
         """Test logging a user message."""
-        mock_config = MagicMock()
-        mock_config.root = tmp_path
-        mock_get_config.return_value = mock_config
-
-        logger = TranscriptLogger("test-session")
+        logger, store, transcript_id = self._make_logger(tmp_path)
         logger.log_user_message("Hello, agent!")
 
-        assert logger.log_file.exists()
-        content = logger.log_file.read_text()
-        data = json.loads(content.strip())
-        assert data["type"] == "user"
-        assert data["message"]["content"] == "Hello, agent!"
-        assert "timestamp" in data
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == 1
+        assert entries[0].type == "user"
+        assert entries[0].message is not None
+        assert entries[0].message.content == "Hello, agent!"
+        assert entries[0].entry_id != ""
 
-    @patch("ami.cli.agent_logging.get_config")
-    def test_log_assistant_message_without_metadata(self, mock_get_config, tmp_path):
+    def test_log_assistant_message_without_metadata(self, tmp_path):
         """Test logging assistant message without metadata."""
-        mock_config = MagicMock()
-        mock_config.root = tmp_path
-        mock_get_config.return_value = mock_config
-
-        logger = TranscriptLogger("test-session")
+        logger, store, transcript_id = self._make_logger(tmp_path)
         logger.log_assistant_message("Here is my response")
 
-        content = logger.log_file.read_text()
-        data = json.loads(content.strip())
-        assert data["type"] == "assistant"
-        assert data["message"]["content"][0]["text"] == "Here is my response"
-        assert data["metadata"] == {}
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == 1
+        assert entries[0].type == "assistant"
+        assert entries[0].message is not None
+        assert entries[0].message.content[0].text == "Here is my response"
+        assert entries[0].metadata == {}
 
-    @patch("ami.cli.agent_logging.get_config")
-    def test_log_assistant_message_with_metadata(self, mock_get_config, tmp_path):
+    def test_log_assistant_message_with_metadata(self, tmp_path):
         """Test logging assistant message with metadata."""
-        mock_config = MagicMock()
-        mock_config.root = tmp_path
-        mock_get_config.return_value = mock_config
-
-        # Create mock metadata
         mock_metadata = MagicMock()
         mock_metadata.session_id = "sess-123"
         mock_metadata.duration = 1.5
@@ -189,73 +180,54 @@ class TestTranscriptLogger:
         mock_metadata.model = "claude"
         mock_metadata.tokens = 150
 
-        logger = TranscriptLogger("test-session")
+        logger, store, transcript_id = self._make_logger(tmp_path)
         logger.log_assistant_message("Response with metadata", metadata=mock_metadata)
 
-        content = logger.log_file.read_text()
-        data = json.loads(content.strip())
-        assert data["metadata"]["session_id"] == "sess-123"
-        assert data["metadata"]["duration"] == EXPECTED_DURATION
-        assert data["metadata"]["exit_code"] == 0
-        assert data["metadata"]["model"] == "claude"
-        assert data["metadata"]["tokens"] == EXPECTED_LOGGED_TOKEN_COUNT
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == 1
+        assert entries[0].metadata["session_id"] == "sess-123"
+        assert entries[0].metadata["duration"] == EXPECTED_DURATION
+        assert entries[0].metadata["exit_code"] == 0
+        assert entries[0].metadata["model"] == "claude"
+        assert entries[0].metadata["tokens"] == EXPECTED_LOGGED_TOKEN_COUNT
 
-    @patch("ami.cli.agent_logging.get_config")
-    def test_log_error(self, mock_get_config, tmp_path):
+    def test_log_error(self, tmp_path):
         """Test logging an error."""
-        mock_config = MagicMock()
-        mock_config.root = tmp_path
-        mock_get_config.return_value = mock_config
-
-        logger = TranscriptLogger("test-session")
+        logger, store, transcript_id = self._make_logger(tmp_path)
         logger.log_error("Connection timeout occurred")
 
-        content = logger.log_file.read_text()
-        data = json.loads(content.strip())
-        assert data["type"] == "error"
-        assert data["error"] == "Connection timeout occurred"
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == 1
+        assert entries[0].type == "error"
+        assert entries[0].error == "Connection timeout occurred"
 
-    @patch("ami.cli.agent_logging.get_config")
-    def test_multiple_entries(self, mock_get_config, tmp_path):
-        """Test logging multiple entries to same file."""
-        mock_config = MagicMock()
-        mock_config.root = tmp_path
-        mock_get_config.return_value = mock_config
-
-        logger = TranscriptLogger("test-session")
+    def test_multiple_entries(self, tmp_path):
+        """Test logging multiple entries to same session."""
+        logger, store, transcript_id = self._make_logger(tmp_path)
         logger.log_user_message("First message")
         logger.log_assistant_message("First response")
         logger.log_user_message("Second message")
         logger.log_assistant_message("Second response")
 
-        content = logger.log_file.read_text()
-        lines = [line for line in content.strip().split("\n") if line]
-        assert len(lines) == EXPECTED_LOG_ENTRY_COUNT
+        entries = store.read_entries(transcript_id)
+        assert len(entries) == EXPECTED_LOG_ENTRY_COUNT
 
         # Verify order
-        assert json.loads(lines[0])["type"] == "user"
-        assert json.loads(lines[1])["type"] == "assistant"
-        assert json.loads(lines[2])["type"] == "user"
-        assert json.loads(lines[3])["type"] == "assistant"
+        assert entries[0].type == "user"
+        assert entries[1].type == "assistant"
+        assert entries[2].type == "user"
+        assert entries[3].type == "assistant"
 
-    @patch("ami.cli.agent_logging.get_config")
-    @patch("builtins.open", side_effect=PermissionError("Access denied"))
-    @patch("sys.stderr")
-    def test_append_entry_handles_write_error(
-        self, mock_stderr, mock_open, mock_get_config, tmp_path
-    ):
-        """Test _append_entry handles write errors gracefully."""
-        mock_config = MagicMock()
-        mock_config.root = tmp_path
-        mock_get_config.return_value = mock_config
+    def test_write_handles_error_gracefully(self, tmp_path, capsys):
+        """Test _write handles errors gracefully."""
+        store = TranscriptStore(root=tmp_path)
+        transcript_id = store.create_session(provider="test", model="test-model")
+        logger = TranscriptLogger(store=store, transcript_id=transcript_id)
 
-        logger = TranscriptLogger("test-session")
+        # Force add_entry to raise
+        with patch.object(store, "add_entry", side_effect=OSError("disk full")):
+            # Should not raise
+            logger.log_user_message("Test message")
 
-        # Manually set log_file to a mock path that will fail
-        logger.log_file = Path("/nonexistent/path/log.jsonl")
-
-        # Should not raise, but print error
-        logger.log_user_message("Test message")
-
-        # Error should be printed to stderr
-        mock_stderr.write.assert_called()
+        captured = capsys.readouterr()
+        assert "FAILED TO WRITE TRANSCRIPT ENTRY" in captured.err

@@ -14,11 +14,12 @@ import yaml
 from pydantic import BaseModel, ConfigDict
 
 from ami.cli.provider_type import ProviderType
+from ami.cli.transcript_context import TranscriptContextBuilder
+from ami.cli.transcript_store import TranscriptStore
 from ami.core.config import get_config
 from ami.core.env import get_project_root, setup_agent_env
 from ami.core.guards import check_command_safety
 from ami.core.interfaces import AgentRuntimeProtocol, RunPrintParams
-from ami.types.api import ProviderMetadata
 from ami.types.config import AgentConfig
 from ami.types.events import StreamEvent
 from ami.utils.process import ProcessExecutor
@@ -34,6 +35,7 @@ class RunContext(BaseModel):
 
     instruction: str
     session_id: str | None = None
+    transcript_id: str | None = None
     stream_callback: StreamCallbackType = None
     stop_event: Event | None = None
     input_func: Callable[[str], bool] | None = None
@@ -264,9 +266,9 @@ class BootloaderAgent:
         )
 
     def _handle_agent_error(
-        self, e: Exception, ctx: RunContext, session_id: str | None
-    ) -> tuple[str, str]:
-        """Handle agent execution errors. Returns (error_msg, session_id) or raises."""
+        self, e: Exception, ctx: RunContext
+    ) -> tuple[str, str | None]:
+        """Handle agent execution errors. Returns (error_msg, None) or raises."""
         if isinstance(e, KeyboardInterrupt | SystemExit):
             raise e
 
@@ -278,7 +280,7 @@ class BootloaderAgent:
 
         if "isinstance() arg 2 must be a type" in str(e):
             raise e from None
-        return error_msg, session_id or ""
+        return error_msg, None
 
     def _execute_shell_blocks(
         self,
@@ -306,56 +308,69 @@ class BootloaderAgent:
             response_parts.append(res)
         return tool_outputs
 
-    def _extract_session_id(
-        self, metadata: ProviderMetadata | None, current: str | None
-    ) -> str | None:
-        """Extract session ID from metadata."""
-        if metadata is None:
-            return current
-        return metadata.session_id or current
+    def _build_first_prompt(
+        self,
+        ctx: RunContext,
+        allowed_tools: list[str],
+    ) -> str:
+        """Build the prompt for the first turn, with optional transcript context."""
+        if ctx.session_id:
+            return ctx.instruction
+
+        base_prompt = self._build_initial_prompt(ctx.instruction, allowed_tools)
+        if not ctx.transcript_id:
+            return base_prompt
+
+        store = TranscriptStore()
+        context = TranscriptContextBuilder(store).build_context(ctx.transcript_id)
+        return f"{context}\n\n{base_prompt}" if context else base_prompt
 
     def run(self, ctx: RunContext) -> tuple[str, str | None]:
         """Run the agent loop.
+
+        Each iteration spawns a fresh provider subprocess. No --resume is
+        used; instead, conversation history is accumulated in the prompt
+        so each call is self-contained.
 
         Args:
             ctx: RunContext containing all execution parameters.
 
         Returns:
-            Tuple of (response_text, actual_session_id)
+            Tuple of (response_text, session_id_always_None)
         """
-        session_id = ctx.session_id
+        transcript_id = ctx.transcript_id
         response_parts: list[str] = []
+        conversation: list[str] = []
         allowed_tools = ctx.allowed_tools or self.DEFAULT_ALLOWED_TOOLS
 
-        next_prompt = ctx.instruction
-        if not session_id:
-            next_prompt = self._build_initial_prompt(ctx.instruction, allowed_tools)
+        base_prompt = self._build_first_prompt(ctx, allowed_tools)
+        next_prompt = base_prompt
+        conversation.append(f"[Instruction]\n{base_prompt}")
 
         for _iteration in range(self.MAX_LOOPS):
             if ctx.stop_event and ctx.stop_event.is_set():
                 if ctx.stream_callback:
                     ctx.stream_callback("\n\n🛑 Agent execution stopped by user.\n")
-                return "\n".join(
-                    response_parts
-                ) + "\n🛑 Agent stopped.", session_id or ""
+                return "\n".join(response_parts) + "\n🛑 Agent stopped.", None
 
-            config = self._build_agent_config(ctx, session_id, allowed_tools)
+            config = self._build_agent_config(ctx, None, allowed_tools)
+            if transcript_id:
+                config.transcript_id = transcript_id
             runtime = self._get_runtime(config)
 
             try:
-                output, metadata = runtime.run_print(
+                output, _metadata = runtime.run_print(
                     params=RunPrintParams(
                         instruction=next_prompt,
                         agent_config=config,
                         cwd=self.project_root,
                     )
                 )
-                session_id = self._extract_session_id(metadata, session_id)
-                session_id = session_id or ""
             except Exception as e:
-                return self._handle_agent_error(e, ctx, session_id)
+                return self._handle_agent_error(e, ctx)
 
             response_parts.append(output)
+            conversation.append(f"[Agent]\n{output}")
 
             shell_blocks = re.findall(
                 r"```(?:run|bash)\n?(.*?)\n?```", output, re.DOTALL
@@ -367,13 +382,16 @@ class BootloaderAgent:
                     or "🛑 BLOCKED:" in output
                 )
                 if has_tool_or_blocked:
-                    next_prompt = "Continue."
+                    conversation.append("[System]\nContinue.")
+                    next_prompt = "\n\n".join(conversation)
                     continue
                 break
 
             tool_outputs = self._execute_shell_blocks(
                 blocks=shell_blocks, ctx=ctx, response_parts=response_parts
             )
-            next_prompt = "Tool Output:\n" + "\n".join(tool_outputs)
+            tool_text = "Tool Output:\n" + "\n".join(tool_outputs)
+            conversation.append(f"[Tool]\n{tool_text}")
+            next_prompt = "\n\n".join(conversation)
 
-        return "\n".join(response_parts), session_id
+        return "\n".join(response_parts), None

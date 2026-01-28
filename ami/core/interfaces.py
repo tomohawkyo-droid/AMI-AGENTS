@@ -27,7 +27,6 @@ class RunPrintParams(BaseModel):
     agent_config: AgentConfig | None = None
     instruction_file: Path | None = None
     stdin: str | None = None
-    audit_log_path: Path | None = None
 
 
 class RunInteractiveParams(BaseModel):

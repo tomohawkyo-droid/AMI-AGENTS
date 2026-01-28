@@ -36,16 +36,23 @@ class TestMainIntegration:
 class TestModeHandlersIntegration:
     """Integration tests for mode handlers."""
 
+    @patch("ami.cli.mode_handlers.confirm", return_value=False)
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
     def test_mode_interactive_editor_end_to_end(
-        self, mock_create_bootloader, mock_text_editor
+        self, mock_create_bootloader, mock_text_editor, mock_store_cls, mock_confirm
     ):
         """End-to-end test of interactive editor mode."""
         # Mock the text editor to return content then None to exit loop
         mock_editor = Mock()
         mock_editor.run.side_effect = ["Hello!", None]
         mock_text_editor.return_value = mock_editor
+
+        # Mock the transcript store
+        mock_store = mock_store_cls.return_value
+        mock_store.get_resumable_session.return_value = None
+        mock_store.create_session.return_value = "test-transcript-id"
 
         # Mock the BootloaderAgent returned by factory
         mock_agent = Mock()

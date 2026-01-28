@@ -15,7 +15,6 @@ from __future__ import annotations
 import getpass
 import os
 import subprocess
-import time
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -273,34 +272,24 @@ class TestGetUnprivilegedEnv:
 class TestGetLatestSessionId:
     """Tests for get_latest_session_id."""
 
-    def test_returns_stem_of_newest_file(self, tmp_path: Path, monkeypatch):
-        transcripts = tmp_path / "logs" / "transcripts"
-        transcripts.mkdir(parents=True)
-        old = transcripts / "old_session.jsonl"
-        old.write_text("{}")
-        time.sleep(0.05)
-        new = transcripts / "new_session.jsonl"
-        new.write_text("{}")
-        fake_cfg = MagicMock()
-        fake_cfg.root = tmp_path
-        monkeypatch.setenv("AMI_TEST_MODE", "1")
-        _ConfigSingleton.instance = fake_cfg
+    @patch("ami.cli.mode_handlers.TranscriptStore")
+    def test_returns_newest_session_id(self, MockStore):
+        """get_latest_session_id returns the first session from the store."""
+        mock_session = MagicMock()
+        mock_session.session_id = "new_session"
+        mock_store = MockStore.return_value
+        mock_store.list_sessions.return_value = [mock_session]
         assert get_latest_session_id() == "new_session"
 
-    def test_returns_none_when_no_transcript_dir(self, tmp_path: Path, monkeypatch):
-        fake_cfg = MagicMock()
-        fake_cfg.root = tmp_path
-        monkeypatch.setenv("AMI_TEST_MODE", "1")
-        _ConfigSingleton.instance = fake_cfg
+    @patch("ami.cli.mode_handlers.TranscriptStore")
+    def test_returns_none_when_no_sessions(self, MockStore):
+        mock_store = MockStore.return_value
+        mock_store.list_sessions.return_value = []
         assert get_latest_session_id() is None
 
-    def test_returns_none_when_transcript_dir_empty(self, tmp_path: Path, monkeypatch):
-        transcripts = tmp_path / "logs" / "transcripts"
-        transcripts.mkdir(parents=True)
-        fake_cfg = MagicMock()
-        fake_cfg.root = tmp_path
-        monkeypatch.setenv("AMI_TEST_MODE", "1")
-        _ConfigSingleton.instance = fake_cfg
+    @patch("ami.cli.mode_handlers.TranscriptStore")
+    def test_returns_none_on_exception(self, MockStore):
+        MockStore.side_effect = Exception("Store error")
         assert get_latest_session_id() is None
 
 

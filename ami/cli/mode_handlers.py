@@ -8,14 +8,14 @@ from ami.cli.config import AgentConfigPresets
 from ami.cli.exceptions import AgentError, AgentExecutionError
 from ami.cli.factory import get_agent_cli
 from ami.cli.timer_utils import wrap_text_in_box
+from ami.cli.transcript_store import TranscriptStore
 from ami.cli.validation_utils import (
     validate_path_and_return_code,
 )
 from ami.cli_components.dialogs import confirm
 from ami.cli_components.text_editor import TextEditor
 from ami.cli_components.text_input_utils import display_final_output
-from ami.core.bootloader_agent import RunContext
-from ami.core.config import get_config
+from ami.core.bootloader_agent import BootloaderAgent, RunContext
 from ami.core.factory import AgentFactory
 from ami.core.interfaces import RunPrintParams
 
@@ -28,21 +28,11 @@ def get_user_confirmation(command: str) -> bool:
 def get_latest_session_id() -> str | None:
     """Find the most recent session ID from transcript logs."""
     try:
-        config = get_config()
-        transcripts_dir = config.root / "logs" / "transcripts"
-        if not transcripts_dir.exists():
+        store = TranscriptStore()
+        sessions = store.list_sessions()
+        if not sessions:
             return None
-
-        # Find all jsonl files recursively
-        files = list(transcripts_dir.rglob("*.jsonl"))
-        if not files:
-            return None
-
-        # Sort by modification time, newest first
-        files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-
-        # Return the stem (filename without extension) of the newest file
-        return files[0].stem
+        return sessions[0].session_id
     except Exception:
         return None
 
@@ -151,11 +141,59 @@ def mode_print(instruction_path: str) -> int:
         return 0
 
 
+def _resolve_transcript_session(store: TranscriptStore) -> str:
+    """Resolve transcript session: resume existing or create new."""
+    resumable = store.get_resumable_session()
+    if resumable:
+        sys.stdout.write(
+            f"📋 Resumable session found: {resumable.session_id[:8]}..."
+            f" ({resumable.summary or 'no summary'})\n"
+        )
+        if confirm("Resume previous session?", title="Resume Session"):
+            store.update_session(resumable.session_id, status="active")
+            return resumable.session_id
+    return store.create_session(provider="bootloader", model="default")
+
+
+def _run_editor_loop(
+    agent: BootloaderAgent,
+    store: TranscriptStore,
+    transcript_id: str,
+    first_instruction: str,
+) -> None:
+    """Run the interactive editor-agent loop until user exits."""
+    current_instruction = first_instruction
+
+    while True:
+        next_initial_text = ""
+
+        try:
+            ctx = RunContext(
+                instruction=current_instruction,
+                session_id=None,
+                transcript_id=transcript_id,
+                input_func=get_user_confirmation,
+            )
+            agent.run(ctx)
+        except KeyboardInterrupt:
+            sys.stdout.write("\n❌ Cancelled by user.\n\n")
+            sys.stdout.flush()
+            next_initial_text = current_instruction
+
+        editor = TextEditor(initial_text=next_initial_text)
+        next_content = editor.run(clear_on_submit=True)
+
+        if next_content is None or not next_content.strip():
+            sys.stdout.write("❌ Empty input or cancelled. Exiting session.\n")
+            store.update_session(transcript_id, status="paused")
+            break
+
+        current_instruction = next_content
+        display_final_output(current_instruction.splitlines(), "✅ Sent to agent")
+
+
 def mode_interactive_editor() -> int:
     """Interactive editor mode - opens text editor first, Ctrl+S sends to agent.
-
-    Args:
-        None
 
     Returns:
         Exit code (0=success, 1=failure)
@@ -163,71 +201,28 @@ def mode_interactive_editor() -> int:
 
     try:
         try:
-            # Launch text editor and get content
             editor = TextEditor()
             content = editor.run(clear_on_submit=True)
 
-            if content is None:  # User cancelled with Ctrl+C
-                # Show discarded message
+            if content is None:
                 display_final_output(editor.lines, "❌ Message discarded")
-                return 0  # Exit quietly
+                return 0
 
-            # If content is empty, exit gracefully
             if not content.strip():
-                return 0  # Exit quietly
+                return 0
 
-            # Display "Sent" confirmation
             display_final_output(content.splitlines(), "✅ Sent to agent")
 
         except KeyboardInterrupt:
-            # User cancelled with Ctrl+C
-            return 0  # Exit quietly
+            return 0
 
-        # Instantiate BootloaderAgent once for the session with injected runtime
         agent = AgentFactory.create_bootloader()
+        store = TranscriptStore()
+        transcript_id = _resolve_transcript_session(store)
 
-        # Initial input (from first editor run)
-        current_instruction = content
-        # Start fresh session (don't auto-resume - provider sessions
-        # may not match local logs)
-        current_session_id: str | None = None
-
-        while True:
-            # Prepare initial text for next editor run
-            # (defaults to empty unless cancelled)
-            next_initial_text = ""
-
-            try:
-                # Run agent loop (ReAct: Think -> Act -> Loop)
-                # The agent maintains state via session_id passed to the provider
-                ctx = RunContext(
-                    instruction=current_instruction,
-                    session_id=current_session_id,
-                    input_func=get_user_confirmation,
-                )
-                _, current_session_id = agent.run(ctx)
-            except KeyboardInterrupt:
-                # User cancelled with Ctrl+C or Esc
-                sys.stdout.write("\n❌ Cancelled by user.\n\n")
-                sys.stdout.flush()
-                # Pre-fill editor with the message we just sent/cancelled
-                next_initial_text = current_instruction
-
-            # --- SESSION LOOP ---
-            # Immediately relaunch editor for next turn
-            # Launch editor for next turn
-            editor = TextEditor(initial_text=next_initial_text)
-            next_content = editor.run(clear_on_submit=True)
-
-            if next_content is None or not next_content.strip():
-                sys.stdout.write("❌ Empty input or cancelled. Exiting session.\n")
-                break
-
-            current_instruction = next_content
-            display_final_output(current_instruction.splitlines(), "✅ Sent to agent")
+        _run_editor_loop(agent, store, transcript_id, content)
 
     except Exception as e:
-        # Print error for debugging
         sys.stderr.write(f"Error calling agent: {e!s}\n")
         sys.stderr.flush()
         return 1

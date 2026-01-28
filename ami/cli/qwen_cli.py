@@ -8,15 +8,16 @@ timeout management, and streaming support.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import ClassVar
+from uuid import UUID
 
 from ami.cli.base_provider import CLIProvider as BaseProvider
 from ami.cli.interface import AgentCLI
 from ami.cli.provider_type import ProviderType
 from ami.core.config import get_config
-from ami.core.interfaces import RunPrintParams
-from ami.types.api import ProviderMetadata, StreamMetadata
+from ami.types.api import StreamMetadata
 from ami.types.config import AgentConfig
 
 
@@ -56,13 +57,6 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
             timeout=180,
         )
 
-    def run_print(
-        self,
-        params: RunPrintParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
-        """Run agent in print mode with Qwen-specific settings."""
-        return super().run_print(params=params)
-
     def _build_command(
         self,
         instruction: str,
@@ -77,7 +71,14 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
         cmd.extend(["--model", config.model])
 
         if config.session_id and str(config.session_id).strip():
-            cmd.extend(["--resume", str(config.session_id)])
+            session_id_str = str(config.session_id)
+            try:
+                UUID(session_id_str)
+            except ValueError:
+                msg = f"WARNING: Invalid session_id '{session_id_str}'"
+                sys.stderr.write(f"{msg}, starting fresh session\n")
+            else:
+                cmd.extend(["--resume", session_id_str])
 
         if config.allowed_tools is not None:
             cmd.extend(["--allowed-tools", *config.allowed_tools])

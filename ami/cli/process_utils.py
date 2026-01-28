@@ -171,7 +171,7 @@ def handle_first_output_logging(
         agent_config: Agent configuration
     """
     if agent_config is not None:
-        session_id = agent_config.session_id or "unknown"
+        session_id = agent_config.session_id
         timeout_val = agent_config.timeout
         logger.info(
             "agent_first_output_waiting",

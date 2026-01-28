@@ -2,7 +2,6 @@
 
 import sys
 import tempfile
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -55,23 +54,24 @@ class TestModeInteractiveEditor:
 
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
+    @patch("ami.cli.mode_handlers.confirm", return_value=False)
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
     @patch("ami.cli.mode_handlers.display_final_output")
-    def test_interactive_editor_success(
-        self,
-        mock_display,
-        MockCreateBootloader,
-        MockTextEditor,
-        mock_isatty,
-        MockTimerDisplay,
-    ):
+    def test_interactive_editor_success(self, mock_display, *mocks):
         """Test successful execution flow."""
+        MockCreateBootloader, MockTextEditor, MockTranscriptStore = mocks[:3]
+
         # Setup mocks
         mock_editor = MockTextEditor.return_value
         # First call returns instruction, second call returns None to break the loop
         mock_editor.run.side_effect = ["Do something", None]
         mock_editor.lines = ["Do something"]
+
+        mock_store = MockTranscriptStore.return_value
+        mock_store.get_resumable_session.return_value = None
+        mock_store.create_session.return_value = "test-transcript-id"
 
         mock_agent = MockCreateBootloader.return_value
         mock_agent.run.return_value = ("Output", "sess-id")
@@ -86,6 +86,7 @@ class TestModeInteractiveEditor:
         mock_agent.run.assert_called_once()
         call_ctx = mock_agent.run.call_args[0][0]  # First positional arg is RunContext
         assert call_ctx.instruction == "Do something"
+        assert call_ctx.transcript_id == "test-transcript-id"
         assert call_ctx.input_func == get_user_confirmation
 
     @patch("ami.cli.timer_utils.TimerDisplay")
@@ -122,14 +123,20 @@ class TestModeInteractiveEditor:
 
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
+    @patch("ami.cli.mode_handlers.confirm", return_value=False)
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
-    def test_interactive_editor_agent_error(
-        self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay
-    ):
+    def test_interactive_editor_agent_error(self, *mocks):
         """Test exception during agent execution."""
+        MockCreateBootloader, MockTextEditor, MockTranscriptStore = mocks[:3]
+
         mock_editor = MockTextEditor.return_value
         mock_editor.run.side_effect = ["Do task", None]
+
+        mock_store = MockTranscriptStore.return_value
+        mock_store.get_resumable_session.return_value = None
+        mock_store.create_session.return_value = "test-transcript-id"
 
         mock_agent = MockCreateBootloader.return_value
         mock_agent.run.side_effect = Exception("Agent crashed")
@@ -144,60 +151,32 @@ class TestModeInteractiveEditor:
 class TestGetLatestSessionId:
     """Tests for get_latest_session_id function."""
 
-    @patch("ami.cli.mode_handlers.get_config")
-    def test_returns_none_when_transcripts_dir_not_exists(self, mock_get_config):
-        """Test returns None when transcripts directory doesn't exist."""
-        mock_config = MagicMock()
-        mock_config.root = Path("/nonexistent")
-        mock_get_config.return_value = mock_config
+    @patch("ami.cli.mode_handlers.TranscriptStore")
+    def test_returns_none_when_no_sessions(self, MockStore):
+        """Test returns None when no sessions exist."""
+        mock_store = MockStore.return_value
+        mock_store.list_sessions.return_value = []
 
         result = get_latest_session_id()
 
         assert result is None
 
-    @patch("ami.cli.mode_handlers.get_config")
-    def test_returns_none_when_no_jsonl_files(self, mock_get_config):
-        """Test returns None when no .jsonl files exist."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mock_config = MagicMock()
-            mock_config.root = Path(tmpdir)
-            mock_get_config.return_value = mock_config
+    @patch("ami.cli.mode_handlers.TranscriptStore")
+    def test_returns_newest_session_id(self, MockStore):
+        """Test returns session_id of the newest session."""
+        mock_session = MagicMock()
+        mock_session.session_id = "newest-session-id"
+        mock_store = MockStore.return_value
+        mock_store.list_sessions.return_value = [mock_session]
 
-            # Create transcripts dir but no files
-            transcripts_dir = Path(tmpdir) / "logs" / "transcripts"
-            transcripts_dir.mkdir(parents=True)
+        result = get_latest_session_id()
 
-            result = get_latest_session_id()
+        assert result == "newest-session-id"
 
-            assert result is None
-
-    @patch("ami.cli.mode_handlers.get_config")
-    def test_returns_newest_session_id(self, mock_get_config):
-        """Test returns stem of the newest .jsonl file."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mock_config = MagicMock()
-            mock_config.root = Path(tmpdir)
-            mock_get_config.return_value = mock_config
-
-            transcripts_dir = Path(tmpdir) / "logs" / "transcripts"
-            transcripts_dir.mkdir(parents=True)
-
-            # Create two files with different timestamps
-            old_file = transcripts_dir / "old-session.jsonl"
-            old_file.write_text("{}")
-            time.sleep(0.1)  # Ensure different mtime
-
-            new_file = transcripts_dir / "new-session.jsonl"
-            new_file.write_text("{}")
-
-            result = get_latest_session_id()
-
-            assert result == "new-session"
-
-    @patch("ami.cli.mode_handlers.get_config")
-    def test_returns_none_on_exception(self, mock_get_config):
+    @patch("ami.cli.mode_handlers.TranscriptStore")
+    def test_returns_none_on_exception(self, MockStore):
         """Test returns None when exception occurs."""
-        mock_get_config.side_effect = Exception("Config error")
+        MockStore.side_effect = Exception("Store error")
 
         result = get_latest_session_id()
 
