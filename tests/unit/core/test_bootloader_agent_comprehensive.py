@@ -148,33 +148,90 @@ class TestGetBanner:
 
     @patch("ami.core.bootloader_agent.setup_agent_env")
     @patch("ami.core.bootloader_agent.get_project_root")
-    def test_returns_context_from_bashrc(self, mock_get_root, mock_setup_env):
-        """Test returns cleaned content from bashrc."""
-        mock_get_root.return_value = Path("/project")
+    def test_returns_context_from_banner_script(
+        self, mock_get_root, mock_setup_env, tmp_path
+    ):
+        """Test returns cleaned content from banner script."""
+        mock_get_root.return_value = tmp_path
+
+        # Create a fake banner script
+        banner_dir = tmp_path / "ami" / "scripts" / "shell"
+        banner_dir.mkdir(parents=True)
+        banner_script = banner_dir / "ami-banner.sh"
+        banner_script.write_text(
+            "#!/bin/bash\necho 'AMI Orchestrator shell environment'"
+        )
+        banner_script.chmod(0o755)
 
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
-                stdout="Welcome\nuser@host",
+                stdout="AMI Orchestrator shell environment\nTools available",
                 stderr="",
             )
-            with patch.object(Path, "exists", return_value=True):
-                agent = BootloaderAgent()
-                result = agent._get_banner()
+            agent = BootloaderAgent()
+            result = agent._get_banner()
 
-        # @ should be replaced with (at)
-        assert "(at)" in result or "Welcome" in result
+        assert "AMI Orchestrator" in result or "Tools available" in result
 
     @patch("ami.core.bootloader_agent.setup_agent_env")
     @patch("ami.core.bootloader_agent.get_project_root")
-    def test_returns_error_on_exception(self, mock_get_root, mock_setup_env):
+    def test_returns_error_on_exception(self, mock_get_root, mock_setup_env, tmp_path):
         """Test returns error message on exception."""
-        mock_get_root.return_value = Path("/project")
+        mock_get_root.return_value = tmp_path
+
+        # Create a fake banner script so the path check passes
+        banner_dir = tmp_path / "ami" / "scripts" / "shell"
+        banner_dir.mkdir(parents=True)
+        banner_script = banner_dir / "ami-banner.sh"
+        banner_script.write_text("#!/bin/bash\nexit 1")
+        banner_script.chmod(0o755)
 
         with patch("subprocess.run", side_effect=Exception("Test error")):
             agent = BootloaderAgent()
             result = agent._get_banner()
 
         assert "Error loading context" in result
+
+    @patch("ami.core.bootloader_agent.setup_agent_env")
+    @patch("ami.core.bootloader_agent.get_project_root")
+    def test_returns_fallback_when_script_missing(
+        self, mock_get_root, mock_setup_env, tmp_path
+    ):
+        """Test returns fallback message when banner script doesn't exist."""
+        mock_get_root.return_value = tmp_path
+
+        agent = BootloaderAgent()
+        result = agent._get_banner()
+
+        assert "Banner script not found" in result
+
+    @patch("ami.core.bootloader_agent.setup_agent_env")
+    @patch("ami.core.bootloader_agent.get_project_root")
+    def test_strips_ansi_codes(self, mock_get_root, mock_setup_env, tmp_path):
+        """Test strips ANSI escape codes from banner output."""
+        mock_get_root.return_value = tmp_path
+
+        # Create a fake banner script
+        banner_dir = tmp_path / "ami" / "scripts" / "shell"
+        banner_dir.mkdir(parents=True)
+        banner_script = banner_dir / "ami-banner.sh"
+        banner_script.write_text("#!/bin/bash\necho test")
+        banner_script.chmod(0o755)
+
+        with patch("subprocess.run") as mock_run:
+            # Include ANSI codes in the output
+            mock_run.return_value = MagicMock(
+                stdout="\x1b[32mGreen\x1b[0m Normal \x1b[1;34mBold Blue\x1b[0m",
+                stderr="",
+            )
+            agent = BootloaderAgent()
+            result = agent._get_banner()
+
+        # Verify ANSI codes are stripped
+        assert "\x1b[" not in result
+        assert "Green" in result
+        assert "Normal" in result
+        assert "Bold Blue" in result
 
 
 class TestLoadExtensions:

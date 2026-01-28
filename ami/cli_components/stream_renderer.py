@@ -96,8 +96,14 @@ class StreamRenderer:
             display_line = display_line.replace("```", "")
             self.in_run_block = False
 
-        # Print with indentation
-        print(f"  {display_line}")
+        # Print with indentation and word wrapping
+        if len(display_line) <= CONTENT_WIDTH:
+            print(f"  {display_line}")
+        else:
+            for wrap_line in textwrap.fill(display_line, width=CONTENT_WIDTH).split(
+                "\n"
+            ):
+                print(f"  {wrap_line}")
 
     def render_raw_line(self, line: str) -> None:
         """Render a raw line directly without parsing."""
@@ -127,12 +133,10 @@ class StreamRenderer:
         if self.timer.is_running:
             self.timer.stop()
 
-        # Flush buffer
+        # Flush remaining buffer through normal line rendering
         if not self.capture_content and self.line_buffer:
-            wrapped = textwrap.fill(self.line_buffer, width=CONTENT_WIDTH).split("\n")
-            for line in wrapped:
-                sys.stdout.write(f"  {line}\n")
-            sys.stdout.flush()
+            self._render_line(self.line_buffer)
+            self.line_buffer = ""
 
         # Close box
         if (

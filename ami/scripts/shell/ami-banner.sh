@@ -201,6 +201,14 @@ _display_category() {
 
 # Function to display the banner
 display_banner() {
+    local exclude_categories=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --exclude-categories) shift; exclude_categories="$1" ;;
+        esac
+        shift
+    done
+
     _ami_echo "${GREEN}✓${NC} AMI Orchestrator shell environment configured successfully!"
     _ami_echo ""
     _ami_echo " __       ___                         _     __  __  ___ "
@@ -223,11 +231,14 @@ display_banner() {
     # Load extension metadata for display
     _load_extension_metadata
 
-    # Display each category
-    _display_category "core" EXT_CORE
-    _display_category "enterprise" EXT_ENTERPRISE
-    _display_category "dev" EXT_DEV
-    _display_category "agents" EXT_AGENTS
+    # Display each category, skipping excluded ones
+    for cat in "${CATEGORY_ORDER[@]}"; do
+        if [[ -n "$exclude_categories" ]] && echo ",$exclude_categories," | grep -q ",$cat,"; then
+            continue
+        fi
+        local arr_name="EXT_${cat^^}"
+        _display_category "$cat" "$arr_name"
+    done
 }
 
 # Function to display system status
@@ -249,3 +260,12 @@ display_system_status() {
         echo -e ""
     fi
 }
+
+# Standalone invocation support
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    if [[ -z "${AMI_ROOT:-}" ]]; then
+        echo "Error: AMI_ROOT not set" >&2
+        exit 1
+    fi
+    display_banner "$@"
+fi

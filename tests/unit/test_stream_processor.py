@@ -53,7 +53,7 @@ class TestStreamProcessor:
         # Complete event data is StreamEventData, not a dict
         complete_data = events[2].data
         assert isinstance(complete_data, StreamEventData)
-        assert complete_data.output == "chunk1\nchunk2\n"
+        assert complete_data.output == "chunk1chunk2"
         assert complete_data.metadata.exit_code == 0
 
     @patch("ami.cli.stream_processor.start_streaming_process")

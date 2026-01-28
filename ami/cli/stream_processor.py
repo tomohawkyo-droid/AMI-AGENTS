@@ -136,10 +136,7 @@ class StreamProcessor:
                     yield event
 
                 if chunk_text:
-                    chunk_with_nl = (
-                        chunk_text if chunk_text.endswith("\n") else chunk_text + "\n"
-                    )
-                    self.full_output.append(chunk_with_nl)
+                    self.full_output.append(chunk_text)
                     event = StreamEvent.chunk(chunk_text)
                     self._notify(event)
                     yield event

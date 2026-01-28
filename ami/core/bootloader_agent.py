@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -23,6 +24,9 @@ from ami.core.interfaces import AgentRuntimeProtocol, RunPrintParams
 from ami.types.config import AgentConfig
 from ami.types.events import StreamEvent
 from ami.utils.process import ProcessExecutor
+
+# Compiled ANSI escape sequence pattern for stripping terminal codes
+_ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # Type alias for stream callback
 StreamCallbackType = Callable[[str | StreamEvent], None] | None
@@ -77,32 +81,29 @@ class BootloaderAgent:
         msg = "Agent runtime not provided to BootloaderAgent"
         raise RuntimeError(msg)
 
-    def _get_banner(self) -> str:
-        """Get environment context by sourcing .bashrc."""
-        try:
-            bashrc = Path("~/.bashrc").expanduser()
-            if not bashrc.exists():
-                return "System Context: .bashrc not found."
+    @staticmethod
+    def _strip_ansi(text: str) -> str:
+        """Remove ANSI escape sequences from text."""
+        return _ANSI_ESCAPE.sub("", text)
 
+    def _get_banner(self) -> str:
+        """Get environment context by running the banner script directly."""
+        banner_script = self.project_root / "ami/scripts/shell/ami-banner.sh"
+        if not banner_script.exists():
+            return "System Context: Banner script not found."
+        try:
             result = subprocess.run(
-                ["/bin/bash", "--rcfile", str(bashrc), "-i", "-c", "true"],
+                ["/bin/bash", str(banner_script), "--exclude-categories", "agents"],
                 capture_output=True,
                 text=True,
                 timeout=5,
                 check=False,
+                env={**os.environ, "AMI_ROOT": str(self.project_root)},
             )
-
-            content = result.stdout + "\n" + result.stderr
-            # Remove common bash errors when running non-interactively
-            bash_ioctl_err = "bash: cannot set terminal process group (-1):"
-            clean_content = content.replace(bash_ioctl_err, "").replace(
-                "Inappropriate ioctl for device", ""
-            )
-            clean_content = clean_content.replace(
-                "bash: no job control in this shell", ""
-            )
-
-            return clean_content.replace("@", "(at)").strip()
+            content = result.stdout or result.stderr or "Banner generation failed."
+            return self._strip_ansi(content).strip()
+        except subprocess.TimeoutExpired:
+            return "System Context: Banner generation timed out."
         except Exception as e:
             return f"Error loading context: {e}"
 
@@ -148,17 +149,12 @@ class BootloaderAgent:
 
     def _format_shell_output(self, script: str, result: ExecutionResult) -> str:
         """Format shell execution output."""
-        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-
-        def strip_ansi(text: str) -> str:
-            return ansi_escape.sub("", text)
-
         output = f"\n> {script}\n"
         stdout = result.stdout
         stderr = result.stderr
 
         if stdout.strip():
-            clean_stdout = strip_ansi(stdout)
+            clean_stdout = self._strip_ansi(stdout)
             clean_lines = [
                 line
                 for line in clean_stdout.splitlines()
@@ -169,7 +165,7 @@ class BootloaderAgent:
                 output += f"{final_stdout}\n"
 
         if stderr.strip():
-            output += f"ERR: {strip_ansi(stderr).strip()}\n"
+            output += f"ERR: {self._strip_ansi(stderr).strip()}\n"
 
         if result.returncode != 0:
             output += f"(Exit Code: {result.returncode})\n"
@@ -373,7 +369,7 @@ class BootloaderAgent:
             conversation.append(f"[Agent]\n{output}")
 
             shell_blocks = re.findall(
-                r"```(?:run|bash)\n?(.*?)\n?```", output, re.DOTALL
+                r"```\s*(?:run|bash)\b\s*(.*?)\s*```", output, re.DOTALL
             )
 
             if not shell_blocks:
