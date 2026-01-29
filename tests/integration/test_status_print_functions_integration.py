@@ -228,23 +228,30 @@ class TestPrintServiceChildren:
         assert "5432" in capsys.readouterr().out
 
     def test_stats(self, capsys):
-        st = {"app": {"cpu": "2.5%", "mem_usage": "128MiB / 4GiB"}}
+        st = [
+            {
+                "name": "app",
+                "cpu": "2.5%",
+                "mem_usage": "128MiB / 4GiB",
+                "mem_percent": "3%",
+            }
+        ]
         with patch(CONT_VOL, return_value=[]):
-            _print_service_children([_ct("app", state="running")], st, {})
+            _print_service_children([_ct("app", state="running")], st, [])
         out = capsys.readouterr().out
         assert "2.5%" in out
         assert "128MiB" in out
 
     def test_no_stats_when_stopped(self, capsys):
-        st = {"app": {"cpu": "0%", "mem_usage": "0B"}}
+        st = [{"name": "app", "cpu": "0%", "mem_usage": "0B", "mem_percent": "0%"}]
         with patch(CONT_VOL, return_value=[]):
-            _print_service_children([_ct("app", state="exited")], st, {})
+            _print_service_children([_ct("app", state="exited")], st, [])
         assert "\u26a1" not in capsys.readouterr().out
 
     def test_sizes(self, capsys):
-        sz = {"app": {"virtual": "200MB", "writable": "5MB"}}
+        sz = [{"name": "app", "virtual": "200MB", "writable": "5MB"}]
         with patch(CONT_VOL, return_value=[]):
-            _print_service_children([_ct("app")], {}, sz)
+            _print_service_children([_ct("app")], [], sz)
         out = capsys.readouterr().out
         assert "200MB" in out
         assert "5MB" in out
@@ -268,26 +275,26 @@ class TestPrintServiceChildren:
 # -- 5. _print_orphans -------------------------------------------------------
 class TestPrintOrphans:
     def test_none(self, capsys):
-        _print_orphans({"a": _ct("a")}, {"a"})
+        _print_orphans([_ct("a")], {"a"})
         assert capsys.readouterr().out == ""
 
     def test_skip_run_prefix(self, capsys):
-        _print_orphans({"run-tmp": _ct("run-tmp")}, set())
+        _print_orphans([_ct("run-tmp")], set())
         assert capsys.readouterr().out == ""
 
     def test_shows_orphan(self, capsys):
-        _print_orphans({"orph": _ct("orph")}, set())
+        _print_orphans([_ct("orph")], set())
         out = capsys.readouterr().out
         assert "orph" in out
         assert "UNMANAGED" in out
 
     def test_orphan_ports(self, capsys):
         p = [PortMapping(host_port=3000, container_port=3000, protocol="tcp")]
-        _print_orphans({"w": _ct("w", ports=p)}, set())
+        _print_orphans([_ct("w", ports=p)], set())
         assert "3000" in capsys.readouterr().out
 
     def test_multiple(self, capsys):
-        cs = {"m": _ct("m"), "a": _ct("a"), "b": _ct("b")}
+        cs = [_ct("m"), _ct("a"), _ct("b")]
         _print_orphans(cs, {"m"})
         out = capsys.readouterr().out
         assert "a" in out

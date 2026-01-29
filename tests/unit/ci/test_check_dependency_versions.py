@@ -339,7 +339,11 @@ class TestMain:
         mock_path = MagicMock()
         mock_path.exists.return_value = True
         mock_path_class.return_value = mock_path
-        mock_check.return_value = ([("numpy", "numpy>=1.0", "2.0")], [], {})
+        mock_check.return_value = (
+            [LooseDependency("numpy", "numpy>=1.0", "2.0")],
+            [],
+            {},
+        )
 
         with patch("sys.argv", ["check_dependency_versions.py"]):
             result = main()
@@ -353,7 +357,11 @@ class TestMain:
         mock_path = MagicMock()
         mock_path.exists.return_value = True
         mock_path_class.return_value = mock_path
-        mock_check.return_value = ([], [("numpy", None, "1.0", "2.0")], {})
+        mock_check.return_value = (
+            [],
+            [OutdatedDependency("numpy", None, "1.0", "2.0")],
+            {},
+        )
 
         with patch("sys.argv", ["check_dependency_versions.py"]):
             result = main()
@@ -380,7 +388,11 @@ class TestMain:
         mock_path = MagicMock()
         mock_path.exists.return_value = True
         mock_path_class.return_value = mock_path
-        mock_check.return_value = ([("numpy", "numpy>=1.0", "2.0")], [], {})
+        mock_check.return_value = (
+            [LooseDependency("numpy", "numpy>=1.0", "2.0")],
+            [],
+            {},
+        )
 
         with patch("sys.argv", ["check_dependency_versions.py", "--upgrade"]):
             result = main()

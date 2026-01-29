@@ -42,6 +42,8 @@ EXPECTED_TIMEOUT_DURATION = 29.5
 EXPECTED_KILL_PID = 12345
 EXPECTED_INITIAL_TIMEOUT = 10.0
 EXPECTED_BASE_TIMEOUT = 180.0
+EXPECTED_TOOL_CALLS = 5
+EXPECTED_THINKING_TOKENS = 100
 
 # ---------------------------------------------------------------------------
 # StreamEvent factory methods
@@ -101,7 +103,9 @@ class TestAPITypes:
         meta = StreamMetadata()
         assert meta.session_id is None
         assert meta.model is None
-        assert meta.extra == {}
+        # extra is a ProviderExtraMetadata with all None fields
+        assert meta.extra.tool_calls is None
+        assert meta.extra.thinking_tokens is None
 
     def test_stream_metadata_with_values(self):
         meta = StreamMetadata(
@@ -121,16 +125,21 @@ class TestAPITypes:
         assert meta.duration is None
 
     def test_provider_metadata_with_values(self):
+        from ami.types.api import ProviderExtraMetadata
+
+        extra = ProviderExtraMetadata(
+            tool_calls=EXPECTED_TOOL_CALLS, thinking_tokens=EXPECTED_THINKING_TOKENS
+        )
         meta = ProviderMetadata(
             session_id="s1",
             duration=2.5,
             exit_code=0,
             model="claude",
             tokens=500,
-            extra={"custom": "data"},
+            extra=extra,
         )
         assert meta.duration == EXPECTED_DURATION
-        assert meta.extra["custom"] == "data"
+        assert meta.extra.tool_calls == EXPECTED_TOOL_CALLS
 
     def test_provider_response(self):
         resp = ProviderResponse(content="Hello World")
@@ -146,15 +155,23 @@ class TestAPITypes:
         cfg = MCPServerConfig(command="node", args=["server.js"])
         assert cfg.command == "node"
         assert cfg.args == ["server.js"]
-        assert cfg.env == {}
+        # env is empty ProcessEnvironment by default
+        assert len(cfg.env) == 0
 
     def test_mcp_server_config_with_env(self):
+        from typing import cast
+
+        from ami.types.common import ProcessEnvironment
+
+        env = cast(
+            ProcessEnvironment, {"PATH": "/usr/bin:/opt/bin", "LANG": "en_US.UTF-8"}
+        )
         cfg = MCPServerConfig(
             command="python3",
             args=["-m", "mcp"],
-            env={"API_KEY": "test"},
+            env=env,
         )
-        assert cfg.env["API_KEY"] == "test"
+        assert cfg.env.get("PATH") == "/usr/bin:/opt/bin"
 
     def test_stream_event_data(self):
         meta = ProviderMetadata(exit_code=0)
@@ -197,11 +214,11 @@ class TestAgentConfig:
         assert cfg.timeout == EXPECTED_CUSTOM_TIMEOUT
 
     def test_mcp_servers_field(self):
-        mcp = MCPServerConfig(command="node")
-        cfg = AgentConfig(
-            model="m1", provider=self._provider(), mcp_servers={"default": mcp}
-        )
-        assert "default" in cfg.mcp_servers
+        mcp = MCPServerConfig(name="default", command="node")
+        cfg = AgentConfig(model="m1", provider=self._provider(), mcp_servers=[mcp])
+        assert cfg.mcp_servers is not None
+        assert len(cfg.mcp_servers) == 1
+        assert cfg.mcp_servers[0].name == "default"
 
     def test_guard_rules_path(self, tmp_path: Path):
         rules = tmp_path / "rules.yaml"

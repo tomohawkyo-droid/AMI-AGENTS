@@ -192,17 +192,17 @@ class TestProcessService:
             compose_file="dc.yml",
             compose_profiles=["web", "api"],
         )
-        containers = {
-            "w": _container(
+        containers = [
+            _container(
                 "w", labels={"com.docker.compose.project.config_files": "/p/dc.yml"}
             ),
-            "a": _container(
+            _container(
                 "a", labels={"com.docker.compose.project.config_files": "/p/dc.yml"}
             ),
-            "x": _container(
+            _container(
                 "x", labels={"com.docker.compose.project.config_files": "other.yml"}
             ),
-        }
+        ]
         processed: set[str] = set()
         info = _process_service(svc, containers, processed)
         assert info.row_type == "Unified Stack"
@@ -212,38 +212,38 @@ class TestProcessService:
 
     def test_compose_default_profile(self):
         svc = SystemdService(name="s", compose_file="dc.yml", compose_profiles=[])
-        info = _process_service(svc, {}, set())
+        info = _process_service(svc, [], set())
         assert "Profiles: default" in info.row_details
 
     def test_container_wrapper(self):
         svc = SystemdService(name="ami-redis.service", managed_container="redis")
         processed: set[str] = set()
-        info = _process_service(svc, {"redis": _container("redis")}, processed)
+        info = _process_service(svc, [_container("redis")], processed)
         assert info.row_type == "Container Wrapper"
         assert "redis" in processed
         assert len(info.child_items) == 1
 
     def test_container_wrapper_missing(self):
         svc = SystemdService(name="s", managed_container="gone")
-        info = _process_service(svc, {}, set())
+        info = _process_service(svc, [], set())
         assert info.row_type == "Container Wrapper"
         assert info.child_items == []
 
     def test_local_process_with_ports(self):
         svc = SystemdService(name="s", pid="5678")
         with patch(SYS_PORTS, return_value=["8080", "9090"]):
-            info = _process_service(svc, {}, set())
+            info = _process_service(svc, [], set())
         assert info.row_type == "Local Process"
         assert info.ports_str == "8080, 9090"
 
     def test_local_process_no_ports(self):
         svc = SystemdService(name="s", pid="5678")
         with patch(SYS_PORTS, return_value=[]):
-            info = _process_service(svc, {}, set())
+            info = _process_service(svc, [], set())
         assert info.ports_str == ""
 
     def test_local_process_pid_zero(self):
         svc = SystemdService(name="s", pid="0")
-        info = _process_service(svc, {}, set())
+        info = _process_service(svc, [], set())
         assert info.row_type == "Local Process"
         assert info.ports_str == ""

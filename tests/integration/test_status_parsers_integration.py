@@ -89,6 +89,14 @@ class TestParsePortMapping:
 # ---------------------------------------------------------------------------
 
 
+def _find_stat_by_name(stats, name):
+    """Find a stat entry by container name."""
+    for s in stats:
+        if s["name"] == name:
+            return s
+    return None
+
+
 class TestGetContainerStats:
     """Test get_container_stats with mocked run_cmd."""
 
@@ -103,22 +111,24 @@ class TestGetContainerStats:
             "ami.cli_components.status_containers.run_cmd", return_value=mock_data
         ):
             stats = get_container_stats()
-        assert "web" in stats
-        assert stats["web"]["cpu"] == "5%"
-        assert "db" in stats
-        assert stats["db"]["mem_usage"] == "500MB"
+        web = _find_stat_by_name(stats, "web")
+        db = _find_stat_by_name(stats, "db")
+        assert web is not None
+        assert web["cpu"] == "5%"
+        assert db is not None
+        assert db["mem_usage"] == "500MB"
 
     def test_empty_output(self):
         with patch("ami.cli_components.status_containers.run_cmd", return_value=""):
             stats = get_container_stats()
-        assert stats == {}
+        assert stats == []
 
     def test_invalid_json(self):
         with patch(
             "ami.cli_components.status_containers.run_cmd", return_value="not json"
         ):
             stats = get_container_stats()
-        assert stats == {}
+        assert stats == []
 
     def test_alt_key_names(self):
         mock_data = json.dumps(
@@ -135,13 +145,22 @@ class TestGetContainerStats:
             "ami.cli_components.status_containers.run_cmd", return_value=mock_data
         ):
             stats = get_container_stats()
-        assert "alt" in stats
-        assert stats["alt"]["cpu"] == "3%"
+        alt = _find_stat_by_name(stats, "alt")
+        assert alt is not None
+        assert alt["cpu"] == "3%"
 
 
 # ---------------------------------------------------------------------------
 # Container sizes parsing
 # ---------------------------------------------------------------------------
+
+
+def _find_size_by_name(sizes, name):
+    """Find a size entry by container name."""
+    for s in sizes:
+        if s["name"] == name:
+            return s
+    return None
 
 
 class TestGetContainerSizes:
@@ -151,20 +170,23 @@ class TestGetContainerSizes:
         raw = "web\t22kB (virtual 198MB)\ndb\t100kB (virtual 500MB)"
         with patch("ami.cli_components.status_containers.run_cmd", return_value=raw):
             sizes = get_container_sizes()
-        assert "web" in sizes
-        assert sizes["web"]["writable"] == "22kB"
-        assert sizes["web"]["virtual"] == "198MB"
+        web = _find_size_by_name(sizes, "web")
+        assert web is not None
+        assert web["writable"] == "22kB"
+        assert web["virtual"] == "198MB"
 
     def test_no_virtual(self):
         raw = "app\t50kB"
         with patch("ami.cli_components.status_containers.run_cmd", return_value=raw):
             sizes = get_container_sizes()
-        assert sizes["app"]["writable"] == "50kB"
+        app = _find_size_by_name(sizes, "app")
+        assert app is not None
+        assert app["writable"] == "50kB"
 
     def test_empty_output(self):
         with patch("ami.cli_components.status_containers.run_cmd", return_value=""):
             sizes = get_container_sizes()
-        assert sizes == {}
+        assert sizes == []
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +211,9 @@ class TestParseSystemdDetails:
 
     def test_empty_input(self):
         result = _parse_systemd_details("")
-        assert result == {}
+        # Empty input returns defaults (empty strings for all fields)
+        assert result["Id"] == ""
+        assert result["ActiveState"] == ""
 
 
 # ---------------------------------------------------------------------------
@@ -242,14 +266,14 @@ class TestProcessService:
             compose_file="docker-compose.yml",
             compose_profiles=["web"],
         )
-        containers = {
-            "web": self._make_container(
+        containers = [
+            self._make_container(
                 "web",
                 labels={
                     "com.docker.compose.project.config_files": "docker-compose.yml"
                 },
             )
-        }
+        ]
         processed: set[str] = set()
         info = _process_service(svc, containers, processed)
         assert info.row_type == "Unified Stack"
@@ -261,7 +285,7 @@ class TestProcessService:
             name="ami-myapp.service",
             managed_container="myapp",
         )
-        containers = {"myapp": self._make_container("myapp")}
+        containers = [self._make_container("myapp")]
         processed: set[str] = set()
         info = _process_service(svc, containers, processed)
         assert info.row_type == "Container Wrapper"
@@ -269,7 +293,7 @@ class TestProcessService:
 
     def test_local_process(self):
         svc = SystemdService(name="ami-worker.service", pid="0")
-        info = _process_service(svc, {}, set())
+        info = _process_service(svc, [], set())
         assert info.row_type == "Local Process"
 
 
