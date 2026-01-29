@@ -208,19 +208,19 @@ class TestCreateArchive:
 
     @pytest.mark.asyncio
     async def test_create_archive_tar_fails(self):
-        """Test archive creation fails when tar returns error."""
+        """Test archive creation fails when tar returns fatal error (exit code 2)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             source_dir = Path(tmpdir) / "source"
             source_dir.mkdir()
             (source_dir / "file.txt").write_text("content")
 
             mock_proc = MagicMock()
-            mock_proc.returncode = 1
+            mock_proc.returncode = 2  # TAR_FATAL_ERROR
             mock_proc.communicate = AsyncMock(return_value=(b"", b"tar error"))
 
             with patch(
                 "asyncio.create_subprocess_exec",
-                return_value=mock_proc,
+                AsyncMock(return_value=mock_proc),
             ):
                 with pytest.raises(ArchiveError) as exc_info:
                     await create_archive(source_dir)
@@ -240,7 +240,9 @@ class TestCreateArchive:
             mock_proc.communicate = AsyncMock(return_value=(b"tar data", b""))
 
             with (
-                patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+                patch(
+                    "asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)
+                ),
                 patch(
                     "zstandard.ZstdCompressor.compress",
                     side_effect=Exception("Compression error"),
