@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 from ami.scripts.bootstrap_components import Component, ComponentType
 from ami.scripts.bootstrap_installer import (
+    InstallationResult,
+    MenuBuildResult,
     _print_summary,
     _run_installation,
     main,
@@ -115,7 +117,7 @@ class TestMain:
         """Test exits when user cancels confirmation."""
         mock_stdin.isatty.return_value = True
         mock_scan.return_value = {}
-        mock_build.return_value = ([], set())
+        mock_build.return_value = MenuBuildResult([], set())
 
         # Create mock selected items with actual component values
         comp = Component(
@@ -150,7 +152,7 @@ class TestMain:
         """Test exits when user selects nothing."""
         mock_stdin.isatty.return_value = True
         mock_scan.return_value = {}
-        mock_build.return_value = ([], set())
+        mock_build.return_value = MenuBuildResult([], set())
         mock_multi.return_value = []
 
         result = main()
@@ -173,7 +175,7 @@ class TestMain:
         """Test runs installation when user confirms."""
         mock_stdin.isatty.return_value = True
         mock_scan.return_value = {}
-        mock_build.return_value = ([], set())
+        mock_build.return_value = MenuBuildResult([], set())
 
         comp = Component(
             name="test",
@@ -194,7 +196,7 @@ class TestMain:
             ),
             patch(
                 "ami.scripts.bootstrap_installer._run_installation",
-                return_value=(1, []),
+                return_value=InstallationResult(1, []),
             ) as mock_install,
             patch(
                 "ami.scripts.bootstrap_installer._print_summary",

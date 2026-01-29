@@ -196,10 +196,10 @@ class TestParseSystemdDetails:
 
     def test_handles_empty_values(self):
         """Test handling empty values."""
-        raw = "Key1=\nKey2=value2"
+        raw = "ExecStart=\nRestart=always"
         result = _parse_systemd_details(raw)
-        assert result["Key1"] == ""
-        assert result["Key2"] == "value2"
+        assert result["ExecStart"] == ""
+        assert result["Restart"] == "always"
 
     def test_handles_values_with_equals(self):
         """Test handling values containing equals sign."""
