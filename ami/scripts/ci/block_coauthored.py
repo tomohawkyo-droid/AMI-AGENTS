@@ -6,7 +6,51 @@ from typing import Any
 import yaml
 
 DEFAULT_CONFIG = {
-    "forbidden_patterns": ["Co-authored-by:", "co-authored-by"],
+    "forbidden_patterns": [
+        # Standard variations
+        "Co-authored-by:",
+        "Co-Authored-By:",
+        "Co-Authored-by:",
+        "Co-authored-By:",
+        "co-authored-by:",
+        "CO-AUTHORED-BY:",
+        # Without colon
+        "Co-authored-by",
+        "Co-Authored-By",
+        "Co-Authored-by",
+        "Co-authored-By",
+        "co-authored-by",
+        "CO-AUTHORED-BY",
+        # Underscore variations
+        "Co_authored_by:",
+        "Co_Authored_By:",
+        "co_authored_by:",
+        "Co_authored_by",
+        "Co_Authored_By",
+        "co_authored_by",
+        # No hyphen/underscore
+        "Coauthoredby:",
+        "CoAuthoredBy:",
+        "coauthoredby:",
+        "Coauthoredby",
+        "CoAuthoredBy",
+        "coauthoredby",
+        # Space variations
+        "Co authored by:",
+        "Co Authored By:",
+        "co authored by:",
+        "Co authored by",
+        "Co Authored By",
+        "co authored by",
+        # Common misspellings
+        "Co-author-by:",
+        "Co-Author-By:",
+        "Coauthor-by:",
+        "CoAuthor-By:",
+        # Anthropic signature
+        "noreply@anthropic.com",
+        "Claude",
+    ],
     "error_message": "FAILED: Co-authored commits are forbidden in this repository.",
 }
 
