@@ -7,6 +7,7 @@ Handles command line argument parsing and execution.
 import argparse
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 from loguru import logger
 
@@ -14,6 +15,14 @@ from ami.scripts.backup.core.config import BackupRestoreConfig
 from ami.scripts.backup.restore.drive_client import DriveFileMetadata
 from ami.scripts.backup.restore.selector import select_backup_interactive
 from ami.scripts.backup.restore.service import BackupRestoreService
+
+
+class RestoreExecuteResult(NamedTuple):
+    """Result from executing a restore operation."""
+
+    success: bool
+    handled: bool
+
 
 # Size constants for human-readable formatting
 BYTES_PER_KB = 1024
@@ -294,8 +303,8 @@ Examples:
 
     async def _execute_restore(
         self, args: argparse.Namespace, restore_path: Path, config: BackupRestoreConfig
-    ) -> tuple[bool, bool]:
-        """Execute the appropriate restore operation. Returns (success, handled)."""
+    ) -> RestoreExecuteResult:
+        """Execute the appropriate restore operation."""
         # Handle modes that don't support selective restoration
         if args.latest_local or args.interactive:
             if args.paths:
@@ -308,20 +317,24 @@ Examples:
             else:
                 logger.info("Starting interactive backup selection")
                 result = await self.run_interactive_selection(config, restore_path)
-            return result, True
+            return RestoreExecuteResult(success=result, handled=True)
 
         # Handle modes that support selective restoration
         if args.file_id:
-            return await self._restore_from_file_id(args, restore_path, config), True
+            success = await self._restore_from_file_id(args, restore_path, config)
+            return RestoreExecuteResult(success=success, handled=True)
         if args.local_path:
-            return await self._restore_from_local_path(args, restore_path), True
+            success = await self._restore_from_local_path(args, restore_path)
+            return RestoreExecuteResult(success=success, handled=True)
         if args.revision is not None:
-            return await self._restore_from_revision(args, restore_path, config), True
+            success = await self._restore_from_revision(args, restore_path, config)
+            return RestoreExecuteResult(success=success, handled=True)
         if args.list_revisions:
             logger.info("Listing available backup revisions")
-            return await self.run_list_revisions(config), True
+            success = await self.run_list_revisions(config)
+            return RestoreExecuteResult(success=success, handled=True)
 
-        return False, False
+        return RestoreExecuteResult(success=False, handled=False)
 
     def _log_success(self, restore_path: Path, paths: list[Path] | None) -> None:
         """Log successful restore completion."""
@@ -345,7 +358,7 @@ Examples:
             return 1
 
         try:
-            success, handled = await self._execute_restore(args, restore_path, config)
+            execute_result = await self._execute_restore(args, restore_path, config)
         except KeyboardInterrupt:
             logger.info("\nOperation cancelled by user")
             return 1
@@ -353,7 +366,7 @@ Examples:
             logger.error(f"Restore failed with error: {e}")
             return 1
 
-        if not handled:
+        if not execute_result.handled:
             if args.paths:
                 logger.error(
                     "Paths specified but no source. "
@@ -363,7 +376,7 @@ Examples:
                 self.create_parser().print_help()
             return 1
 
-        if success:
+        if execute_result.success:
             self._log_success(restore_path, args.paths)
             return 0
 

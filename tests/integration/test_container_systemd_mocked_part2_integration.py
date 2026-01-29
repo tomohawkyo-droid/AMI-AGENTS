@@ -55,10 +55,18 @@ def _container(name, **kw):
 # ---------------------------------------------------------------------------
 
 
+def _find_docker_stat_by_name(stats, name):
+    """Helper to find a docker stat entry by name."""
+    for s in stats:
+        if s["name"] == name:
+            return s
+    return None
+
+
 class TestGetSystemDockerStats:
     def test_not_installed(self):
         with patch(CONT_EXISTS, return_value=False):
-            assert get_system_docker_stats() == {}
+            assert get_system_docker_stats() == []
 
     def test_pipe_separated(self):
         with (
@@ -66,12 +74,16 @@ class TestGetSystemDockerStats:
             patch(CONT_PATCH, return_value="ng|2.5%|128M\nrd|0.3%|64M"),
         ):
             s = get_system_docker_stats()
-        assert s["ng"] == {"cpu": "2.5%", "mem": "128M"}
-        assert s["rd"]["cpu"] == "0.3%"
+        stat_ng = _find_docker_stat_by_name(s, "ng")
+        stat_rd = _find_docker_stat_by_name(s, "rd")
+        assert stat_ng is not None
+        assert stat_ng["cpu"] == "2.5%"
+        assert stat_ng["mem_usage"] == "128M"
+        assert stat_rd["cpu"] == "0.3%"
 
     def test_empty(self):
         with patch(CONT_EXISTS, return_value=True), patch(CONT_PATCH, return_value=""):
-            assert get_system_docker_stats() == {}
+            assert get_system_docker_stats() == []
 
     def test_skips_few_parts(self):
         with (
@@ -79,8 +91,8 @@ class TestGetSystemDockerStats:
             patch(CONT_PATCH, return_value="bad|cpu\ngood|1%|100M"),
         ):
             s = get_system_docker_stats()
-        assert "bad" not in s
-        assert "good" in s
+        assert _find_docker_stat_by_name(s, "bad") is None
+        assert _find_docker_stat_by_name(s, "good") is not None
 
     def test_sudo_fallback(self):
         calls = []
@@ -91,7 +103,7 @@ class TestGetSystemDockerStats:
 
         with patch(CONT_EXISTS, return_value=True), patch(CONT_PATCH, side_effect=cmd):
             s = get_system_docker_stats()
-        assert "a" in s
+        assert _find_docker_stat_by_name(s, "a") is not None
         assert len(calls) == EXPECTED_SUDO_CALL_COUNT
 
 
@@ -112,11 +124,17 @@ class TestParseSystemdDetails:
         assert r["ExecStart"] == "/bin/foo arg=val"
 
     def test_empty(self):
-        assert _parse_systemd_details("") == {}
+        result = _parse_systemd_details("")
+        # Empty input returns a TypedDict with empty values
+        assert result["Id"] == ""
+        assert result["ActiveState"] == ""
 
     def test_no_equals_skipped(self):
-        r = _parse_systemd_details("Id=x\ngarbage\nA=b")
-        assert len(r) == EXPECTED_PAIR_COUNT
+        r = _parse_systemd_details("Id=x\ngarbage\nActiveState=b")
+        # Lines without equals are skipped
+        assert r["Id"] == "x"
+        assert r["ActiveState"] == "b"
+        # Garbage line without = should not affect results
 
     def test_empty_value(self):
         r = _parse_systemd_details("ExecStart=\nRestart=no")

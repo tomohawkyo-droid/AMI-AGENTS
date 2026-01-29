@@ -1,6 +1,7 @@
 """Unit tests for core/logic module."""
 
 from pathlib import Path
+from typing import TypedDict, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -26,6 +27,31 @@ from ami.core.logic import (
 EXPECTED_JSON_NUM_VALUE = 42
 EXPECTED_JSON_FLOAT_VALUE = 3.14
 EXPECTED_MIN_CODE_FENCE_LINES_VALUE = 2
+
+
+class JsonResult(TypedDict, total=False):
+    """Generic JSON result for tests."""
+
+    key: str
+    data: object
+    outer: object
+    str: str
+    num: int
+    float: float
+    bool: bool
+    null: None
+
+
+class NestedJson(TypedDict):
+    """Nested JSON result for tests."""
+
+    inner: str
+
+
+class OuterJson(TypedDict):
+    """Outer JSON result for tests."""
+
+    outer: NestedJson
 
 
 class TestTypedDicts:
@@ -209,6 +235,7 @@ class TestParseCompletionMarker:
         result = parse_completion_marker(output)
 
         assert result["type"] == "feedback"
+        assert result["content"] is not None
         assert "Need more information" in result["content"]
 
     def test_feedback_multiline(self) -> None:
@@ -219,6 +246,7 @@ Third line"""
         result = parse_completion_marker(output)
 
         assert result["type"] == "feedback"
+        assert result["content"] is not None
         assert "First line" in result["content"]
 
     def test_no_marker(self) -> None:
@@ -247,6 +275,7 @@ class TestParseModeratorResult:
         result = parse_moderator_result(output)
 
         assert result["status"] == "fail"
+        assert result["reason"] is not None
         assert "Security issue" in result["reason"]
 
     def test_unclear_result(self) -> None:
@@ -255,6 +284,7 @@ class TestParseModeratorResult:
         result = parse_moderator_result(output)
 
         assert result["status"] == "fail"
+        assert result["reason"] is not None
         assert "unclear" in result["reason"].lower()
 
 
@@ -266,32 +296,32 @@ class TestParseJsonBlock:
         output = """```json
 {"key": "value"}
 ```"""
-        result = parse_json_block(output)
+        result = cast(JsonResult, parse_json_block(output))
         assert result["key"] == "value"
 
     def test_parse_plain_json(self) -> None:
         """Test parsing plain JSON."""
         output = '{"key": "value"}'
-        result = parse_json_block(output)
+        result = cast(JsonResult, parse_json_block(output))
         assert result["key"] == "value"
 
     def test_parse_json_with_text_prefix(self) -> None:
         """Test parsing JSON with text before it."""
         output = 'Here is the result: {"key": "value"}'
-        result = parse_json_block(output)
+        result = cast(JsonResult, parse_json_block(output))
         assert result["key"] == "value"
 
     def test_parse_json_array(self) -> None:
         """Test parsing JSON array returns wrapped dict."""
         output = '["a", "b", "c"]'
-        result = parse_json_block(output)
+        result = cast(JsonResult, parse_json_block(output))
         assert "data" in result
         assert result["data"] == ["a", "b", "c"]
 
     def test_parse_nested_json(self) -> None:
         """Test parsing nested JSON."""
         output = '{"outer": {"inner": "value"}}'
-        result = parse_json_block(output)
+        result = cast(OuterJson, parse_json_block(output))
         assert result["outer"]["inner"] == "value"
 
     def test_invalid_json_raises_error(self) -> None:
@@ -303,7 +333,7 @@ class TestParseJsonBlock:
     def test_json_with_various_types(self) -> None:
         """Test parsing JSON with various types."""
         output = '{"str": "text", "num": 42, "float": 3.14, "bool": true, "null": null}'
-        result = parse_json_block(output)
+        result = cast(JsonResult, parse_json_block(output))
         assert result["str"] == "text"
         assert result["num"] == EXPECTED_JSON_NUM_VALUE
         assert result["float"] == EXPECTED_JSON_FLOAT_VALUE

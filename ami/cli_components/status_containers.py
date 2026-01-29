@@ -4,6 +4,7 @@
 import json
 import os
 import re
+from typing import cast
 
 from ami.cli_components.status_utils import (
     C_DIM,
@@ -25,10 +26,18 @@ from ami.cli_components.status_utils import (
     run_cmd,
 )
 from ami.cli_components.text_input_utils import Colors
+from ami.types.common import (
+    ContainerLabels,
+    ContainerSizeData,
+    ContainerStatsData,
+    PortData,
+    VolumeData,
+)
+from ami.types.results import ContainerInspectInfo
 from ami.types.status import PodmanContainer, PortMapping
 
 
-def _parse_port_mapping(port_data: dict[str, str | int]) -> PortMapping:
+def _parse_port_mapping(port_data: PortData) -> PortMapping:
     """Parse a port mapping from JSON data."""
     host_port = (
         port_data.get("hostPort")
@@ -43,41 +52,39 @@ def _parse_port_mapping(port_data: dict[str, str | int]) -> PortMapping:
     proto = port_data.get("protocol") or port_data.get("Protocol") or "tcp"
 
     return PortMapping(
-        host_port=int(host_port) if host_port else None,
-        container_port=int(container_port) if container_port else None,
+        hostPort=int(host_port) if host_port else None,
+        containerPort=int(container_port) if container_port else None,
         protocol=str(proto),
     )
 
 
-def _get_container_inspect_info(
-    name: str, podman_bin: str
-) -> tuple[list[PortMapping], dict[str, str]]:
+def _get_container_inspect_info(name: str, podman_bin: str) -> ContainerInspectInfo:
     """Get exposed ports and labels from container inspect data."""
     inspect_raw = run_cmd(f"{podman_bin} inspect {name} --format json")
     exposed_ports: list[PortMapping] = []
-    labels: dict[str, str] = {}
+    labels = cast(ContainerLabels, {})
     if not inspect_raw:
-        return exposed_ports, labels
+        return ContainerInspectInfo(exposed_ports, labels)
     try:
         inspect_data = json.loads(inspect_raw)
         if not inspect_data:
-            return exposed_ports, labels
+            return ContainerInspectInfo(exposed_ports, labels)
         config = inspect_data[0].get("Config", {})
-        labels = config.get("Labels", {}) or {}
+        labels = cast(ContainerLabels, config.get("Labels", {}) or {})
         exp = config.get("ExposedPorts") or {}
         for p in exp:
             port_num, proto = p.split("/")
             exposed_ports.append(
-                PortMapping(container_port=int(port_num), protocol=proto)
+                PortMapping(containerPort=int(port_num), protocol=proto)
             )
     except Exception:
         pass
-    return exposed_ports, labels
+    return ContainerInspectInfo(exposed_ports, labels)
 
 
-def get_container_stats() -> dict[str, dict[str, str]]:
+def get_container_stats() -> list[ContainerStatsData]:
     """Get CPU/memory stats for all running containers."""
-    stats: dict[str, dict[str, str]] = {}
+    stats: list[ContainerStatsData] = []
     raw = run_cmd("podman stats --no-stream --format json")
     if not raw:
         return stats
@@ -87,19 +94,22 @@ def get_container_stats() -> dict[str, dict[str, str]]:
             name = entry.get("Name", entry.get("name", ""))
             if not name:
                 continue
-            stats[name] = {
-                "cpu": entry.get("CPU", entry.get("cpu_percent", "0%")),
-                "mem_usage": entry.get("MemUsage", entry.get("mem_usage", "")),
-                "mem_percent": entry.get("MemPerc", entry.get("mem_percent", "0%")),
-            }
+            stats.append(
+                ContainerStatsData(
+                    name=name,
+                    cpu=entry.get("CPU", entry.get("cpu_percent", "0%")),
+                    mem_usage=entry.get("MemUsage", entry.get("mem_usage", "")),
+                    mem_percent=entry.get("MemPerc", entry.get("mem_percent", "0%")),
+                )
+            )
     except (json.JSONDecodeError, KeyError):
         pass
     return stats
 
 
-def get_container_sizes() -> dict[str, dict[str, str]]:
+def get_container_sizes() -> list[ContainerSizeData]:
     """Get disk sizes for all containers."""
-    sizes: dict[str, dict[str, str]] = {}
+    sizes: list[ContainerSizeData] = []
     # Format: "name\twritable (virtual total)"
     raw = run_cmd('podman ps -a --size --format "{{.Names}}\t{{.Size}}"')
     if not raw:
@@ -120,13 +130,13 @@ def get_container_sizes() -> dict[str, dict[str, str]]:
                 virtual = virtual_match[1].rstrip(")")
         else:
             writable = size_str.strip()
-        sizes[name] = {"writable": writable, "virtual": virtual}
+        sizes.append(ContainerSizeData(name=name, writable=writable, virtual=virtual))
     return sizes
 
 
-def get_container_volumes(name: str) -> list[dict[str, str]]:
+def get_container_volumes(name: str) -> list[VolumeData]:
     """Get volume mounts for a container."""
-    volumes: list[dict[str, str]] = []
+    volumes: list[VolumeData] = []
     raw = run_cmd(f"podman inspect {name} --format json")
     if not raw:
         return volumes
@@ -157,38 +167,32 @@ def get_container_volumes(name: str) -> list[dict[str, str]]:
             # Format size
             size_str = format_bytes(size_bytes)
 
-            volumes.append(
-                {
-                    "dst": dst,
-                    "src": src,
-                    "type": vol_type,
-                    "size": size_str,
-                }
-            )
+            volumes.append(VolumeData(dst=dst, src=src, type=vol_type, size=size_str))
     except (json.JSONDecodeError, KeyError):
         pass
     return volumes
 
 
-def get_podman_containers() -> dict[str, PodmanContainer]:
+def get_podman_containers() -> list[PodmanContainer]:
     """Get podman containers information."""
     podman_bin = "podman"
     raw = run_cmd(f"{podman_bin} ps -a --format json")
     if not raw:
-        return {}
+        return []
     try:
         data = json.loads(raw)
-        containers: dict[str, PodmanContainer] = {}
+        containers: list[PodmanContainer] = []
         for c in data:
             names = c.get("Names", [])
             name = names[0] if names else c.get("Id")[:12]
 
-            exposed_ports, labels = _get_container_inspect_info(name, podman_bin)
+            inspect_info = _get_container_inspect_info(name, podman_bin)
+            exposed_ports, labels = inspect_info.ports, inspect_info.labels
 
             # Parse ports from container data
             raw_ports = c.get("Ports") or []
             parsed_ports = [
-                _parse_port_mapping(port_info)
+                _parse_port_mapping(cast(PortData, port_info))
                 for port_info in raw_ports
                 if isinstance(port_info, dict)
             ]
@@ -196,25 +200,27 @@ def get_podman_containers() -> dict[str, PodmanContainer]:
             # Use raw ports if available, otherwise use exposed ports
             final_ports = parsed_ports if parsed_ports else exposed_ports
 
-            containers[name] = PodmanContainer(
-                id=c.get("Id", "")[:12],
-                name=name,
-                state=c.get("State", ""),
-                status=c.get("Status", ""),
-                ports=final_ports,
-                image=c.get("Image", ""),
-                labels=labels,
+            containers.append(
+                PodmanContainer(
+                    id=c.get("Id", "")[:12],
+                    name=name,
+                    state=c.get("State", ""),
+                    status=c.get("Status", ""),
+                    ports=final_ports,
+                    image=c.get("Image", ""),
+                    labels={k: str(v) for k, v in labels.items()},
+                )
             )
     except Exception:
-        return {}
+        return []
     else:
         return containers
 
 
-def get_system_docker_containers() -> dict[str, PodmanContainer]:
+def get_system_docker_containers() -> list[PodmanContainer]:
     """Get system Docker containers using /usr/bin/docker."""
     if not os.path.exists(SYSTEM_DOCKER_BIN):
-        return {}
+        return []
 
     # Try without sudo first (user may be in docker group)
     raw = run_cmd(f"{SYSTEM_DOCKER_BIN} ps -a --format json 2>/dev/null")
@@ -222,9 +228,9 @@ def get_system_docker_containers() -> dict[str, PodmanContainer]:
         # Fall back to sudo
         raw = run_cmd(f"sudo {SYSTEM_DOCKER_BIN} ps -a --format json 2>/dev/null")
     if not raw:
-        return {}
+        return []
 
-    containers: dict[str, PodmanContainer] = {}
+    containers: list[PodmanContainer] = []
     try:
         # Docker outputs one JSON object per line, not an array
         for line in raw.strip().split("\n"):
@@ -242,30 +248,32 @@ def get_system_docker_containers() -> dict[str, PodmanContainer]:
                     if match:
                         parsed_ports.append(
                             PortMapping(
-                                host_port=int(match.group(1)),
-                                container_port=int(match.group(2)),
+                                hostPort=int(match.group(1)),
+                                containerPort=int(match.group(2)),
                                 protocol=match.group(3),
                             )
                         )
 
-            containers[name] = PodmanContainer(
-                id=c.get("ID", "")[:12],
-                name=name,
-                state=c.get("State", ""),
-                status=c.get("Status", ""),
-                ports=parsed_ports,
-                image=c.get("Image", ""),
-                labels={},
+            containers.append(
+                PodmanContainer(
+                    id=c.get("ID", "")[:12],
+                    name=name,
+                    state=c.get("State", ""),
+                    status=c.get("Status", ""),
+                    ports=parsed_ports,
+                    image=c.get("Image", ""),
+                    labels={},
+                )
             )
     except (json.JSONDecodeError, KeyError):
-        return {}
+        return []
     return containers
 
 
-def get_system_docker_stats() -> dict[str, dict[str, str]]:
+def get_system_docker_stats() -> list[ContainerStatsData]:
     """Get CPU/memory stats for system Docker containers."""
     if not os.path.exists(SYSTEM_DOCKER_BIN):
-        return {}
+        return []
 
     # Try without sudo first (user may be in docker group)
     raw = run_cmd(
@@ -279,26 +287,49 @@ def get_system_docker_stats() -> dict[str, dict[str, str]]:
             "'{{{{.Name}}}}|{{{{.CPUPerc}}}}|{{{{.MemUsage}}}}' 2>/dev/null"
         )
     if not raw:
-        return {}
+        return []
 
-    stats: dict[str, dict[str, str]] = {}
+    stats: list[ContainerStatsData] = []
     for line in raw.strip().split("\n"):
         if not line.strip():
             continue
         parts = line.split("|")
         if len(parts) >= MIN_STATS_PARTS:
-            name = parts[0]
-            stats[name] = {
-                "cpu": parts[1],
-                "mem": parts[2],
-            }
+            stats.append(
+                ContainerStatsData(
+                    name=parts[0],
+                    cpu=parts[1],
+                    mem_usage=parts[2],
+                    mem_percent="",
+                )
+            )
     return stats
+
+
+def _find_stats_by_name(
+    stats_list: list[ContainerStatsData], name: str
+) -> ContainerStatsData | None:
+    """Find stats entry by container name."""
+    for s in stats_list:
+        if s["name"] == name:
+            return s
+    return None
+
+
+def _find_size_by_name(
+    sizes_list: list[ContainerSizeData], name: str
+) -> ContainerSizeData | None:
+    """Find size entry by container name."""
+    for s in sizes_list:
+        if s["name"] == name:
+            return s
+    return None
 
 
 def _print_service_children(
     child_items: list[PodmanContainer],
-    container_stats: dict[str, dict[str, str]],
-    container_sizes: dict[str, dict[str, str]],
+    container_stats: list[ContainerStatsData],
+    container_sizes: list[ContainerSizeData],
 ) -> None:
     """Print child containers for a service."""
     if not child_items:
@@ -315,14 +346,14 @@ def _print_service_children(
             print_box_line(f"   │  Net: {c_ports}", DISPLAY_WIDTH)
 
         # Show CPU/memory stats if running
-        stats = container_stats.get(c.name, {})
+        stats = _find_stats_by_name(container_stats, c.name)
         if stats and c.state == "running":
             cpu = stats.get("cpu", "-")
             mem = stats.get("mem_usage", "-")
             print_box_line(f"   │  {I_CPU} {cpu}  {I_MEM} {mem}", DISPLAY_WIDTH)
 
         # Show disk size
-        sizes = container_sizes.get(c.name, {})
+        sizes = _find_size_by_name(container_sizes, c.name)
         if sizes:
             virtual = sizes.get("virtual", "-")
             writable = sizes.get("writable", "-")
@@ -340,14 +371,14 @@ def _print_service_children(
 
 
 def _print_orphans(
-    containers: dict[str, PodmanContainer],
+    containers: list[PodmanContainer],
     processed_containers: set[str],
 ) -> None:
     """Print unmanaged (orphan) containers."""
     orphans = [
         c
-        for name, c in containers.items()
-        if name not in processed_containers and not name.startswith("run-")
+        for c in containers
+        if c.name not in processed_containers and not c.name.startswith("run-")
     ]
     if not orphans:
         return
@@ -405,10 +436,10 @@ def _print_system_docker_section() -> None:
         print_box_line("", DISPLAY_WIDTH)
         return
 
-    for name, c in sorted(containers.items()):
+    for c in sorted(containers, key=lambda x: x.name):
         status_icon, state_color = _get_container_status_display(c.state)
 
-        name_part = f"{Colors.BOLD}{name}{Colors.RESET}"
+        name_part = f"{Colors.BOLD}{c.name}{Colors.RESET}"
         state_part = f"[{state_color}{c.state}{Colors.RESET}]"
         print_box_line(f"   {status_icon} {name_part} {state_part}", DISPLAY_WIDTH)
         print_box_line(f"      Img: {c.image}", DISPLAY_WIDTH)
@@ -417,9 +448,10 @@ def _print_system_docker_section() -> None:
             port_strs = [_format_port_string(p) for p in c.ports]
             print_box_line(f"      Net: {', '.join(port_strs)}", DISPLAY_WIDTH)
 
-        if name in stats:
-            cpu = stats[name].get("cpu", "-")
-            mem = stats[name].get("mem", "-")
+        container_stats = _find_stats_by_name(stats, c.name)
+        if container_stats:
+            cpu = container_stats.get("cpu", "-")
+            mem = container_stats.get("mem_usage", "-")
             print_box_line(f"      {I_CPU} {cpu}  {I_MEM} {mem}", DISPLAY_WIDTH)
 
     print_box_line("", DISPLAY_WIDTH)

@@ -12,11 +12,12 @@ from ami.core.logic import (
     load_communication_patterns,
     load_sensitive_patterns,
 )
+from ami.types.results import SafetyCheckResult
 
 
 def check_command_safety(
     command: str, guard_rules_path: Path | None = None
-) -> tuple[bool, str]:
+) -> SafetyCheckResult:
     """
     Check if a bash command violates security patterns.
     """
@@ -27,7 +28,9 @@ def check_command_safety(
         message = pattern_config.get("message", "Pattern violation detected")
 
         if re.search(pattern, command):
-            return False, f"SECURITY VIOLATION: {message} (Pattern: {pattern})"
+            return SafetyCheckResult(
+                False, f"SECURITY VIOLATION: {message} (Pattern: {pattern})"
+            )
 
     # Additional check for edit safety on risky commands
     risky_edit_cmds = [
@@ -42,10 +45,10 @@ def check_command_safety(
     if any(re.search(p, command) for p in risky_edit_cmds):
         return check_edit_safety(command)
 
-    return True, ""
+    return SafetyCheckResult(True, "")
 
 
-def check_edit_safety(command: str) -> tuple[bool, str]:
+def check_edit_safety(command: str) -> SafetyCheckResult:
     """
     Block edits to security-sensitive files via shell commands.
     This static check looks for sensitive files.
@@ -61,12 +64,12 @@ def check_edit_safety(command: str) -> tuple[bool, str]:
                 f"({pattern}) via shell is forbidden. "
                 "Use dedicated tools or edit manually."
             )
-            return (False, msg)
+            return SafetyCheckResult(False, msg)
 
-    return True, ""
+    return SafetyCheckResult(True, "")
 
 
-def check_content_safety(content: str) -> tuple[bool, str]:
+def check_content_safety(content: str) -> SafetyCheckResult:
     """
     Check for prohibited communication patterns in agent output.
     """
@@ -76,6 +79,6 @@ def check_content_safety(content: str) -> tuple[bool, str]:
         desc = pattern_config.get("description", "")
 
         if re.search(pattern, content, re.IGNORECASE):
-            return False, f"COMMUNICATION VIOLATION: {desc}"
+            return SafetyCheckResult(False, f"COMMUNICATION VIOLATION: {desc}")
 
-    return True, ""
+    return SafetyCheckResult(True, "")

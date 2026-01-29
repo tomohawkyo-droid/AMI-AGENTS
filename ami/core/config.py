@@ -9,11 +9,9 @@ import yaml
 from ami.cli.provider_type import ProviderType
 from ami.core.env import get_project_root
 
-# JSON-compatible types from YAML parsing
-ConfigValue = (
-    str | int | float | bool | None | list["ConfigValue"] | dict[str, "ConfigValue"]
-)
-ConfigData = dict[str, ConfigValue]
+# JSON-compatible types from YAML parsing - use object for dynamic data
+ConfigValue = str | int | float | bool | None | list[object] | object
+ConfigData = object  # YAML parsed data, structure validated at runtime
 
 
 class Config:

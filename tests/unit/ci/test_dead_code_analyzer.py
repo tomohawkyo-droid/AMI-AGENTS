@@ -2,9 +2,7 @@
 
 import ast
 import textwrap
-
-import pytest
-from pydantic import BaseModel
+from pathlib import Path
 
 from ami.scripts.ci.dead_code_analyzer import (
     CrossReferenceGraph,
@@ -31,26 +29,22 @@ def _parse(source: str) -> ast.Module:
     return ast.parse(textwrap.dedent(source))
 
 
-class DefParams(BaseModel):
-    """Parameters for constructing a Definition in tests."""
-
-    name: str = "foo"
-    kind: str = "function"
-    file: str = "a.py"
-    line: int = 1
-    is_dunder: bool = False
-    is_exported: bool = False
-
-
-def _make_def(name: str = "foo", **kwargs: object) -> Definition:
-    params = DefParams(name=name, **kwargs)
+def _make_def(
+    name: str = "foo",
+    kind: str = "function",
+    file: str = "a.py",
+    line: int = 1,
+    is_dunder: bool = False,
+    is_exported: bool = False,
+) -> Definition:
+    """Create a Definition for testing."""
     return Definition(
-        name=params.name,
-        kind=params.kind,
-        file=params.file,
-        line=params.line,
-        is_dunder=params.is_dunder,
-        is_exported=params.is_exported,
+        name=name,
+        kind=kind,
+        file=file,
+        line=line,
+        is_dunder=is_dunder,
+        is_exported=is_exported,
     )
 
 
@@ -268,7 +262,7 @@ class TestReferenceCollector:
 class TestAnalyzeModule:
     """Tests for analyze_module."""
 
-    def test_normal_file(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_normal_file(self, tmp_path: Path) -> None:
         p = tmp_path / "sample.py"
         p.write_text("def hello(): pass\nMAX = 10\n")
         info = analyze_module(str(p))
@@ -278,14 +272,14 @@ class TestAnalyzeModule:
         assert "hello" in def_names
         assert "MAX" in def_names
 
-    def test_init_file_no_definitions(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_init_file_no_definitions(self, tmp_path: Path) -> None:
         p = tmp_path / "__init__.py"
         p.write_text("def should_skip(): pass\n")
         info = analyze_module(str(p))
         assert info is not None
         assert len(info.definitions) == 0
 
-    def test_test_file_no_definitions(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_test_file_no_definitions(self, tmp_path: Path) -> None:
         p = tmp_path / "test_something.py"
         p.write_text("import os\ndef test_case(): pass\n")
         info = analyze_module(str(p))
@@ -293,14 +287,14 @@ class TestAnalyzeModule:
         assert len(info.definitions) == 0
         assert len(info.references) > 0  # references still collected
 
-    def test_conftest_no_definitions(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_conftest_no_definitions(self, tmp_path: Path) -> None:
         p = tmp_path / "conftest.py"
         p.write_text("def some_fixture(): pass\n")
         info = analyze_module(str(p))
         assert info is not None
         assert len(info.definitions) == 0
 
-    def test_syntax_error_returns_none(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_syntax_error_returns_none(self, tmp_path: Path) -> None:
         p = tmp_path / "broken.py"
         p.write_text("def ???(): pass\n")
         assert analyze_module(str(p)) is None
@@ -308,14 +302,14 @@ class TestAnalyzeModule:
     def test_missing_file_returns_none(self) -> None:
         assert analyze_module("/nonexistent/file.py") is None
 
-    def test_all_exports_extracted(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_all_exports_extracted(self, tmp_path: Path) -> None:
         p = tmp_path / "mod.py"
         p.write_text('__all__ = ["foo"]\ndef foo(): pass\n')
         info = analyze_module(str(p))
         assert info is not None
         assert info.all_exports == ["foo"]
 
-    def test_references_collected(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_references_collected(self, tmp_path: Path) -> None:
         p = tmp_path / "mod.py"
         p.write_text("import os\nx = os.path.join('a', 'b')\n")
         info = analyze_module(str(p))

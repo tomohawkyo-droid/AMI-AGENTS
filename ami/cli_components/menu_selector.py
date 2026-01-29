@@ -34,7 +34,7 @@ class MenuSelector(Generic[T]):
 
     def __init__(
         self,
-        items: list[MenuItem[T]],
+        items: list[MenuItem],
         title: str = "Menu",
         allow_multiple: bool = False,
         max_visible_items: int = 10,
@@ -50,23 +50,21 @@ class MenuSelector(Generic[T]):
         dialog_items = cast(list[DialogItem], items)
         self.dialog: SelectionDialog = SelectionDialog(dialog_items, config)
 
-    def run(self) -> list[MenuItem[T]] | None:
+    def run(self) -> list[MenuItem] | None:
         """Run the menu selector and return selected items."""
         result = self.dialog.run()
         if result is None:
             return None
         # Result items are the same MenuItem instances we passed in
         if isinstance(result, list):
-            return cast(list[MenuItem[T]], result)
-        return cast(list[MenuItem[T]], [result])
+            return cast(list[MenuItem], result)
+        return cast(list[MenuItem], [result])
 
 
 def simple_menu_select(items: list[str], title: str = "Select an option") -> str | None:
     """Simple menu selector that works with a list of strings."""
-    menu_items: list[MenuItem[str]] = [
-        MenuItem(str(i), item, item) for i, item in enumerate(items)
-    ]
-    menu: MenuSelector[str] = MenuSelector(menu_items, title, allow_multiple=False)
+    menu_items = [MenuItem(str(i), item, item) for i, item in enumerate(items)]
+    menu: MenuSelector = MenuSelector(menu_items, title, allow_multiple=False)
     result = menu.run()
     if result and len(result) > 0:
         value = result[0].value
@@ -78,10 +76,8 @@ def multi_menu_select(
     items: list[str], title: str = "Select options"
 ) -> list[str] | None:
     """Multiple selection menu selector that works with a list of strings."""
-    menu_items: list[MenuItem[str]] = [
-        MenuItem(str(i), item, item) for i, item in enumerate(items)
-    ]
-    menu: MenuSelector[str] = MenuSelector(menu_items, title, allow_multiple=True)
+    menu_items = [MenuItem(str(i), item, item) for i, item in enumerate(items)]
+    menu: MenuSelector = MenuSelector(menu_items, title, allow_multiple=True)
     result = menu.run()
     if result:
         return [str(item.value) for item in result if item.value is not None]

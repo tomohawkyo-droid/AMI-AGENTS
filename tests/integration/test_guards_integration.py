@@ -18,7 +18,7 @@ from ami.core.policies.engine import PolicyEngine, get_policy_engine
 def real_policy_engine() -> PolicyEngine:
     """Fixture that uses the real PolicyEngine with actual config files."""
     # Reset singleton to ensure fresh load
-    ami.core.policies.engine._engine = None
+    ami.core.policies.engine._singleton.clear()
     return get_policy_engine()
 
 

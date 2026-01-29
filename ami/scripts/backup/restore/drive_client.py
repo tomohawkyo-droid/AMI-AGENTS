@@ -15,6 +15,7 @@ from loguru import logger
 from ami.scripts.backup.backup_config import BackupConfig
 from ami.scripts.backup.common.auth import AuthenticationManager
 from ami.scripts.backup.common.constants import DEFAULT_BACKUP_PATTERN
+from ami.types.common import DriveListResponse
 
 
 class DriveFileMetadata(TypedDict, total=False):
@@ -45,7 +46,7 @@ class DriveFilesResource(Protocol):
 class DriveRequest(Protocol):
     """Protocol for Google Drive request objects."""
 
-    def execute(self) -> dict[str, object]:
+    def execute(self) -> DriveListResponse:
         """Execute the request."""
         ...
 

@@ -10,7 +10,14 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
+from ami.types.common import TranscriptMetadata
 from ami.utils.uuid_utils import uuid7
+
+
+def _empty_transcript_metadata() -> TranscriptMetadata:
+    """Factory for empty TranscriptMetadata."""
+    return TranscriptMetadata()
+
 
 if TYPE_CHECKING:
     from ami.cli.transcript_store import TranscriptStore
@@ -38,7 +45,7 @@ class TranscriptEntry(BaseModel):
     timestamp: str
     message: MessageContent | None = None
     error: str | None = None
-    metadata: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    metadata: TranscriptMetadata = Field(default_factory=_empty_transcript_metadata)
 
 
 class TranscriptLogger:
@@ -64,15 +71,15 @@ class TranscriptLogger:
         """Log an assistant message (response)."""
         msg_content = [TextBlock(type="text", text=content)]
 
-        meta_dict: dict[str, str | int | float | bool | None] = {}
+        meta_dict: TranscriptMetadata = {}
         if metadata:
-            meta_dict = {
-                "session_id": metadata.session_id,
-                "duration": metadata.duration,
-                "exit_code": metadata.exit_code,
-                "model": metadata.model,
-                "tokens": metadata.tokens,
-            }
+            meta_dict = TranscriptMetadata(
+                session_id=metadata.session_id or "",
+                duration=metadata.duration or 0.0,
+                exit_code=metadata.exit_code or 0,
+                model=metadata.model or "",
+                tokens=metadata.tokens or 0,
+            )
 
         entry = TranscriptEntry(
             entry_id=uuid7(),

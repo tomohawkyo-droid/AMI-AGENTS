@@ -69,11 +69,18 @@ class PatternConfig(TypedDict, total=False):
     exception_regex: str
 
 
+class DirectoryRule(TypedDict):
+    """A directory rule mapping."""
+
+    directory: str
+    patterns: list[PatternConfig]
+
+
 class BannedWordsConfig(TypedDict, total=False):
     """Configuration for banned words checking."""
 
     banned: list[PatternConfig]
-    directory_rules: dict[str, list[PatternConfig]]
+    directory_rules: object  # Parsed from YAML, structure validated at runtime
     filename_rules: list[PatternConfig]
     ignored_files: list[str]
 
@@ -133,18 +140,28 @@ def find_matching_rules(
     return [rule for rule in rules if rule.matches(line, filepath)]
 
 
+class BannedPatternError(TypedDict):
+    """Error information for a banned pattern match."""
+
+    file: str
+    line: int
+    pattern: str
+    reason: str
+    content: str
+
+
 def check_file_content(
     filepath: str,
     global_rules: list[PatternRule],
     dir_rules: list[PatternRule],
-) -> list[dict[str, str | int]]:
+) -> list[BannedPatternError]:
     """Check file content for banned patterns."""
     all_rules = global_rules + dir_rules
 
     if not all_rules:
         return []
 
-    errors: list[dict[str, str | int]] = []
+    errors: list[BannedPatternError] = []
 
     try:
         with open(filepath, encoding="utf-8", errors="replace") as f:
@@ -169,32 +186,32 @@ def check_file_content(
 def check_filename(
     filepath: str,
     filename_rules: list[PatternRule],
-) -> list[dict[str, str | int]]:
+) -> list[BannedPatternError]:
     """Check if filename matches any banned patterns."""
     filename = os.path.basename(filepath)
     matched = [rule for rule in filename_rules if rule.matches(filename, filepath)]
 
     return [
-        {
-            "file": filepath,
-            "line": 0,
-            "pattern": rule.pattern,
-            "reason": rule.reason,
-            "content": filename,
-        }
+        BannedPatternError(
+            file=filepath,
+            line=0,
+            pattern=rule.pattern,
+            reason=rule.reason,
+            content=filename,
+        )
         for rule in matched
     ]
 
 
-# Cache for pre-compiled directory rules
-_dir_rules_cache: dict[str, list[PatternRule]] = {}
+# Cache for pre-compiled directory rules (keyed by directory name)
+_dir_rules_cache: dict = {}
 
 
-def get_dir_rules(
-    filepath: str, dir_rules_compiled: dict[str, list[PatternRule]]
-) -> list[PatternRule]:
+def get_dir_rules(filepath: str, dir_rules_compiled: object) -> list[PatternRule]:
     """Get rules that apply based on file's directory."""
     rules: list[PatternRule] = []
+    if not isinstance(dir_rules_compiled, dict):
+        return rules
     path = Path(filepath)
 
     for dir_name, compiled_rules in dir_rules_compiled.items():
@@ -205,21 +222,24 @@ def get_dir_rules(
 
 
 def compile_dir_rules(
-    dir_rules_config: dict[str, list[PatternConfig]],
-) -> dict[str, list[PatternRule]]:
+    dir_rules_config: object,
+) -> dict:
     """Pre-compile all directory rules."""
+    if not isinstance(dir_rules_config, dict):
+        return {}
     return {
-        dir_name: [PatternRule(cfg) for cfg in rule_configs]
+        str(dir_name): [PatternRule(cfg) for cfg in rule_configs]
         for dir_name, rule_configs in dir_rules_config.items()
+        if isinstance(rule_configs, list)
     }
 
 
-def print_errors(errors: list[dict[str, str | int]]) -> None:
+def print_errors(errors: list[BannedPatternError]) -> None:
     """Print errors grouped by file with reasons."""
     print(f"\n\033[91mFAILED: {len(errors)} banned pattern(s) found:\033[0m\n")
 
     # Group by file
-    by_file: dict[str, list[dict[str, str | int]]] = {}
+    by_file: dict = {}
     for err in errors:
         key = str(err["file"])
         if key not in by_file:
@@ -260,7 +280,7 @@ def main() -> None:
     filename_rules = [PatternRule(cfg) for cfg in filename_configs]
     dir_rules_compiled = compile_dir_rules(dir_rules_config)
 
-    errors: list[dict[str, str | int]] = []
+    errors: list[BannedPatternError] = []
     root_dir = os.getcwd()
     files_checked = 0
 

@@ -149,6 +149,7 @@ class TestHandleUserConfirmation:
 
     def test_rejected(self, agent: BootloaderAgent):
         result = agent._handle_user_confirmation("echo test", lambda cmd: False, None)
+        assert result is not None
         assert "CANCELLED" in result
 
     def test_with_stream_callback(self, agent: BootloaderAgent):
@@ -165,6 +166,7 @@ class TestHandleUserConfirmation:
             raise RuntimeError(msg)
 
         result = agent._handle_user_confirmation("cmd", raise_error, None)
+        assert result is not None
         assert "CONFIRMATION ERROR" in result
 
 
@@ -201,7 +203,7 @@ class TestExecuteShellBlocks:
 
     def test_empty_blocks(self, agent: BootloaderAgent):
         ctx = RunContext(instruction="test")
-        parts = []
+        parts: list[str] = []
         outputs = agent._execute_shell_blocks([], ctx, parts)
         assert outputs == []
 
@@ -209,7 +211,7 @@ class TestExecuteShellBlocks:
         stop = Event()
         stop.set()  # Already stopped
         ctx = RunContext(instruction="test", stop_event=stop)
-        parts = []
+        parts: list[str] = []
         outputs = agent._execute_shell_blocks(["echo hi"], ctx, parts)
         assert outputs == []
 
@@ -290,4 +292,4 @@ class TestInterfaces:
     def test_run_interactive_params(self):
         params = RunInteractiveParams(instruction="interactive test")
         assert params.instruction == "interactive test"
-        assert isinstance(params.mcp_servers, dict)
+        assert isinstance(params.mcp_servers, list)

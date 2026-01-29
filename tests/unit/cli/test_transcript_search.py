@@ -1,6 +1,7 @@
 """Unit tests for TranscriptSearcher."""
 
 from pathlib import Path
+from typing import NamedTuple
 
 from ami.cli.agent_logging import MessageContent, TextBlock, TranscriptEntry
 from ami.cli.transcript_search import (
@@ -12,6 +13,13 @@ from ami.cli.transcript_search import (
     _snippet,
 )
 from ami.cli.transcript_store import TranscriptStore
+
+
+class StoreWithSession(NamedTuple):
+    """Store and session ID pair."""
+
+    store: TranscriptStore
+    session_id: str
 
 
 class TestSearchModels:
@@ -112,7 +120,7 @@ class TestHelpers:
 class TestTranscriptSearcher:
     """Tests for TranscriptSearcher.search and search_sessions."""
 
-    def _populate_store(self, tmp_path: Path) -> tuple[TranscriptStore, str]:
+    def _populate_store(self, tmp_path: Path) -> StoreWithSession:
         """Create a store with a session containing searchable entries."""
         store = TranscriptStore(root=tmp_path)
         sid = store.create_session(provider="test", model="m")
@@ -140,52 +148,52 @@ class TestTranscriptSearcher:
                 error="connection timeout error",
             ),
         )
-        return store, sid
+        return StoreWithSession(store, sid)
 
     def test_search_empty_keywords(self, tmp_path: Path):
-        store, _ = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
         assert searcher.search([]) == []
 
     def test_search_single_keyword(self, tmp_path: Path):
-        store, sid = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
-        hits = searcher.search(["deploy"], session_id=sid)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
+        hits = searcher.search(["deploy"], session_id=result.session_id)
         assert len(hits) >= 1
         assert all(h.keyword == "deploy" for h in hits)
 
     def test_search_multiple_keywords(self, tmp_path: Path):
-        store, sid = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
-        hits = searcher.search(["deploy", "error"], session_id=sid)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
+        hits = searcher.search(["deploy", "error"], session_id=result.session_id)
         keywords_found = {h.keyword for h in hits}
         assert "deploy" in keywords_found
         assert "error" in keywords_found
 
     def test_search_case_insensitive(self, tmp_path: Path):
-        store, sid = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
-        hits = searcher.search(["DEPLOY"], session_id=sid)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
+        hits = searcher.search(["DEPLOY"], session_id=result.session_id)
         assert len(hits) >= 1
 
     def test_search_no_matches(self, tmp_path: Path):
-        store, sid = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
-        hits = searcher.search(["nonexistent_xyz"], session_id=sid)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
+        hits = searcher.search(["nonexistent_xyz"], session_id=result.session_id)
         assert hits == []
 
     def test_search_all_sessions(self, tmp_path: Path):
-        store, _ = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
         hits = searcher.search(["deploy"])
         assert len(hits) >= 1
 
     def test_search_sessions_grouped(self, tmp_path: Path):
-        store, sid = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
         results = searcher.search_sessions(["deploy"])
         assert len(results) >= 1
-        assert results[0].session_id == sid
+        assert results[0].session_id == result.session_id
         assert len(results[0].hits) >= 1
 
     def test_search_sessions_empty(self, tmp_path: Path):
@@ -195,15 +203,15 @@ class TestTranscriptSearcher:
         assert results == []
 
     def test_search_sessions_summary(self, tmp_path: Path):
-        store, sid = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
         results = searcher.search_sessions(["deploy"])
         assert results[0].summary != ""
 
     def test_search_in_error_entries(self, tmp_path: Path):
-        store, sid = self._populate_store(tmp_path)
-        searcher = TranscriptSearcher(store)
-        hits = searcher.search(["timeout"], session_id=sid)
+        result = self._populate_store(tmp_path)
+        searcher = TranscriptSearcher(result.store)
+        hits = searcher.search(["timeout"], session_id=result.session_id)
         assert len(hits) >= 1
 
     def test_search_skips_empty_entries(self, tmp_path: Path):

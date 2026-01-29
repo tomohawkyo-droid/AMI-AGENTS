@@ -4,8 +4,9 @@
 import os
 import re
 import sys
-import types
 from pathlib import Path
+
+import yaml
 
 from ami.cli_components.status_utils import (
     C_DIM,
@@ -23,17 +24,13 @@ from ami.cli_components.status_utils import (
     run_cmd,
 )
 from ami.cli_components.text_input_utils import Colors
+from ami.types.common import SystemdDetails
+from ami.types.results import ComposeInfo
 from ami.types.status import (
     PodmanContainer,
     ServiceDisplayInfo,
     SystemdService,
 )
-
-yaml: types.ModuleType | None
-try:
-    import yaml
-except ImportError:
-    yaml = None
 
 # Ansible inventory path (relative to project root)
 ANSIBLE_INVENTORY_PATH = "ansible/inventory/host_vars/localhost.yml"
@@ -90,17 +87,31 @@ def get_managed_service_names() -> set[str]:
     return managed
 
 
-def _parse_systemd_details(details_raw: str) -> dict[str, str]:
-    """Parse systemd show output into a dict."""
-    details: dict[str, str] = {}
+def _parse_systemd_details(details_raw: str) -> SystemdDetails:
+    """Parse systemd show output into a TypedDict."""
+    parsed = {}
     for d_line in details_raw.splitlines():
         if "=" in d_line:
             k, v = d_line.split("=", 1)
-            details[k] = v
-    return details
+            parsed[k] = v
+    return SystemdDetails(
+        Id=parsed.get("Id", ""),
+        Description=parsed.get("Description", ""),
+        LoadState=parsed.get("LoadState", ""),
+        ActiveState=parsed.get("ActiveState", ""),
+        SubState=parsed.get("SubState", ""),
+        MainPID=parsed.get("MainPID", ""),
+        ExecMainStartTimestamp=parsed.get("ExecMainStartTimestamp", ""),
+        MemoryCurrent=parsed.get("MemoryCurrent", ""),
+        CPUUsageNSec=parsed.get("CPUUsageNSec", ""),
+        FragmentPath=parsed.get("FragmentPath", ""),
+        ExecStart=parsed.get("ExecStart", ""),
+        Restart=parsed.get("Restart", ""),
+        UnitFileState=parsed.get("UnitFileState", ""),
+    )
 
 
-def _extract_compose_info(exec_start: str) -> tuple[str | None, str | None, list[str]]:
+def _extract_compose_info(exec_start: str) -> ComposeInfo:
     """Extract compose file and profiles from ExecStart string."""
     managed_container = None
     compose_file = None
@@ -118,12 +129,13 @@ def _extract_compose_info(exec_start: str) -> tuple[str | None, str | None, list
         if profile_matches:
             compose_profiles = profile_matches
 
-    return managed_container, compose_file, compose_profiles
+    return ComposeInfo(managed_container, compose_file, compose_profiles)
 
 
-def get_systemd_services() -> dict[str, SystemdService]:
+def get_systemd_services() -> list[SystemdService]:
     """Get systemd services matching known prefixes."""
-    services: dict[str, SystemdService] = {}
+    services: list[SystemdService] = []
+    seen_names: set[str] = set()
 
     commands = [
         (
@@ -144,8 +156,9 @@ def get_systemd_services() -> dict[str, SystemdService]:
                 continue
 
             # Skip if already found in user scope (prefer user scope)
-            if name in services:
+            if name in seen_names:
                 continue
+            seen_names.add(name)
 
             scope_flag = "--user" if scope == "user" else ""
             props = (
@@ -161,25 +174,37 @@ def get_systemd_services() -> dict[str, SystemdService]:
                 exec_start
             )
 
-            services[name] = SystemdService(
-                name=name,
-                scope=scope,
-                active=details.get("ActiveState", ""),
-                sub=details.get("SubState", ""),
-                path=details.get("FragmentPath", ""),
-                pid=details.get("MainPID", "0"),
-                managed_container=managed_container,
-                compose_file=compose_file,
-                compose_profiles=compose_profiles,
-                restart=details.get("Restart", ""),
-                enabled=details.get("UnitFileState", ""),
+            services.append(
+                SystemdService(
+                    name=name,
+                    scope=scope,
+                    active=details.get("ActiveState", ""),
+                    sub=details.get("SubState", ""),
+                    path=details.get("FragmentPath", ""),
+                    pid=details.get("MainPID", "0"),
+                    managed_container=managed_container,
+                    compose_file=compose_file,
+                    compose_profiles=compose_profiles,
+                    restart=details.get("Restart", ""),
+                    enabled=details.get("UnitFileState", ""),
+                )
             )
     return services
 
 
+def _find_container_by_name(
+    containers: list[PodmanContainer], name: str
+) -> PodmanContainer | None:
+    """Find a container by name in the list."""
+    for c in containers:
+        if c.name == name:
+            return c
+    return None
+
+
 def _process_service(
     svc: SystemdService,
-    containers: dict[str, PodmanContainer],
+    containers: list[PodmanContainer],
     processed_containers: set[str],
 ) -> ServiceDisplayInfo:
     """Process a service and return display information."""
@@ -194,14 +219,14 @@ def _process_service(
         row_details.append(
             f"Profiles: {', '.join(profiles) if profiles else 'default'}"
         )
-        for c_name, c in containers.items():
+        for c in containers:
             c_config_files = c.labels.get("com.docker.compose.project.config_files", "")
             if svc.compose_file in c_config_files:
                 child_items.append(c)
-                processed_containers.add(c_name)
+                processed_containers.add(c.name)
     elif svc.managed_container:
         row_type = "Container Wrapper"
-        managed_c = containers.get(svc.managed_container)
+        managed_c = _find_container_by_name(containers, svc.managed_container)
         if managed_c:
             child_items.append(managed_c)
             processed_containers.add(svc.managed_container)
@@ -219,17 +244,17 @@ def _process_service(
 
 
 def _print_orphan_services(
-    services: dict[str, SystemdService],
+    services: list[SystemdService],
     managed_services: set[str],
 ) -> None:
     """Print systemd services not managed by Ansible (orphan services)."""
     # Only check ami-* user services for orphan detection
     orphan_svcs = [
         svc
-        for name, svc in services.items()
-        if name.startswith("ami-")
+        for svc in services
+        if svc.name.startswith("ami-")
         and svc.scope == "user"
-        and name not in managed_services
+        and svc.name not in managed_services
     ]
 
     if not orphan_svcs:

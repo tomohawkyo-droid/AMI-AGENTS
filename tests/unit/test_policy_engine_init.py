@@ -83,6 +83,7 @@ policies:
         ):
             engine = PolicyEngine()
 
+        assert isinstance(engine._manifest, dict)
         assert "policies" in engine._manifest
 
 
@@ -148,12 +149,12 @@ class TestPolicyEngineLoadBashPatterns:
         # First call
         engine.load_bash_patterns("default")
         # Add to cache manually to verify caching
-        engine._bash_cache["custom"] = [{"pattern": "test"}]
+        engine._bash_cache["custom"] = [{"pattern": "test", "reason": "Test"}]
 
         # Should return cached value
         patterns = engine.load_bash_patterns("custom")
 
-        assert patterns == [{"pattern": "test"}]
+        assert patterns == [{"pattern": "test", "reason": "Test"}]
 
 
 class TestPolicyEngineLoadPythonPatterns:
@@ -214,7 +215,7 @@ class TestPolicyEngineLoadSensitivePatterns:
             engine = PolicyEngine()
 
         engine.load_sensitive_patterns()
-        engine._sensitive_cache = [{"pattern": r"\.env"}]
+        engine._sensitive_cache = [{"pattern": r"\.env", "reason": "Sensitive file"}]
 
         patterns = engine.load_sensitive_patterns()
 
@@ -245,7 +246,7 @@ class TestPolicyEngineLoadCommunicationPatterns:
             engine = PolicyEngine()
 
         engine.load_communication_patterns()
-        engine._communication_cache = [{"pattern": "ignore"}]
+        engine._communication_cache = [{"pattern": "ignore", "reason": "Communication"}]
 
         patterns = engine.load_communication_patterns()
 

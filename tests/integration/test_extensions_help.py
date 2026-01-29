@@ -47,7 +47,7 @@ class ExtensionMetadata(NamedTuple):
 def parse_extension_metadata(ext_file: Path) -> ExtensionMetadata | None:
     """Parse metadata from an extension file."""
     content = ext_file.read_text()
-    metadata: dict[str, str] = {}
+    metadata = {}
 
     for line in content.splitlines():
         if line.startswith("# @"):
@@ -112,7 +112,7 @@ def get_binary_shebang(binary_path: str) -> str | None:
 
 def validate_shebang_paths(shebang: str, binary_path: str) -> list[str]:
     """Validate that paths in shebang actually exist. Returns list of issues."""
-    issues = []
+    issues: list[str] = []
     if not shebang:
         return issues
 
@@ -133,8 +133,11 @@ ALL_EXTENSIONS = get_all_extensions()
 EXTENSION_NAMES = [ext.name for ext in ALL_EXTENSIONS]
 
 
-def make_test_env() -> dict[str, str]:
-    """Create environment for running extension tests."""
+def make_test_env():
+    """Create environment for running extension tests.
+
+    Returns an environ dict suitable for subprocess calls.
+    """
     env = os.environ.copy()
     env["AMI_ROOT"] = str(PROJECT_ROOT)
     env["PATH"] = (

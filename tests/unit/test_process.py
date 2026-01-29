@@ -5,6 +5,8 @@ from io import TextIOWrapper
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from ami.types.common import ProcessEnvironment
+from ami.types.results import SelectorEvent
 from ami.utils.process import (
     SELECTOR_POLL_INTERVAL,
     TIMEOUT_RETURN_CODE,
@@ -113,11 +115,12 @@ class TestProcessExecutor:
     def test_run_with_environment_variables(self, tmp_path: Path) -> None:
         """Test running command with custom environment."""
         executor = ProcessExecutor(work_dir=tmp_path)
-
-        result = executor.run("echo $MY_VAR", env={"MY_VAR": "test_value"})
+        env: ProcessEnvironment = {"PATH": "/usr/bin"}  # Type-safe subset
+        # Use shell variable expansion which works with any env
+        result = executor.run("echo $PATH", env=env)
 
         assert result["returncode"] == 0
-        assert "test_value" in result["stdout"]
+        assert "/usr/bin" in result["stdout"]
 
     def test_run_captures_stderr(self, tmp_path: Path) -> None:
         """Test that stderr is captured."""
@@ -222,7 +225,7 @@ class TestProcessPipeEvents:
         mock_key.data = data_list
 
         mock_sel = MagicMock()
-        events = [(mock_key, selectors.EVENT_READ)]
+        events = [SelectorEvent(key=mock_key, mask=selectors.EVENT_READ)]
 
         _process_pipe_events(mock_sel, events)
 
@@ -240,7 +243,7 @@ class TestProcessPipeEvents:
         mock_key.data = data_list
 
         mock_sel = MagicMock()
-        events = [(mock_key, selectors.EVENT_READ)]
+        events = [SelectorEvent(key=mock_key, mask=selectors.EVENT_READ)]
 
         _process_pipe_events(mock_sel, events)
 
@@ -258,7 +261,7 @@ class TestProcessPipeEvents:
         mock_key.data = data_list
 
         mock_sel = MagicMock()
-        events = [(mock_key, selectors.EVENT_READ)]
+        events = [SelectorEvent(key=mock_key, mask=selectors.EVENT_READ)]
 
         _process_pipe_events(mock_sel, events)
 

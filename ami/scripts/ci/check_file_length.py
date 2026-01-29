@@ -10,6 +10,8 @@ from typing import TypedDict
 
 import yaml
 
+from ami.types.results import FileViolation
+
 CONFIG_PATH = "res/config/file_length_limits.yaml"
 
 
@@ -50,29 +52,29 @@ def load_config() -> FileLengthConfig:
     return DEFAULT_CONFIG
 
 
-def get_all_files(
-    ignore_dirs: set[str], valid_extensions: tuple[str, ...]
-) -> list[str]:
+def get_all_files(ignore_dirs: set[str], valid_extensions: list[str]) -> list[str]:
     """Get all files matching extensions, excluding ignored directories."""
+    ext_tuple = tuple(valid_extensions)
     files_to_check: list[str] = []
     for root, dirs, filenames in os.walk("."):
         # Filter dirs in-place
         dirs[:] = [d for d in dirs if d not in ignore_dirs]
 
         files_to_check.extend(
-            os.path.join(root, f) for f in filenames if f.endswith(valid_extensions)
+            os.path.join(root, f) for f in filenames if f.endswith(ext_tuple)
         )
     return files_to_check
 
 
 def should_check_file(
     file_path: str,
-    valid_extensions: tuple[str, ...],
+    valid_extensions: list[str],
     ignore_files: set[str],
     ignore_dirs: set[str],
 ) -> bool:
     """Determine if a file should be checked."""
-    if not file_path.endswith(valid_extensions):
+    ext_tuple = tuple(valid_extensions)
+    if not file_path.endswith(ext_tuple):
         return False
 
     if os.path.basename(file_path) in ignore_files:
@@ -98,13 +100,17 @@ def check_file_length(file_path: str, max_lines: int) -> int | None:
     return None
 
 
-def print_violations(violations: list[tuple[str, int]], max_lines: int) -> None:
+def print_violations(violations: list[FileViolation], max_lines: int) -> None:
     """Print violation report."""
-    count = len(violations)
-    print(f"\n\033[91mFAILED: {count} file(s) exceed {max_lines} lines:\033[0m\n")
-    for filepath, count in sorted(violations, key=lambda x: -x[1]):
-        excess = count - max_lines
-        print(f"  \033[1m{filepath}\033[0m: {count} lines (+{excess} over limit)")
+    num_violations = len(violations)
+    print(
+        f"\n\033[91mFAILED: {num_violations} file(s) exceed {max_lines} lines:\033[0m\n"
+    )
+    for violation in sorted(violations, key=lambda x: -x.line_count):
+        excess = violation.line_count - max_lines
+        path = violation.filepath
+        lines = violation.line_count
+        print(f"  \033[1m{path}\033[0m: {lines} lines (+{excess} over limit)")
     print()
 
 
@@ -113,13 +119,12 @@ def main() -> None:
     config = load_config()
     max_lines = config.get("max_lines", 512)
 
-    ext_list = config.get("extensions", [".py", ".sh", ".js", ".ts"])
-    valid_extensions = tuple(ext_list)
+    valid_extensions = config.get("extensions", [".py", ".sh", ".js", ".ts"])
 
     ignore_files = set(config.get("ignore_files", []))
     ignore_dirs = set(config.get("ignore_dirs", []))
 
-    violations: list[tuple[str, int]] = []
+    violations: list[FileViolation] = []
 
     # Pre-commit passes the list of changed files as arguments
     files = sys.argv[1:] or get_all_files(ignore_dirs, valid_extensions)
@@ -134,7 +139,7 @@ def main() -> None:
 
         line_count = check_file_length(file_path, max_lines)
         if line_count is not None:
-            violations.append((file_path, line_count))
+            violations.append(FileViolation(file_path, line_count))
 
     if violations:
         print_violations(violations, max_lines)

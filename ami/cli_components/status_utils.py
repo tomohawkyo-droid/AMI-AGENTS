@@ -5,12 +5,10 @@ import re
 import subprocess
 import unicodedata
 
-try:
-    import psutil
-except ImportError:
-    psutil = None
+import psutil
 
 from ami.cli_components.text_input_utils import Colors
+from ami.types.results import ContainerStatusDisplay
 from ami.types.status import PortMapping
 
 # Display constants
@@ -74,7 +72,7 @@ def get_visual_width(text: str) -> int:
 
 
 def get_local_ports(pid: str) -> list[str]:
-    if not psutil or pid == "0" or not pid:
+    if pid == "0" or not pid:
         return []
     ports: set[str] = set()
     try:
@@ -163,14 +161,14 @@ def _get_restart_icon(restart: str) -> str:
         return I_NORESTART
 
 
-def _get_container_status_display(state: str) -> tuple[str, str]:
+def _get_container_status_display(state: str) -> ContainerStatusDisplay:
     """Get status icon and color for a container state."""
     state_map = {
-        "running": (I_OK, Colors.GREEN),
-        "exited": (I_FAIL, Colors.RED),
-        "paused": (I_WARN, Colors.YELLOW),
+        "running": ContainerStatusDisplay(I_OK, Colors.GREEN),
+        "exited": ContainerStatusDisplay(I_FAIL, Colors.RED),
+        "paused": ContainerStatusDisplay(I_WARN, Colors.YELLOW),
     }
-    return state_map.get(state, (I_STOP, C_DIM))
+    return state_map.get(state, ContainerStatusDisplay(I_STOP, C_DIM))
 
 
 def _format_port_string(port: PortMapping) -> str:

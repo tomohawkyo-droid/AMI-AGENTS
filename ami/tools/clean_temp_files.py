@@ -15,6 +15,7 @@ import shutil
 from pathlib import Path
 
 from ami.cli_components.confirmation_dialog import confirm
+from ami.types.results import DeleteResult, ScanResult, TempFileEntry
 
 # Size conversion constant
 BYTES_PER_UNIT = 1024.0
@@ -155,11 +156,11 @@ def scan_directory_robust(
     root_dir: Path,
     exclude_dirs: set[Path],
     patterns: list[str],
-) -> tuple[list[Path], list[Path]]:
+) -> ScanResult:
     """
     Robustly scan directory for files matching patterns and large files.
     Skips exclude_dirs.
-    Returns (found_files, large_files).
+    Returns ScanResult(found, large).
     """
     found_files: list[Path] = []
     large_files: list[Path] = []
@@ -189,7 +190,7 @@ def scan_directory_robust(
         except Exception:
             continue
 
-    return found_files, large_files
+    return ScanResult([str(p) for p in found_files], [str(p) for p in large_files])
 
 
 def _get_repo_temp_dirs(repo_root: Path) -> list[Path]:
@@ -252,26 +253,26 @@ def _print_large_files(large_files: list[Path], repo_root: Path) -> None:
 def _scan_system_tmp(system_tmp: Path) -> None:
     """Scan and print system tmp directory contents."""
     try:
-        tmp_items: list[tuple[Path, int]] = []
+        tmp_items: list[TempFileEntry] = []
         user = os.environ.get("USER", "ami")
         with os.scandir(system_tmp) as it:
             for entry in it:
                 try:
                     path = Path(entry.path)
                     if path.owner() == user:
-                        tmp_items.append((path, get_size(path)))
+                        tmp_items.append(TempFileEntry(str(path), get_size(path)))
                 except Exception:
                     pass
 
-        tmp_items.sort(key=lambda x: x[1], reverse=True)
-        for item, size in tmp_items[:20]:
-            print(f"[TMP]  {item} ({format_size(size)})")
+        tmp_items.sort(key=lambda x: x.size_bytes, reverse=True)
+        for tmp_entry in tmp_items[:20]:
+            print(f"[TMP]  {tmp_entry.path} ({format_size(tmp_entry.size_bytes)})")
     except Exception as e:
         print(f"Error scanning /tmp: {e}")
 
 
-def _delete_items(items: list[Path]) -> tuple[int, int]:
-    """Delete items and return (deleted_count, errors_count)."""
+def _delete_items(items: list[Path]) -> DeleteResult:
+    """Delete items and return DeleteResult(deleted, errors)."""
     deleted_count = 0
     errors_count = 0
 
@@ -290,7 +291,7 @@ def _delete_items(items: list[Path]) -> tuple[int, int]:
             print(f"[ERROR] Failed to delete {item}: {e}")
             errors_count += 1
 
-    return deleted_count, errors_count
+    return DeleteResult(deleted_count, errors_count)
 
 
 def main() -> None:
@@ -317,14 +318,15 @@ def main() -> None:
     total_freed = _print_repo_temp_dirs(repo_temp_dirs, exclude_scan_dirs)
 
     print("\n--- Scanning Repository Files (skipping temp & critical dirs) ---")
-    found_files, large_files = scan_directory_robust(repo_root, exclude_scan_dirs, [])
+    scan_result = scan_directory_robust(repo_root, exclude_scan_dirs, [])
 
     print("\n--- Repository Temporary Files ---")
-    found_files = sorted(set(found_files))
-    total_freed += _print_found_files(found_files, repo_root)
+    found_files_paths = sorted({Path(p) for p in scan_result.found})
+    total_freed += _print_found_files(list(found_files_paths), repo_root)
 
     print("\n--- Large Files (>100MB) in Repository ---")
-    _print_large_files(large_files, repo_root)
+    large_files_paths = [Path(p) for p in scan_result.large]
+    _print_large_files(large_files_paths, repo_root)
 
     print(f"\n--- System Temporary Directory ({system_tmp}) ---")
     _scan_system_tmp(system_tmp)
@@ -335,7 +337,9 @@ def main() -> None:
         print("\n[DRY RUN] No files were deleted.")
         return
 
-    all_to_delete = list(exclude_scan_dirs - set(critical_dirs)) + found_files
+    all_to_delete = list(exclude_scan_dirs - set(critical_dirs)) + list(
+        found_files_paths
+    )
     if not all_to_delete:
         print("\nNothing to delete.")
         return
@@ -349,8 +353,10 @@ def main() -> None:
         return
 
     print("\nStarting cleanup...")
-    deleted_count, errors_count = _delete_items(all_to_delete)
-    print(f"\nCleanup complete. Deleted {deleted_count} items. Errors: {errors_count}")
+    delete_result = _delete_items(all_to_delete)
+    deleted = delete_result.deleted
+    errors = delete_result.errors
+    print(f"\nCleanup complete. Deleted {deleted} items. Errors: {errors}")
 
 
 if __name__ == "__main__":

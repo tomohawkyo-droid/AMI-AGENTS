@@ -13,6 +13,9 @@ import re
 from fnmatch import fnmatch
 from typing import NamedTuple
 
+# Type alias for compiled regex pattern
+CompiledPattern = re.Pattern[str]
+
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
@@ -60,7 +63,7 @@ class DeadCodeConfig(NamedTuple):
 
     entry_point_patterns: list[str]
     ignored_names: set[str]
-    ignored_name_regexes: list[re.Pattern[str]]
+    ignored_name_regexes: list[CompiledPattern]
     reference_only_patterns: list[str]
 
 
@@ -275,9 +278,9 @@ class CrossReferenceGraph:
     """Aggregates module analysis results and resolves cross-references."""
 
     def __init__(self) -> None:
-        self.modules: dict[str, ModuleInfo] = {}
-        self._refs_by_name: dict[str, set[str]] = {}
-        self._import_sources: dict[str, set[str]] = {}  # module -> importing files
+        self.modules: dict = {}
+        self._refs_by_name: dict = {}
+        self._import_sources: dict = {}
 
     def add(self, info: ModuleInfo) -> None:
         """Add a module's analysis results to the graph."""

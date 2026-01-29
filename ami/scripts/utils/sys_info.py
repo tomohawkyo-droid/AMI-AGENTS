@@ -5,6 +5,8 @@ import sys
 
 import psutil
 
+from ami.types.results import ColorPair
+
 # ANSI Color IDs for gradient logic (Standard 256-color palette)
 COLOR_IDS = {
     "green": (34, 22),  # Mid Green, Deep Green
@@ -32,15 +34,15 @@ class ProgressBar:
         self.width = width
         self.filled_char = filled_char
 
-    def get_color_pair(self, percent: float) -> tuple[int, int]:
+    def get_color_pair(self, percent: float) -> ColorPair:
         if percent < THRESHOLD_GREEN:
-            return COLOR_IDS["green"]
+            return ColorPair(*COLOR_IDS["green"])
         elif percent < THRESHOLD_YELLOW:
-            return COLOR_IDS["yellow"]
+            return ColorPair(*COLOR_IDS["yellow"])
         elif percent < THRESHOLD_ORANGE:
-            return COLOR_IDS["orange"]
+            return ColorPair(*COLOR_IDS["orange"])
         else:
-            return COLOR_IDS["red"]
+            return ColorPair(*COLOR_IDS["red"])
 
     def render(
         self, percent: float, label: str, value: str, label_width: int = 20

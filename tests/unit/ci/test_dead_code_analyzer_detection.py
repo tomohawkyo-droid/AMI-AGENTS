@@ -2,8 +2,6 @@
 
 import re
 
-from pydantic import BaseModel
-
 from ami.scripts.ci.dead_code_analyzer import (
     CrossReferenceGraph,
     DeadCodeConfig,
@@ -28,26 +26,22 @@ EMPTY_CONFIG = DeadCodeConfig(
 )
 
 
-class DefParams(BaseModel):
-    """Parameters for constructing a Definition in tests."""
-
-    name: str = "foo"
-    kind: str = "function"
-    file: str = "a.py"
-    line: int = 1
-    is_dunder: bool = False
-    is_exported: bool = False
-
-
-def _make_def(name: str = "foo", **kwargs: object) -> Definition:
-    params = DefParams(name=name, **kwargs)
+def _make_def(
+    name: str = "foo",
+    kind: str = "function",
+    file: str = "a.py",
+    line: int = 1,
+    is_dunder: bool = False,
+    is_exported: bool = False,
+) -> Definition:
+    """Create a Definition for testing."""
     return Definition(
-        name=params.name,
-        kind=params.kind,
-        file=params.file,
-        line=params.line,
-        is_dunder=params.is_dunder,
-        is_exported=params.is_exported,
+        name=name,
+        kind=kind,
+        file=file,
+        line=line,
+        is_dunder=is_dunder,
+        is_exported=is_exported,
     )
 
 

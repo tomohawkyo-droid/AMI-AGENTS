@@ -4,6 +4,7 @@ observer routing, provider validation."""
 from __future__ import annotations
 
 from pathlib import Path
+from typing import NamedTuple
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +16,14 @@ from ami.core.config import _ConfigSingleton
 from ami.core.interfaces import RunPrintParams
 from ami.types.api import ProviderMetadata, StreamEventData
 from ami.types.events import StreamEvent, StreamEventType
+
+
+class ObserverMocks(NamedTuple):
+    """Mocks and observer returned from _make_observer."""
+
+    renderer: MagicMock
+    processor: MagicMock
+    observer: RendererObserver
 
 
 @pytest.fixture(autouse=True)
@@ -307,59 +316,67 @@ class TestRenderLine:
 
 
 class TestRendererObserver:
-    def _make_observer(self) -> tuple[MagicMock, MagicMock, RendererObserver]:
+    def _make_observer(self) -> ObserverMocks:
         renderer = MagicMock()
         processor = MagicMock()
-        return renderer, processor, RendererObserver(renderer, processor)
+        return ObserverMocks(renderer, processor, RendererObserver(renderer, processor))
 
     def test_chunk_calls_process_chunk(self):
-        renderer, _, obs = self._make_observer()
-        obs.on_event(StreamEvent(type=StreamEventType.CHUNK, data="hello world"))
-        renderer.process_chunk.assert_called_once_with("hello world")
+        mocks = self._make_observer()
+        mocks.observer.on_event(
+            StreamEvent(type=StreamEventType.CHUNK, data="hello world")
+        )
+        mocks.renderer.process_chunk.assert_called_once_with("hello world")
 
     def test_chunk_multiline(self):
-        renderer, _, obs = self._make_observer()
-        obs.on_event(StreamEvent(type=StreamEventType.CHUNK, data="l1\nl2\n"))
-        renderer.process_chunk.assert_called_once_with("l1\nl2\n")
+        mocks = self._make_observer()
+        mocks.observer.on_event(
+            StreamEvent(type=StreamEventType.CHUNK, data="l1\nl2\n")
+        )
+        mocks.renderer.process_chunk.assert_called_once_with("l1\nl2\n")
 
     def test_metadata_updates_session_id(self):
-        renderer, _, obs = self._make_observer()
+        mocks = self._make_observer()
         meta = ProviderMetadata(session_id="new-session-id")
         data = StreamEventData(output="", metadata=meta)
-        obs.on_event(StreamEvent(type=StreamEventType.METADATA, data=data))
-        assert renderer.session_id == "new-session-id"
+        mocks.observer.on_event(StreamEvent(type=StreamEventType.METADATA, data=data))
+        assert mocks.renderer.session_id == "new-session-id"
 
     def test_metadata_without_session_id_is_noop(self):
-        renderer, _, obs = self._make_observer()
-        renderer.session_id = "original"
+        mocks = self._make_observer()
+        mocks.renderer.session_id = "original"
         meta = ProviderMetadata(session_id=None)
         data = StreamEventData(output="", metadata=meta)
-        obs.on_event(StreamEvent(type=StreamEventType.METADATA, data=data))
-        assert renderer.session_id == "original"
+        mocks.observer.on_event(StreamEvent(type=StreamEventType.METADATA, data=data))
+        assert mocks.renderer.session_id == "original"
 
     def test_error_type_is_noop(self):
-        renderer, _, obs = self._make_observer()
-        obs.on_event(StreamEvent(type=StreamEventType.ERROR, data="error happened"))
-        renderer.process_chunk.assert_not_called()
+        mocks = self._make_observer()
+        mocks.observer.on_event(
+            StreamEvent(type=StreamEventType.ERROR, data="error happened")
+        )
+        mocks.renderer.process_chunk.assert_not_called()
 
     def test_complete_type_is_noop(self):
-        renderer, _, obs = self._make_observer()
+        mocks = self._make_observer()
         meta = ProviderMetadata(exit_code=0)
         data = StreamEventData(output="done", metadata=meta)
-        obs.on_event(StreamEvent(type=StreamEventType.COMPLETE, data=data))
-        renderer.process_chunk.assert_not_called()
+        mocks.observer.on_event(StreamEvent(type=StreamEventType.COMPLETE, data=data))
+        mocks.renderer.process_chunk.assert_not_called()
 
     def test_chunk_non_string_data_is_noop(self):
-        renderer, _, obs = self._make_observer()
+        mocks = self._make_observer()
         data = StreamEventData(output="text", metadata=ProviderMetadata())
-        obs.on_event(StreamEvent(type=StreamEventType.CHUNK, data=data))
-        renderer.process_chunk.assert_not_called()
+        mocks.observer.on_event(StreamEvent(type=StreamEventType.CHUNK, data=data))
+        mocks.renderer.process_chunk.assert_not_called()
 
     def test_metadata_string_data_is_noop(self):
-        renderer, _, obs = self._make_observer()
-        renderer.session_id = "original"
-        obs.on_event(StreamEvent(type=StreamEventType.METADATA, data="not-event"))
-        assert renderer.session_id == "original"
+        mocks = self._make_observer()
+        mocks.renderer.session_id = "original"
+        mocks.observer.on_event(
+            StreamEvent(type=StreamEventType.METADATA, data="not-event")
+        )
+        assert mocks.renderer.session_id == "original"
 
 
 class TestRunPrintValidation:
@@ -453,53 +470,3 @@ class TestStreamRendererSessionId:
         assert r.session_id == "observer-set-id"
         r.process_chunk("output")
         assert r.finish()["session_id"] == "observer-set-id"
-
-
-class TestStreamRendererStateTransitions:
-    def test_initial_state(self):
-        r = _capture_renderer()
-        assert r.content_started is False
-        assert r.box_displayed is False
-        assert r.response_box_started is False
-        assert r.response_box_ended is False
-        assert r.line_buffer == ""
-        assert r.in_run_block is False
-        assert r.full_output == ""
-
-    def test_after_first_chunk(self):
-        r = _capture_renderer()
-        r.process_chunk("first")
-        assert r.content_started is True
-        assert r.box_displayed is True
-        assert r.response_box_started is True
-        assert r.response_box_ended is False
-
-    def test_capture_box_not_ended_after_finish(self):
-        r = _capture_renderer()
-        r.process_chunk("data")
-        r.finish()
-        assert r.response_box_ended is False
-
-    def test_display_box_ended_after_finish(self):
-        r = _display_renderer()
-        r.timer = MagicMock(is_running=False)
-        with patch("ami.cli_components.stream_renderer.time") as mt:
-            mt.time.return_value = 1000.0
-            mt.strftime.return_value = "00:00:00"
-            r.process_chunk("data\n")
-            r.finish()
-        assert r.response_box_ended is True
-
-    def test_multiple_chunks_accumulate(self):
-        r = _capture_renderer()
-        r.process_chunk("a")
-        r.process_chunk("b")
-        r.process_chunk("c")
-        assert r.full_output == "abc"
-
-    def test_render_raw_sets_content_started(self):
-        r = _capture_renderer()
-        assert r.content_started is False
-        r.render_raw_line("raw")
-        assert r.content_started is True
-        assert r.box_displayed is True

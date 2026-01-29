@@ -21,6 +21,7 @@ from ami.cli_components.dialogs import (
 )
 from ami.cli_components.legend import (
     Legend,
+    LegendGroup,
     LegendItem,
     get_visual_width,
     pad_center,
@@ -132,16 +133,18 @@ class TestLegendRender:
     def test_single_group(self):
         legend = Legend(
             [
-                [
-                    LegendItem(
-                        "\N{LARGE GREEN CIRCLE}",
-                        "ok",
-                    ),
-                    LegendItem(
-                        "\N{LARGE RED CIRCLE}",
-                        "fail",
-                    ),
-                ]
+                LegendGroup(
+                    [
+                        LegendItem(
+                            "\N{LARGE GREEN CIRCLE}",
+                            "ok",
+                        ),
+                        LegendItem(
+                            "\N{LARGE RED CIRCLE}",
+                            "fail",
+                        ),
+                    ]
+                )
             ]
         )
         icons_line, labels_line = legend.render(width=EXPECTED_DEFAULT_DIALOG_WIDTH)
@@ -153,13 +156,15 @@ class TestLegendRender:
     def test_multiple_groups(self):
         legend = Legend(
             [
-                [
-                    LegendItem(
-                        "\N{LARGE GREEN CIRCLE}",
-                        "ok",
-                    )
-                ],
-                [LegendItem("\N{ROCKET}", "boot")],
+                LegendGroup(
+                    [
+                        LegendItem(
+                            "\N{LARGE GREEN CIRCLE}",
+                            "ok",
+                        )
+                    ]
+                ),
+                LegendGroup([LegendItem("\N{ROCKET}", "boot")]),
             ]
         )
         icons_line, _labels_line = legend.render(width=EXPECTED_DEFAULT_DIALOG_WIDTH)
@@ -169,12 +174,14 @@ class TestLegendRender:
     def test_dim_styling(self):
         legend = Legend(
             [
-                [
-                    LegendItem(
-                        "\N{LARGE GREEN CIRCLE}",
-                        "ok",
-                    )
-                ]
+                LegendGroup(
+                    [
+                        LegendItem(
+                            "\N{LARGE GREEN CIRCLE}",
+                            "ok",
+                        )
+                    ]
+                )
             ],
             dim=True,
         )
@@ -184,12 +191,14 @@ class TestLegendRender:
     def test_no_dim_styling(self):
         legend = Legend(
             [
-                [
-                    LegendItem(
-                        "\N{LARGE GREEN CIRCLE}",
-                        "ok",
-                    )
-                ]
+                LegendGroup(
+                    [
+                        LegendItem(
+                            "\N{LARGE GREEN CIRCLE}",
+                            "ok",
+                        )
+                    ]
+                )
             ],
             dim=False,
         )
@@ -199,8 +208,8 @@ class TestLegendRender:
     def test_custom_separator(self):
         legend = Legend(
             [
-                [LegendItem("A", "a")],
-                [LegendItem("B", "b")],
+                LegendGroup([LegendItem("A", "a")]),
+                LegendGroup([LegendItem("B", "b")]),
             ],
             separator="|",
             dim=False,

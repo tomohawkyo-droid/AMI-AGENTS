@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ami.scripts.bootstrap_components import PROJECT_ROOT, Component, ComponentType
+from ami.types.common import InstallationResult
 
 
 def ensure_directories() -> None:
@@ -136,7 +137,7 @@ def install_components(
     components: list[Component],
     on_progress: Callable[[int, int, str], None] | None = None,
     on_result: Callable[[Component, bool], None] | None = None,
-) -> dict[str, bool]:
+) -> list[InstallationResult]:
     """Install multiple components.
 
     Args:
@@ -145,11 +146,11 @@ def install_components(
         on_result: Callback(component, success) for each result
 
     Returns:
-        Dict mapping component name to success status
+        list of InstallationResult with name and success status
     """
     ensure_directories()
 
-    results: dict[str, bool] = {}
+    results: list[InstallationResult] = []
 
     # Separate npm packages from scripts for batching
     npm_components = [c for c in components if c.type == ComponentType.NPM]
@@ -169,7 +170,11 @@ def install_components(
         success = install_npm_packages(packages)
 
         for comp in npm_components:
-            results[comp.name] = success
+            results.append(
+                InstallationResult(
+                    component_name=comp.name, success=success, error=None
+                )
+            )
             if on_result:
                 on_result(comp, success)
 
@@ -180,7 +185,9 @@ def install_components(
             on_progress(current, total, comp.label)
 
         success = install_component(comp)
-        results[comp.name] = success
+        results.append(
+            InstallationResult(component_name=comp.name, success=success, error=None)
+        )
 
         if on_result:
             on_result(comp, success)

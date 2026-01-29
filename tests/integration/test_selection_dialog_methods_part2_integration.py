@@ -8,7 +8,7 @@ ami/cli_components/selector.py
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, TypedDict
 from unittest.mock import patch
 
 import pytest
@@ -279,8 +279,17 @@ class TestMenuItem:
 # 15. Backup selector
 
 
+class BackupFileEntry(TypedDict):
+    """Backup file data for tests."""
+
+    id: str
+    name: str
+    modifiedTime: str
+    size: int
+
+
 class TestBackupSelector:
-    _FILES: ClassVar[list[dict[str, object]]] = [
+    _FILES: ClassVar[list[BackupFileEntry]] = [
         {
             "id": "abc123",
             "name": "backup1.tar",

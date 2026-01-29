@@ -17,7 +17,7 @@ class TestMenuItem:
 
     def test_basic_initialization(self) -> None:
         """Test basic MenuItem initialization."""
-        item = MenuItem("id1", "Label 1")
+        item: MenuItem = MenuItem("id1", "Label 1")
         assert item.id == "id1"
         assert item.label == "Label 1"
         assert item.value == "id1"  # Default value is id
@@ -26,17 +26,17 @@ class TestMenuItem:
 
     def test_with_value(self) -> None:
         """Test MenuItem with explicit value."""
-        item = MenuItem("id1", "Label 1", value="custom_value")
+        item: MenuItem[str] = MenuItem("id1", "Label 1", value="custom_value")
         assert item.value == "custom_value"
 
     def test_with_description(self) -> None:
         """Test MenuItem with description."""
-        item = MenuItem("id1", "Label 1", description="A description")
+        item: MenuItem[str] = MenuItem("id1", "Label 1", description="A description")
         assert item.description == "A description"
 
     def test_header_item(self) -> None:
         """Test MenuItem as header."""
-        item = MenuItem("header", "Section Header", is_header=True)
+        item: MenuItem[str] = MenuItem("header", "Section Header", is_header=True)
         assert item.is_header is True
 
     def test_generic_value_type(self) -> None:
@@ -60,8 +60,8 @@ class TestMenuSelector:
     @patch("ami.cli_components.menu_selector.SelectionDialog")
     def test_initialization(self, mock_dialog_class) -> None:
         """Test MenuSelector initialization."""
-        items = [MenuItem("1", "Option 1"), MenuItem("2", "Option 2")]
-        selector = MenuSelector(items, title="Test Menu")
+        items: list[MenuItem] = [MenuItem("1", "Option 1"), MenuItem("2", "Option 2")]
+        selector: MenuSelector = MenuSelector(items, title="Test Menu")
 
         mock_dialog_class.assert_called_once()
         assert selector._items == items
@@ -73,8 +73,8 @@ class TestMenuSelector:
         mock_dialog.run.return_value = None
         mock_dialog_class.return_value = mock_dialog
 
-        items = [MenuItem("1", "Option 1")]
-        selector = MenuSelector(items)
+        items: list[MenuItem] = [MenuItem("1", "Option 1")]
+        selector: MenuSelector = MenuSelector(items)
         result = selector.run()
 
         assert result is None
@@ -89,7 +89,7 @@ class TestMenuSelector:
         mock_dialog.run.return_value = [item1]
         mock_dialog_class.return_value = mock_dialog
 
-        selector = MenuSelector([item1, item2])
+        selector: MenuSelector = MenuSelector([item1, item2])
         result = selector.run()
 
         assert result is not None
@@ -99,13 +99,13 @@ class TestMenuSelector:
     @patch("ami.cli_components.menu_selector.SelectionDialog")
     def test_run_with_single_result(self, mock_dialog_class) -> None:
         """Test MenuSelector wraps single result in list."""
-        item1 = MenuItem("1", "Option 1")
+        item1: MenuItem = MenuItem("1", "Option 1")
 
         mock_dialog = MagicMock()
         mock_dialog.run.return_value = item1  # Single item, not list
         mock_dialog_class.return_value = mock_dialog
 
-        selector = MenuSelector([item1])
+        selector: MenuSelector = MenuSelector([item1])
         result = selector.run()
 
         assert result is not None
@@ -114,7 +114,7 @@ class TestMenuSelector:
     @patch("ami.cli_components.menu_selector.SelectionDialog")
     def test_multi_select_mode(self, mock_dialog_class) -> None:
         """Test MenuSelector in multi-select mode."""
-        items = [MenuItem("1", "A"), MenuItem("2", "B")]
+        items: list[MenuItem] = [MenuItem("1", "A"), MenuItem("2", "B")]
         MenuSelector(items, allow_multiple=True)
 
         # Verify config was passed with multi=True

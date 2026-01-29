@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from ami.core.interfaces import RunInteractiveParams, RunPrintParams
-from ami.types.api import ProviderMetadata
+from ami.types.results import ProviderResult
 
 
 class AgentCLI(ABC):
@@ -13,7 +13,7 @@ class AgentCLI(ABC):
     def run_interactive(
         self,
         params: RunInteractiveParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
+    ) -> ProviderResult:
         """Run agent interactively with CLI.
 
         Args:
@@ -21,7 +21,7 @@ class AgentCLI(ABC):
                 session_id, mcp_servers
 
         Returns:
-            Tuple of (output, metadata) where metadata includes session info
+            ProviderResult with (output, metadata) where metadata includes session info
 
         Raises:
             AgentError: If agent execution fails
@@ -31,7 +31,7 @@ class AgentCLI(ABC):
     def run_print(
         self,
         params: RunPrintParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
+    ) -> ProviderResult:
         """Run agent in print mode with CLI.
 
         Args:
@@ -39,7 +39,7 @@ class AgentCLI(ABC):
                 instruction_file, stdin
 
         Returns:
-            Tuple of (output, metadata) where metadata includes session info
+            ProviderResult with (output, metadata) where metadata includes session info
 
         Raises:
             AgentError: If agent execution fails

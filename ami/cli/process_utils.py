@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from loguru import logger
 
@@ -18,6 +18,7 @@ from ami.cli.exceptions import (
 )
 from ami.core.config import Config, get_config
 from ami.types.api import ProviderMetadata
+from ami.types.results import ProviderResult, ReadLineResult
 
 if TYPE_CHECKING:
     from ami.types.config import AgentConfig
@@ -44,9 +45,8 @@ def start_streaming_process(
         Started subprocess.Popen instance
     """
     resolved_config: Config = config if config is not None else get_config()
-    env = get_unprivileged_env(resolved_config)
-    if env is None:
-        env = os.environ.copy()
+    env_result = get_unprivileged_env(resolved_config)
+    env = cast(dict, env_result) if env_result is not None else os.environ.copy()
 
     stdin_pipe = subprocess.PIPE if stdin_data is not None else None
 
@@ -79,7 +79,7 @@ def read_streaming_line(
     timeout_val: float,
     cmd: list[str],
     check_stdin: bool = False,
-) -> tuple[str | None, bool]:
+) -> ReadLineResult:
     """Read a line from streaming process with timeout.
 
     Args:
@@ -89,7 +89,7 @@ def read_streaming_line(
         check_stdin: Whether to check stdin for interruption (Esc key)
 
     Returns:
-        Tuple of (line content or None, True if timeout occurred)
+        ReadLineResult with (line content or None, True if timeout occurred)
     """
     try:
         rlist = [process.stdout]
@@ -105,19 +105,19 @@ def read_streaming_line(
                 raise KeyboardInterrupt(msg)
 
         if not ready or process.stdout not in ready:
-            return None, True
+            return ReadLineResult(None, True)
 
         if process.stdout is not None:
             line = process.stdout.readline()
             if not line:
-                return None, False
+                return ReadLineResult(None, False)
 
-            return line.rstrip(), False
+            return ReadLineResult(line.rstrip(), False)
     except OSError:
         stdout, stderr = process.communicate()
         raise AgentExecutionError(process.returncode, stdout, stderr, cmd) from None
     else:
-        return None, False
+        return ReadLineResult(None, False)
 
 
 def handle_first_output_timeout(
@@ -187,7 +187,7 @@ def handle_process_completion(
     cmd: list[str],
     started_at: float,
     session_id: str,
-) -> tuple[str, ProviderMetadata | None]:
+) -> ProviderResult:
     """Handle process completion and return results.
 
     Args:
@@ -197,7 +197,7 @@ def handle_process_completion(
         session_id: Session identifier for logging
 
     Returns:
-        Tuple of (output, metadata)
+        ProviderResult with (output, metadata)
     """
     duration = time.time() - started_at
 
@@ -221,4 +221,4 @@ def handle_process_completion(
         duration=duration,
         exit_code=process.returncode,
     )
-    return stdout, metadata
+    return ProviderResult(stdout, metadata)

@@ -4,7 +4,7 @@ Centralizes the loading and management of YAML-based policies and patterns.
 """
 
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, cast
 
 import yaml
 
@@ -19,8 +19,14 @@ class PythonPattern(TypedDict):
     reason: str
 
 
-# YAML manifest structure - can contain nested dicts of str or Path values
-ManifestData = dict[str, str | dict[str, str | dict[str, str]]]
+class BashPattern(TypedDict):
+    """Pattern definition for Bash validation."""
+
+    pattern: str
+    reason: str
+
+
+ManifestData = object  # YAML parsed data, structure validated at runtime
 
 
 class PolicyEngine:
@@ -32,10 +38,10 @@ class PolicyEngine:
         self.manifest_path = self.root / "ami/config/policies/manifest.yaml"
         self._manifest = self._load_manifest()
         # Instance-level caches to avoid lru_cache on methods
-        self._bash_cache: dict[str, list[dict[str, str]]] = {}
+        self._bash_cache: dict = {}
         self._python_cache: list[PythonPattern] | None = None
-        self._sensitive_cache: list[dict[str, str]] | None = None
-        self._communication_cache: list[dict[str, str]] | None = None
+        self._sensitive_cache: list[BashPattern] | None = None
+        self._communication_cache: list[BashPattern] | None = None
         self._api_limit_cache: list[str] | None = None
         self._exemptions_cache: set[str] | None = None
 
@@ -49,6 +55,8 @@ class PolicyEngine:
 
     def _get_policy_path(self, *keys: str) -> Path | None:
         """Get policy path from manifest using dot-notation keys."""
+        if not isinstance(self._manifest, dict):
+            return None
         policies = self._manifest.get("policies")
         if not isinstance(policies, dict):
             return None
@@ -63,15 +71,13 @@ class PolicyEngine:
             if isinstance(current, str):
                 return self.root / current
 
-        # If we exhausted keys and ended with a string
-        if isinstance(current, str):
-            return self.root / current
-        return None
+        # If we exhausted keys and ended with a string, return path; else None
+        return self.root / current if isinstance(current, str) else None
 
-    def load_bash_patterns(self, name: str = "default") -> list[dict[str, str]]:
+    def load_bash_patterns(self, name: str = "default") -> list[BashPattern]:
         """Load Bash command validation patterns."""
         if name in self._bash_cache:
-            return self._bash_cache[name]
+            return cast(list[BashPattern], self._bash_cache[name])
 
         path = self._get_policy_path("bash", name)
         if not path or not path.exists():
@@ -80,9 +86,7 @@ class PolicyEngine:
 
         with path.open() as f:
             data = yaml.safe_load(f)
-        patterns: list[dict[str, str]] = (
-            data.get("deny_patterns", []) if isinstance(data, dict) else []
-        )
+        patterns = data.get("deny_patterns", []) if isinstance(data, dict) else []
         self._bash_cache[name] = patterns
         return patterns
 
@@ -98,13 +102,11 @@ class PolicyEngine:
 
         with path.open() as f:
             data = yaml.safe_load(f)
-        patterns: list[PythonPattern] = (
-            data.get("patterns", []) if isinstance(data, dict) else []
-        )
+        patterns = data.get("patterns", []) if isinstance(data, dict) else []
         self._python_cache = patterns
         return patterns
 
-    def load_sensitive_patterns(self) -> list[dict[str, str]]:
+    def load_sensitive_patterns(self) -> list[BashPattern]:
         """Load sensitive file patterns."""
         if self._sensitive_cache is not None:
             return self._sensitive_cache
@@ -116,13 +118,11 @@ class PolicyEngine:
 
         with path.open() as f:
             data = yaml.safe_load(f)
-        patterns: list[dict[str, str]] = (
-            data.get("sensitive_patterns", []) if isinstance(data, dict) else []
-        )
+        patterns = data.get("sensitive_patterns", []) if isinstance(data, dict) else []
         self._sensitive_cache = patterns
         return patterns
 
-    def load_communication_patterns(self) -> list[dict[str, str]]:
+    def load_communication_patterns(self) -> list[BashPattern]:
         """Load prohibited communication patterns."""
         if self._communication_cache is not None:
             return self._communication_cache
@@ -134,9 +134,7 @@ class PolicyEngine:
 
         with path.open() as f:
             data = yaml.safe_load(f)
-        patterns: list[dict[str, str]] = (
-            data.get("prohibited_patterns", []) if isinstance(data, dict) else []
-        )
+        patterns = data.get("prohibited_patterns", []) if isinstance(data, dict) else []
         self._communication_cache = patterns
         return patterns
 
@@ -174,7 +172,7 @@ class PolicyEngine:
 
 
 # Global singleton container (using dict to avoid global statement)
-_singleton: dict[str, PolicyEngine] = {}
+_singleton = {}
 
 
 def get_policy_engine() -> PolicyEngine:

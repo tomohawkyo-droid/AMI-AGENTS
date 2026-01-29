@@ -12,6 +12,9 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import TypedDict, cast
 
+from ami.types.common import ProcessEnvironment
+from ami.types.results import SelectorEvent
+
 # Return code for timeout
 TIMEOUT_RETURN_CODE = 124
 
@@ -52,18 +55,18 @@ def _drain_pipes(
 
 def _process_pipe_events(
     sel: selectors.DefaultSelector,
-    events: list[tuple[selectors.SelectorKey, int]],
+    events: list[SelectorEvent],
 ) -> None:
     """Process read events from pipes."""
-    for key, _ in events:
-        fileobj = key.fileobj
+    for event in events:
+        fileobj = event.key.fileobj
         if not isinstance(fileobj, TextIOWrapper):
             continue
         line = fileobj.readline()
         if line:
-            key.data.append(line)
+            event.key.data.append(line)
         else:
-            sel.unregister(key.fileobj)
+            sel.unregister(event.key.fileobj)
 
 
 class ProcessExecutor:
@@ -76,7 +79,7 @@ class ProcessExecutor:
         self,
         command: str | list[str],
         cwd: Path | None = None,
-        env: dict[str, str] | None = None,
+        env: ProcessEnvironment | None = None,
         timeout: int | None = None,
     ) -> ProcessResult:
         """
@@ -97,10 +100,13 @@ class ProcessExecutor:
 
         run_env = os.environ.copy()
         if env:
-            run_env.update(env)
+            # ProcessEnvironment is a TypedDict subset of env vars
+            run_env.update(cast(dict, env))
 
         try:
-            return self._execute_command(command, cwd, run_env, timeout)
+            return self._execute_command(
+                command, cwd, cast(ProcessEnvironment, run_env), timeout
+            )
         except Exception as e:
             return _create_result("", f"Execution failed: {e!s}", 1)
 
@@ -108,14 +114,14 @@ class ProcessExecutor:
         self,
         command: str | list[str],
         cwd: Path,
-        run_env: dict[str, str],
+        run_env: ProcessEnvironment,
         timeout: int | None,
     ) -> ProcessResult:
         """Execute command and collect output."""
         process = subprocess.Popen(
             command,
             cwd=str(cwd),
-            env=run_env,
+            env=cast(dict, run_env),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=isinstance(command, str),
@@ -151,10 +157,11 @@ class ProcessExecutor:
             if timeout is not None and (time.time() - start_time) > timeout:
                 return self._handle_timeout(process, stdout_data, stderr_data, timeout)
 
-            events = sel.select(timeout=SELECTOR_POLL_INTERVAL)
+            raw_events = sel.select(timeout=SELECTOR_POLL_INTERVAL)
+            events = [SelectorEvent(key, mask) for key, mask in raw_events]
             _process_pipe_events(sel, events)
 
-            if not events and process.poll() is not None:
+            if not raw_events and process.poll() is not None:
                 _drain_pipes(sel, stdout_data, stderr_data)
 
         process.wait()

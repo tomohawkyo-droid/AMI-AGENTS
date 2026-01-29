@@ -426,9 +426,12 @@ GROUPS = [
 ]
 
 
-def get_components_by_group() -> dict[str, list[Component]]:
-    """Get components organized by group."""
-    result: dict[str, list[Component]] = {g: [] for g in GROUPS}
+def get_components_by_group() -> dict:
+    """Get components organized by group.
+
+    Returns a dict mapping group name to list of Component.
+    """
+    result: dict = {g: [] for g in GROUPS}
     for comp in ALL_COMPONENTS:
         if comp.group in result:
             result[comp.group].append(comp)

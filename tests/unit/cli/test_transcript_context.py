@@ -1,6 +1,7 @@
 """Unit tests for TranscriptContextBuilder."""
 
 from pathlib import Path
+from typing import NamedTuple
 
 from ami.cli.agent_logging import MessageContent, TextBlock, TranscriptEntry
 from ami.cli.transcript_context import (
@@ -14,6 +15,13 @@ from ami.cli.transcript_store import TranscriptStore
 # Test constants
 EXPECTED_TRUNCATED_LEN = 2003  # 2000 chars + "..."
 EXPECTED_HEADER_PLUS_5 = 6  # 1 header line + 5 entry lines
+
+
+class StoreWithSession(NamedTuple):
+    """Store and session ID pair."""
+
+    store: TranscriptStore
+    session_id: str
 
 
 class TestHelpers:
@@ -117,7 +125,7 @@ class TestTranscriptContextBuilder:
 
     def _make_store_with_entries(
         self, tmp_path: Path, count: int = 3
-    ) -> tuple[TranscriptStore, str]:
+    ) -> StoreWithSession:
         store = TranscriptStore(root=tmp_path)
         sid = store.create_session(provider="test", model="m")
         for i in range(count):
@@ -130,7 +138,7 @@ class TestTranscriptContextBuilder:
                     message=MessageContent(content=f"message {i}"),
                 ),
             )
-        return store, sid
+        return StoreWithSession(store, sid)
 
     def test_build_context_empty(self, tmp_path: Path):
         store = TranscriptStore(root=tmp_path)
@@ -139,17 +147,17 @@ class TestTranscriptContextBuilder:
         assert builder.build_context(sid) == ""
 
     def test_build_context_with_entries(self, tmp_path: Path):
-        store, sid = self._make_store_with_entries(tmp_path, count=3)
-        builder = TranscriptContextBuilder(store)
-        context = builder.build_context(sid)
+        result = self._make_store_with_entries(tmp_path, count=3)
+        builder = TranscriptContextBuilder(result.store)
+        context = builder.build_context(result.session_id)
         assert "## Previous Conversation" in context
         assert "[User]:" in context
         assert "[Assistant]:" in context
 
     def test_build_context_respects_window_size(self, tmp_path: Path):
-        store, sid = self._make_store_with_entries(tmp_path, count=20)
-        builder = TranscriptContextBuilder(store, window_size=5)
-        context = builder.build_context(sid)
+        result = self._make_store_with_entries(tmp_path, count=20)
+        builder = TranscriptContextBuilder(result.store, window_size=5)
+        context = builder.build_context(result.session_id)
         lines = context.split("\n")
         assert len(lines) == EXPECTED_HEADER_PLUS_5
 
@@ -160,9 +168,9 @@ class TestTranscriptContextBuilder:
         assert builder.build_replay(sid) == ""
 
     def test_build_replay_all_entries(self, tmp_path: Path):
-        store, sid = self._make_store_with_entries(tmp_path, count=5)
-        builder = TranscriptContextBuilder(store)
-        replay = builder.build_replay(sid)
+        result = self._make_store_with_entries(tmp_path, count=5)
+        builder = TranscriptContextBuilder(result.store)
+        replay = builder.build_replay(result.session_id)
         assert "## Full Session Replay" in replay
         lines = replay.split("\n")
         assert len(lines) == EXPECTED_HEADER_PLUS_5

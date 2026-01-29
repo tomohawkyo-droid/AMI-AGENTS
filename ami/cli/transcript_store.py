@@ -130,7 +130,8 @@ class TranscriptStore:
         now = datetime.now(tz=UTC).isoformat()
         meta = self.get_session(session_id)
         if meta:
-            updates: dict[str, object] = {
+            # Build updates dict (no explicit type annotation needed)
+            updates = {
                 "last_active": now,
                 "entry_count": meta.entry_count + 1,
             }

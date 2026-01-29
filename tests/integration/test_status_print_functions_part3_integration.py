@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -29,19 +30,32 @@ def _reset_config(monkeypatch: pytest.MonkeyPatch):
     _ConfigSingleton.instance = None
 
 
-def _svc(name: str, **kw) -> SystemdService:
-    d = {
-        "name": name,
-        "active": "active",
-        "sub": "running",
-        "scope": "user",
-        "path": "/tmp/test/.config/systemd/user/test.service",
-        "pid": "0",
-        "restart": "always",
-        "enabled": "enabled",
-    }
-    d.update(kw)
-    return SystemdService(**d)
+def _svc(name: str, **kw: Any) -> SystemdService:
+    return SystemdService(
+        name=name,
+        active=kw.get("active", "active"),
+        sub=kw.get("sub", "running"),
+        scope=kw.get("scope", "user"),
+        path=kw.get("path", "/tmp/test/.config/systemd/user/test.service"),
+        pid=kw.get("pid", "0"),
+        restart=kw.get("restart", "always"),
+        enabled=kw.get("enabled", "enabled"),
+        **{
+            k: v
+            for k, v in kw.items()
+            if k not in ("active", "sub", "scope", "path", "pid", "restart", "enabled")
+        },
+    )
+
+
+def _find_service_by_name(
+    services: list[SystemdService], name: str
+) -> SystemdService | None:
+    """Find a service by name in a list."""
+    for svc in services:
+        if svc.name == name:
+            return svc
+    return None
 
 
 # -- 6. _print_system_docker_section -----------------------------------------
@@ -140,9 +154,11 @@ class TestGetSystemdServices:
 
         with patch(SYS_RUN, side_effect=fx):
             res = get_systemd_services()
-        assert "ami-compose.service" in res
-        assert "ami-secrets.service" in res
-        s = res["ami-compose.service"]
+        names = [svc.name for svc in res]
+        assert "ami-compose.service" in names
+        assert "ami-secrets.service" in names
+        s = _find_service_by_name(res, "ami-compose.service")
+        assert s is not None
         assert (s.active, s.sub, s.pid, s.scope, s.restart, s.enabled) == (
             "active",
             "running",
@@ -177,12 +193,13 @@ class TestGetSystemdServices:
 
         with patch(SYS_RUN, side_effect=fx):
             res = get_systemd_services()
-        assert "ami-test.service" in res
-        assert "unrelated.service" not in res
+        names = [s.name for s in res]
+        assert "ami-test.service" in names
+        assert "unrelated.service" not in names
 
     def test_empty(self):
         with patch(SYS_RUN, return_value=""):
-            assert get_systemd_services() == {}
+            assert get_systemd_services() == []
 
     def test_system_scope(self):
         sh = _SHOW_TPL.format(
@@ -205,34 +222,28 @@ class TestGetSystemdServices:
 
         with patch(SYS_RUN, side_effect=fx):
             res = get_systemd_services()
-        assert res["traefik.service"].scope == "system"
+        traefik = _find_service_by_name(res, "traefik.service")
+        assert traefik is not None
+        assert traefik.scope == "system"
 
 
 # -- 8. _print_orphan_services -----------------------------------------------
 class TestPrintOrphanServices:
     def test_none(self, capsys):
-        _print_orphan_services(
-            {"ami-web.service": _svc("ami-web.service")}, {"ami-web.service"}
-        )
+        _print_orphan_services([_svc("ami-web.service")], {"ami-web.service"})
         assert capsys.readouterr().out == ""
 
     def test_system_scope_skip(self, capsys):
-        _print_orphan_services(
-            {"ami-s.service": _svc("ami-s.service", scope="system")}, set()
-        )
+        _print_orphan_services([_svc("ami-s.service", scope="system")], set())
         assert capsys.readouterr().out == ""
 
     def test_non_ami_skip(self, capsys):
-        _print_orphan_services({"traefik.service": _svc("traefik.service")}, set())
+        _print_orphan_services([_svc("traefik.service")], set())
         assert capsys.readouterr().out == ""
 
     def test_active_running(self, capsys):
         _print_orphan_services(
-            {
-                "ami-old.service": _svc(
-                    "ami-old.service", active="active", sub="running"
-                )
-            },
+            [_svc("ami-old.service", active="active", sub="running")],
             set(),
         )
         out = capsys.readouterr().out
@@ -242,7 +253,7 @@ class TestPrintOrphanServices:
 
     def test_failed(self, capsys):
         _print_orphan_services(
-            {"ami-b.service": _svc("ami-b.service", active="failed", sub="failed")},
+            [_svc("ami-b.service", active="failed", sub="failed")],
             set(),
         )
         out = capsys.readouterr().out
@@ -251,28 +262,28 @@ class TestPrintOrphanServices:
 
     def test_inactive(self, capsys):
         _print_orphan_services(
-            {"ami-d.service": _svc("ami-d.service", active="inactive", sub="dead")},
+            [_svc("ami-d.service", active="inactive", sub="dead")],
             set(),
         )
         assert "ami-d.service" in capsys.readouterr().out
 
     def test_origin(self, capsys):
         _print_orphan_services(
-            {
-                "ami-s.service": _svc(
+            [
+                _svc(
                     "ami-s.service",
                     path="/tmp/test/.config/systemd/user/ami-s.service",
                 )
-            },
+            ],
             set(),
         )
         assert "Origin:" in capsys.readouterr().out
 
     def test_sorted(self, capsys):
-        svcs = {
-            "ami-z.service": _svc("ami-z.service"),
-            "ami-a.service": _svc("ami-a.service"),
-        }
+        svcs = [
+            _svc("ami-z.service"),
+            _svc("ami-a.service"),
+        ]
         _print_orphan_services(svcs, set())
         out = capsys.readouterr().out
         assert out.index("ami-a.service") < out.index("ami-z.service")

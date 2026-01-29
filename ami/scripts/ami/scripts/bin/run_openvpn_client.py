@@ -11,6 +11,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from typing import TypedDict
 
 
 def check_openvpn_installed() -> bool:
@@ -74,12 +75,19 @@ def check_vpn_connection() -> bool:
         return False
 
 
-async def health_check() -> dict[str, str | bool]:
+class HealthCheckResult(TypedDict):
+    """Result from VPN health check."""
+
+    status: str
+    connected: bool
+
+
+async def health_check() -> HealthCheckResult:
     is_connected = check_vpn_connection()
-    return {
-        "status": "connected" if is_connected else "disconnected",
-        "connected": is_connected,
-    }
+    return HealthCheckResult(
+        status="connected" if is_connected else "disconnected",
+        connected=is_connected,
+    )
 
 
 async def main() -> int:

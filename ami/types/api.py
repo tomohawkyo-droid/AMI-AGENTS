@@ -3,7 +3,26 @@
 Provides Pydantic models for API responses, stream messages, and configurations.
 """
 
+from typing import cast
+
 from pydantic import BaseModel, Field
+
+from ami.types.common import ProcessEnvironment
+
+
+def _empty_env() -> ProcessEnvironment:
+    """Return empty ProcessEnvironment for default factory."""
+    return cast(ProcessEnvironment, {})
+
+
+class ProviderExtraMetadata(BaseModel):
+    """Extra metadata from provider-specific fields."""
+
+    tool_calls: int | None = None
+    thinking_tokens: int | None = None
+    cache_hits: int | None = None
+    api_calls: int | None = None
+    rate_limit_remaining: int | None = None
 
 
 class StreamMetadata(BaseModel):
@@ -15,8 +34,7 @@ class StreamMetadata(BaseModel):
     tokens_used: int | None = None
     cost_usd: float | None = None
     duration_ms: int | None = None
-    # Allow extra fields for provider-specific metadata
-    extra: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    extra: ProviderExtraMetadata = Field(default_factory=ProviderExtraMetadata)
 
 
 class ProviderMetadata(BaseModel):
@@ -27,8 +45,7 @@ class ProviderMetadata(BaseModel):
     exit_code: int | None = None
     model: str | None = None
     tokens: int | None = None
-    # Allow provider-specific data
-    extra: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    extra: ProviderExtraMetadata = Field(default_factory=ProviderExtraMetadata)
 
 
 class ProviderResponse(BaseModel):
@@ -41,9 +58,10 @@ class ProviderResponse(BaseModel):
 class MCPServerConfig(BaseModel):
     """MCP (Model Context Protocol) server configuration."""
 
+    name: str = ""
     command: str
     args: list[str] = Field(default_factory=list)
-    env: dict[str, str] = Field(default_factory=dict)
+    env: ProcessEnvironment = Field(default_factory=_empty_env)
 
 
 class StreamEventData(BaseModel):

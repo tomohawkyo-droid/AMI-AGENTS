@@ -3,9 +3,8 @@
 
 import argparse
 import os
-import types as _types
 
-from ami.cli_components.legend import Legend, LegendItem
+from ami.cli_components.legend import Legend, LegendGroup, LegendItem
 
 # Import from sub-modules for internal use
 from ami.cli_components.status_containers import (
@@ -50,6 +49,7 @@ from ami.cli_components.status_utils import (
     run_cmd,
 )
 from ami.cli_components.text_input_utils import Colors
+from ami.types.common import ContainerSizeData, ContainerStatsData
 from ami.types.status import ServiceDisplayInfo, SystemdService
 
 __all__ = [
@@ -77,17 +77,6 @@ __all__ = [
     "run_cmd",
 ]
 
-yaml: _types.ModuleType | None
-try:
-    import yaml
-except ImportError:
-    yaml = None
-
-try:
-    import psutil
-except ImportError:
-    psutil = None
-
 
 # ── Header / Footer ────────────────────────────────────────────────────────
 
@@ -96,20 +85,26 @@ def _print_header() -> None:
     """Print the status report header."""
     legend = Legend(
         [
-            [
-                LegendItem(I_OK, "run"),
-                LegendItem(I_WARN, "retry"),
-                LegendItem(I_FAIL, "fail"),
-            ],
-            [
-                LegendItem(I_BOOT, "boot"),
-                LegendItem(I_NOBOOT, "manual"),
-            ],
-            [
-                LegendItem(I_RESTART_ALWAYS, "always"),
-                LegendItem(I_RESTART_FAIL, "on-fail"),
-                LegendItem(I_NORESTART, "never"),
-            ],
+            LegendGroup(
+                [
+                    LegendItem(I_OK, "run"),
+                    LegendItem(I_WARN, "retry"),
+                    LegendItem(I_FAIL, "fail"),
+                ]
+            ),
+            LegendGroup(
+                [
+                    LegendItem(I_BOOT, "boot"),
+                    LegendItem(I_NOBOOT, "manual"),
+                ]
+            ),
+            LegendGroup(
+                [
+                    LegendItem(I_RESTART_ALWAYS, "always"),
+                    LegendItem(I_RESTART_FAIL, "on-fail"),
+                    LegendItem(I_NORESTART, "never"),
+                ]
+            ),
         ]
     )
     icons_line, labels_line = legend.render(DISPLAY_WIDTH)
@@ -138,8 +133,8 @@ def _print_footer() -> None:
 def _print_service_entry(
     svc: SystemdService,
     info: ServiceDisplayInfo,
-    container_stats: dict[str, dict[str, str]],
-    container_sizes: dict[str, dict[str, str]],
+    container_stats: list[ContainerStatsData],
+    container_sizes: list[ContainerSizeData],
 ) -> None:
     """Print a single service entry."""
     # Status icon based on ActiveState + SubState
@@ -192,12 +187,16 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    services = get_systemd_services()
-    containers = get_podman_containers()
+    services_list = get_systemd_services()
+    containers_list = get_podman_containers()
     container_stats = get_container_stats()
     container_sizes = get_container_sizes()
     managed_services = get_managed_service_names()
     processed_containers: set[str] = set()
+
+    # Build lookup dicts from lists
+    services = {svc.name: svc for svc in services_list}
+    _ = {c.name: c for c in containers_list}  # Build for potential future use
 
     # Separate managed vs orphan services (ami-* user services not in Ansible)
     orphan_svc_names = {
@@ -216,15 +215,15 @@ def main() -> None:
     ]
     for i, svc_name in enumerate(managed_svcs):
         svc = services[svc_name]
-        display_info = _process_service(svc, containers, processed_containers)
+        display_info = _process_service(svc, containers_list, processed_containers)
         _print_service_entry(svc, display_info, container_stats, container_sizes)
 
         if i < len(managed_svcs) - 1:
             print(f"{Colors.CYAN}├{'─' * (DISPLAY_WIDTH - 2)}┤{Colors.RESET}")
             print_box_line("", DISPLAY_WIDTH)
 
-    _print_orphans(containers, processed_containers)
-    _print_orphan_services(services, managed_services)
+    _print_orphans(containers_list, processed_containers)
+    _print_orphan_services(services_list, managed_services)
 
     if args.system:
         _print_system_docker_section()

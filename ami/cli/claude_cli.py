@@ -11,7 +11,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, cast
 from uuid import UUID
 
 from ami.cli.base_provider import CLIProvider as BaseProvider
@@ -19,7 +19,9 @@ from ami.cli.interface import AgentCLI
 from ami.cli.provider_type import ProviderType
 from ami.core.config import get_config
 from ami.types.api import StreamMetadata
+from ami.types.common import StreamEvent
 from ami.types.config import AgentConfig
+from ami.types.results import ParseResult
 from ami.utils.uuid_utils import uuid7
 
 
@@ -102,27 +104,27 @@ class ClaudeAgentCLI(BaseProvider, AgentCLI):
         _cmd: list[str],
         _line_count: int,
         _agent_config: AgentConfig | None,
-    ) -> tuple[str, StreamMetadata | None]:
+    ) -> ParseResult:
         """Parse a single line from Claude CLI's streaming output."""
         if not line.strip():
-            return "", None
+            return ParseResult("", None)
 
         try:
             data = json.loads(line)
             if isinstance(data, dict):
-                return self._handle_json_dict(data)
-            return str(data), None
+                return self._handle_json_dict(cast(StreamEvent, data))
+            return ParseResult(str(data), None)
         except json.JSONDecodeError:
-            return line, None
+            return ParseResult(line, None)
 
     def _handle_json_dict(
         self,
-        data: dict[str, str | int | float | bool | list[object] | dict[str, object]],
-    ) -> tuple[str, StreamMetadata | None]:
+        data: StreamEvent,
+    ) -> ParseResult:
         """Handle parsing of JSON dictionary from Claude CLI output."""
         msg_type = data.get("type")
         if msg_type is None:
-            return json.dumps(data), None
+            return ParseResult(json.dumps(data), None)
 
         metadata = StreamMetadata(
             session_id=str(data.get("session_id")) if data.get("session_id") else None,
@@ -148,7 +150,7 @@ class ClaudeAgentCLI(BaseProvider, AgentCLI):
         else:
             output_text = json.dumps(data)
 
-        return output_text, metadata
+        return ParseResult(output_text, metadata)
 
     def _extract_assistant_message(self, message_data: object) -> str:
         """Extract text content from assistant message."""

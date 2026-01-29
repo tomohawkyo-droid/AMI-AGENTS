@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from dotenv import load_dotenv
 
@@ -28,6 +28,7 @@ from ami.cli.mode_handlers import (
     mode_print,
     mode_query,
 )
+from ami.types.results import ModeHandler
 
 # Load .env file after imports
 load_dotenv(Path.cwd() / ".env")
@@ -62,18 +63,20 @@ def main() -> int:
     args = parser.parse_args()
 
     # Route to appropriate mode using dispatch
-    mode_handlers_list: list[tuple[str | bool | None, Callable[[], int]]] = [
-        (
+    mode_handlers_list: list[ModeHandler] = [
+        ModeHandler(
             args.interactive_editor,
             lambda: mode_interactive_editor() if args.interactive_editor else 1,
         ),
-        (args.query, lambda: mode_query(args.query) if args.query else 1),
-        (args.print, lambda: mode_print(args.print) if args.print else 1),
+        ModeHandler(args.query, lambda: mode_query(args.query) if args.query else 1),
+        ModeHandler(args.print, lambda: mode_print(args.print) if args.print else 1),
     ]
 
-    for condition, handler in mode_handlers_list:
-        if condition:
-            return handler()
+    for mode_handler in mode_handlers_list:
+        if mode_handler.condition:
+            handler = mode_handler.handler
+            if callable(handler):
+                return cast(int, handler())
 
     # NEW: If no arguments provided, default to interactive editor mode
     if not any([args.print, args.interactive_editor, args.query]):

@@ -1,7 +1,9 @@
 """Unit tests for bootstrap installer formatting, scanning, and menu building."""
 
+from typing import cast
 from unittest.mock import MagicMock, patch
 
+from ami.cli_components.selection_dialog import SelectableItem
 from ami.scripts.bootstrap_components import Component, ComponentStatus, ComponentType
 from ami.scripts.bootstrap_installer import (
     DIM,
@@ -16,6 +18,7 @@ from ami.scripts.bootstrap_installer import (
     print_status,
     scan_components,
 )
+from ami.types.results import NamedComponentStatus
 
 EXPECTED_MENU_ITEM_COUNT = 2
 
@@ -85,7 +88,9 @@ class TestFormatComponentLabel:
             type=ComponentType.NPM,
             group="Test",
         )
-        status = ComponentStatus(installed=True, version="1.0.0")
+        status = NamedComponentStatus(
+            name="test", installed=True, version="1.0.0", path=None
+        )
 
         result = format_component_label(comp, status)
 
@@ -102,7 +107,9 @@ class TestFormatComponentLabel:
             type=ComponentType.NPM,
             group="Test",
         )
-        status = ComponentStatus(installed=False)
+        status = NamedComponentStatus(
+            name="test", installed=False, version=None, path=None
+        )
 
         result = format_component_label(comp, status)
 
@@ -121,7 +128,9 @@ class TestFormatComponentDescription:
             type=ComponentType.NPM,
             group="Test",
         )
-        status = ComponentStatus(installed=True)
+        status = NamedComponentStatus(
+            name="test", installed=True, version=None, path=None
+        )
 
         result = format_component_description(comp, status)
 
@@ -138,7 +147,9 @@ class TestFormatComponentDescription:
             type=ComponentType.NPM,
             group="Test",
         )
-        status = ComponentStatus(installed=False)
+        status = NamedComponentStatus(
+            name="test", installed=False, version=None, path=None
+        )
 
         result = format_component_description(comp, status)
 
@@ -155,7 +166,7 @@ class TestScanComponents:
     )
     @patch("ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", ["Test"])
     def test_scans_all_components(self, mock_get_groups, capsys) -> None:
-        """Test scans all components and returns status dict."""
+        """Test scans all components and returns status list."""
         comp = MagicMock()
         comp.name = "test"
         comp.label = "Test"
@@ -164,8 +175,9 @@ class TestScanComponents:
 
         statuses = scan_components()
 
-        assert "test" in statuses
-        assert statuses["test"].installed is True
+        test_status = next((s for s in statuses if s.name == "test"), None)
+        assert test_status is not None
+        assert test_status.installed is True
 
     @patch(
         "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
@@ -177,7 +189,7 @@ class TestScanComponents:
 
         statuses = scan_components()
 
-        assert statuses == {}
+        assert statuses == []
 
 
 class TestBuildMenuItems:
@@ -199,9 +211,13 @@ class TestBuildMenuItems:
             group="TestGroup",
         )
         mock_get_groups.return_value = {"TestGroup": [comp]}
-        statuses = {"test": ComponentStatus(installed=False)}
+        statuses = [
+            NamedComponentStatus(name="test", installed=False, version=None, path=None)
+        ]
 
-        items, preselected = build_menu_items(statuses)
+        result = build_menu_items(statuses)
+        items = cast(list[SelectableItem], result.menu_items)
+        preselected = result.preselected_ids
 
         # Should have header + component
         assert len(items) == EXPECTED_MENU_ITEM_COUNT
@@ -225,11 +241,13 @@ class TestBuildMenuItems:
             group="TestGroup",
         )
         mock_get_groups.return_value = {"TestGroup": [comp]}
-        statuses = {"test": ComponentStatus(installed=True, version="1.0")}
+        statuses = [
+            NamedComponentStatus(name="test", installed=True, version="1.0", path=None)
+        ]
 
-        _items, preselected = build_menu_items(statuses)
+        result = build_menu_items(statuses)
 
-        assert "test" in preselected
+        assert "test" in result.preselected_ids
 
     @patch(
         "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
@@ -239,7 +257,8 @@ class TestBuildMenuItems:
         """Test skips empty groups."""
         mock_get_groups.return_value = {"Empty": []}
 
-        items, _preselected = build_menu_items({})
+        result = build_menu_items([])
+        items = cast(list[SelectableItem], result.menu_items)
 
         assert items == []
 
@@ -297,7 +316,9 @@ class TestShowSelectionSummary:
             type=ComponentType.NPM,
             group="Test",
         )
-        statuses = {"test": ComponentStatus(installed=False)}
+        statuses = [
+            NamedComponentStatus(name="test", installed=False, version=None, path=None)
+        ]
 
         _show_selection_summary([comp], statuses)
 
@@ -314,7 +335,9 @@ class TestShowSelectionSummary:
             type=ComponentType.NPM,
             group="Test",
         )
-        statuses = {"test": ComponentStatus(installed=True, version="1.0")}
+        statuses = [
+            NamedComponentStatus(name="test", installed=True, version="1.0", path=None)
+        ]
 
         _show_selection_summary([comp], statuses)
 

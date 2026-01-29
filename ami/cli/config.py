@@ -4,6 +4,7 @@ from ami.cli.provider_type import ProviderType as CLIProvider
 from ami.core.config import get_config
 from ami.types.api import MCPServerConfig
 from ami.types.config import AgentConfig
+from ami.types.results import ConfigDefaults
 
 __all__ = ["AgentConfig", "AgentConfigPresets"]
 
@@ -15,7 +16,7 @@ class AgentConfigPresets:
     """
 
     @staticmethod
-    def _get_defaults(role: str) -> tuple[CLIProvider, str]:
+    def _get_defaults(role: str) -> ConfigDefaults:
         """Get default provider and model for a role (worker or moderator)."""
         config = get_config()
 
@@ -33,16 +34,16 @@ class AgentConfigPresets:
         if not model:
             model = config.get_provider_default_model(provider)
 
-        return provider, str(model)
+        return ConfigDefaults(provider.value, str(model))
 
     @staticmethod
     def worker(session_id: str | None = None) -> AgentConfig:
         """General worker agent: All tools, hooks enabled."""
-        provider, model = AgentConfigPresets._get_defaults("worker")
+        defaults = AgentConfigPresets._get_defaults("worker")
         return AgentConfig(
-            model=model,
+            model=defaults.model,
             session_id=session_id,
-            provider=provider,
+            provider=CLIProvider(defaults.provider),
             allowed_tools=None,
             enable_hooks=True,
             timeout=180,
@@ -51,17 +52,17 @@ class AgentConfigPresets:
     @staticmethod
     def interactive(
         session_id: str | None = None,
-        mcp_servers: dict[str, MCPServerConfig] | None = None,
+        mcp_servers: list[MCPServerConfig] | None = None,
     ) -> AgentConfig:
         """Interactive agent."""
-        provider, model = AgentConfigPresets._get_defaults("worker")
+        defaults = AgentConfigPresets._get_defaults("worker")
         config = get_config()
         guard_rules_path = config.root / "ami/config/policies/interactive.yaml"
 
         return AgentConfig(
-            model=model,
+            model=defaults.model,
             session_id=session_id,
-            provider=provider,
+            provider=CLIProvider(defaults.provider),
             allowed_tools=None,
             enable_hooks=True,
             timeout=None,

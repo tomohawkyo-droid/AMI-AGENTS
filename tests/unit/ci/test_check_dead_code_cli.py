@@ -1,6 +1,7 @@
 """Unit tests for check_dead_code -- main CLI, line counting, dead test files."""
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -63,7 +64,7 @@ class TestMain:
     """Tests for main CLI entry point."""
 
     def test_success_exit_code(
-        self, tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """No dead code results in exit code 0."""
         cfg = tmp_path / "cfg.yaml"
@@ -82,7 +83,7 @@ class TestMain:
         assert "SUCCESS" in out
 
     def test_failure_exit_code(
-        self, tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Dead code detected results in exit code 1."""
         scan_dir = tmp_path / "pkg"
@@ -100,7 +101,7 @@ class TestMain:
         assert exc_info.value.code == 1
 
     def test_json_flag(
-        self, tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """--json flag produces valid JSON output."""
         scan_dir = tmp_path / "src"
@@ -121,7 +122,7 @@ class TestMain:
             assert "dead_code" in result
 
     def test_verbose_flag(
-        self, tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """--verbose flag shows analyzed files."""
         scan_dir = tmp_path / "src"
@@ -147,7 +148,7 @@ class TestMain:
 class TestCountFileLines:
     """Tests for _count_file_lines."""
 
-    def test_counts_lines(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_counts_lines(self, tmp_path: Path) -> None:
         p = tmp_path / "mod.py"
         p.write_text("a = 1\nb = 2\nc = 3\n")
         assert _count_file_lines(str(p)) == EXPECTED_LINE_COUNT_THREE
@@ -159,17 +160,17 @@ class TestCountFileLines:
 class TestCountNodeLines:
     """Tests for _count_node_lines."""
 
-    def test_function_span(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_function_span(self, tmp_path: Path) -> None:
         p = tmp_path / "mod.py"
         p.write_text("def foo():\n    x = 1\n    return x\n")
         assert _count_node_lines(str(p), 1, "function") == EXPECTED_LINE_COUNT_THREE
 
-    def test_class_span(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_class_span(self, tmp_path: Path) -> None:
         p = tmp_path / "mod.py"
         p.write_text("class Foo:\n    x = 1\n    def bar(self):\n        pass\n")
         assert _count_node_lines(str(p), 1, "class") == EXPECTED_LINE_COUNT_FOUR
 
-    def test_constant_span(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_constant_span(self, tmp_path: Path) -> None:
         p = tmp_path / "mod.py"
         p.write_text("MAX = 100\n")
         assert _count_node_lines(str(p), 1, "constant") == 1
@@ -258,7 +259,7 @@ class TestDryRunCli:
     """Tests for --dry-run CLI flag."""
 
     def test_dry_run_output(
-        self, tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         scan_dir = tmp_path / "pkg"
         scan_dir.mkdir()
@@ -276,7 +277,7 @@ class TestDryRunCli:
         assert "lines removable" in out
 
     def test_dry_run_clean(
-        self, tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         scan_dir = tmp_path / "src"
         scan_dir.mkdir()

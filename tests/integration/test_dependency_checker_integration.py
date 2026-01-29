@@ -12,6 +12,7 @@ from ami.scripts.ci.check_dependency_versions import (
     parse_dependency,
     upgrade_pyproject,
 )
+from ami.types.results import LooseDependency, OutdatedDependency
 
 # ---------------------------------------------------------------------------
 # parse_dependency
@@ -181,7 +182,7 @@ class TestUpgradePyproject:
         toml.write_text(
             '[project]\nname = "test"\ndependencies = [\n    "flask>=2.0",\n]\n'
         )
-        upgrade_pyproject(toml, [("flask", "flask>=2.0", "3.0.0")], [])
+        upgrade_pyproject(toml, [LooseDependency("flask", "flask>=2.0", "3.0.0")], [])
         content = toml.read_text()
         assert "flask==3.0.0" in content
 
@@ -190,7 +191,9 @@ class TestUpgradePyproject:
         toml.write_text(
             '[project]\nname = "test"\ndependencies = [\n    "requests==2.30.0",\n]\n'
         )
-        upgrade_pyproject(toml, [], [("requests", None, "2.30.0", "2.31.0")])
+        upgrade_pyproject(
+            toml, [], [OutdatedDependency("requests", None, "2.30.0", "2.31.0")]
+        )
         content = toml.read_text()
         assert "requests==2.31.0" in content
 
@@ -201,6 +204,8 @@ class TestUpgradePyproject:
             '    "uvicorn[standard]==0.28.0",\n'
             "]\n"
         )
-        upgrade_pyproject(toml, [], [("uvicorn", "[standard]", "0.28.0", "0.29.0")])
+        upgrade_pyproject(
+            toml, [], [OutdatedDependency("uvicorn", "[standard]", "0.28.0", "0.29.0")]
+        )
         content = toml.read_text()
         assert "uvicorn[standard]==0.29.0" in content

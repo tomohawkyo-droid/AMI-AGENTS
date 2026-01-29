@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Protocol
 
 from loguru import logger
 
+from ami.types.common import ProcessEnvironment
+
 if TYPE_CHECKING:
     from ami.core.config import ConfigValue
 
@@ -59,14 +61,14 @@ def drop_privileges(config: ConfigProtocol) -> None:
         logger.error(f"Failed to drop privileges: {e}")
 
 
-def get_unprivileged_env(config: ConfigProtocol) -> dict[str, str] | None:
+def get_unprivileged_env(config: ConfigProtocol) -> ProcessEnvironment | None:
     """Get environment to run subprocess with unprivileged user.
 
     Args:
         config: Configuration object containing unprivileged_user setting
 
     Returns:
-        Environment dict with HOME and USER set to unprivileged user,
+        ProcessEnvironment with HOME and USER set to unprivileged user,
         or None if unprivileged user is not configured
     """
     unprivileged_user_value = config.get_value("unprivileged_user")
@@ -78,15 +80,15 @@ def get_unprivileged_env(config: ConfigProtocol) -> dict[str, str] | None:
 
     try:
         user_info = pwd.getpwnam(unprivileged_user)
-        env = {
-            "HOME": user_info.pw_dir,
-            "USER": unprivileged_user,
-            "PATH": os.environ.get("PATH", ""),
-            "LANG": os.environ.get("LANG", "C.UTF-8"),
-            "LC_ALL": os.environ.get("LC_ALL", "C.UTF-8"),
-            "PYTHONUNBUFFERED": "1",
-            "FORCE_COLOR": "1",
-        }
+        env = ProcessEnvironment(
+            HOME=user_info.pw_dir,
+            USER=unprivileged_user,
+            PATH=os.environ.get("PATH", ""),
+            LANG=os.environ.get("LANG", "C.UTF-8"),
+            LC_ALL=os.environ.get("LC_ALL", "C.UTF-8"),
+            PYTHONUNBUFFERED="1",
+            FORCE_COLOR="1",
+        )
 
         if "DISABLE_AUTOUPDATER" in os.environ:
             env["DISABLE_AUTOUPDATER"] = os.environ["DISABLE_AUTOUPDATER"]
@@ -95,9 +97,15 @@ def get_unprivileged_env(config: ConfigProtocol) -> dict[str, str] | None:
             f"Unprivileged user '{unprivileged_user}' not found. "
             "Running as current user."
         )
-        env = os.environ.copy()
-        env["PYTHONUNBUFFERED"] = "1"
-        env["FORCE_COLOR"] = "1"
+        env = ProcessEnvironment(
+            HOME=os.environ.get("HOME", ""),
+            USER=os.environ.get("USER", ""),
+            PATH=os.environ.get("PATH", ""),
+            LANG=os.environ.get("LANG", "C.UTF-8"),
+            LC_ALL=os.environ.get("LC_ALL", "C.UTF-8"),
+            PYTHONUNBUFFERED="1",
+            FORCE_COLOR="1",
+        )
         return env
     else:
         return env

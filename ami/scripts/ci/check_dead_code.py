@@ -24,6 +24,7 @@ from ami.scripts.ci.dead_code_analyzer import (
     find_dead_code,
     is_reference_only,
 )
+from ami.types.results import DeadCodeEntry, LoadedConfig
 
 DEFAULT_CONFIG_PATH = "res/config/dead_code.yaml"
 
@@ -56,17 +57,17 @@ DEFAULT_RAW: RawConfig = {
 }
 
 
-def load_config(path: str) -> tuple[dict[str, list[str]], DeadCodeConfig]:
+def load_config(path: str) -> LoadedConfig:
     """Load and process configuration from a YAML file."""
     if os.path.exists(path):
         with open(path) as f:
-            raw: dict[str, list[str]] = yaml.safe_load(f) or {}
+            raw = yaml.safe_load(f) or {}  # dict being mutated, no type annotation
     else:
         print(f"Warning: {path} not found, using defaults")
         raw = {}
 
     # Merge with defaults
-    default_raw: dict[str, list[str]] = {
+    default_raw = {  # dict being mutated, no type annotation
         "scan_paths": list(DEFAULT_RAW.get("scan_paths", [])),
         "ignore_paths": list(DEFAULT_RAW.get("ignore_paths", [])),
         "entry_points": list(DEFAULT_RAW.get("entry_points", [])),
@@ -79,7 +80,7 @@ def load_config(path: str) -> tuple[dict[str, list[str]], DeadCodeConfig]:
             raw[key] = default_val
 
     # Compile regex patterns
-    compiled: list[re.Pattern[str]] = []
+    compiled = []  # list being mutated, no type annotation
     for pat_str in raw.get("ignored_name_patterns", []):
         try:
             compiled.append(re.compile(pat_str))
@@ -92,7 +93,7 @@ def load_config(path: str) -> tuple[dict[str, list[str]], DeadCodeConfig]:
         ignored_name_regexes=compiled,
         reference_only_patterns=raw.get("reference_only_paths", []),
     )
-    return raw, config
+    return LoadedConfig(raw, config)
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +153,7 @@ def print_report(dead_items: list[DeadCodeItem]) -> None:
     """Print a coloured report grouped by dead-code kind."""
     print(f"\n{RED}Dead Code Analysis Results{RESET}\n")
 
-    by_kind: dict[str, list[DeadCodeItem]] = {}
+    by_kind: dict = {}
     for item in dead_items:
         kind = item.definition.kind
         if kind not in by_kind:
@@ -226,7 +227,7 @@ def _count_node_lines(path: str, target_line: int, kind: str) -> int:
     except (OSError, SyntaxError):
         return 1
 
-    node_types: dict[str, tuple[type, ...]] = {
+    node_types = {  # Mapping from kind to AST node types
         "function": (ast.FunctionDef, ast.AsyncFunctionDef),
         "class": (ast.ClassDef,),
         "constant": (ast.Assign, ast.AnnAssign),
@@ -281,7 +282,7 @@ def print_dry_run_report(
     """Print a line-count report for dead code removal."""
     print(f"\n{BOLD}Dry Run: Lines removable by deleting dead code{RESET}\n")
 
-    by_kind: dict[str, list[tuple[DeadCodeItem, int]]] = {}
+    by_kind: dict = {}
     prod_total = 0
 
     for item in dead_items:
@@ -293,7 +294,15 @@ def print_dry_run_report(
         prod_total += lines
         if defn.kind not in by_kind:
             by_kind[defn.kind] = []
-        by_kind[defn.kind].append((item, lines))
+        entry = DeadCodeEntry(
+            name=defn.name,
+            kind=defn.kind,
+            file=defn.file,
+            line=defn.line,
+            reason=item.reason,
+            line_count=lines,
+        )
+        by_kind[defn.kind].append(entry)
 
     print(f"{BOLD}DEAD PRODUCTION CODE:{RESET}")
     for kind in KIND_ORDER:
@@ -302,16 +311,13 @@ def print_dry_run_report(
             continue
         label = KIND_LABELS.get(kind, f"UNREFERENCED {kind.upper()}S")
         print(f"  {label} ({len(entries)}):")
-        for item, lines in sorted(
-            entries, key=lambda x: (x[0].definition.file, x[0].definition.line)
-        ):
-            defn = item.definition
+        for entry in sorted(entries, key=lambda x: (x.file, x.line)):
             if kind == "module":
-                loc = f"    {defn.file}"
+                loc = f"    {entry.file}"
             else:
-                short = defn.name.split(".")[-1]
-                loc = f"    {defn.file}:{defn.line}  {short}"
-            print(f"{loc:<55} {YELLOW}{lines} lines{RESET}")
+                short = entry.name.split(".")[-1]
+                loc = f"    {entry.file}:{entry.line}  {short}"
+            print(f"{loc:<55} {YELLOW}{entry.line_count} lines{RESET}")
     print(f"  {BOLD}Production subtotal: {prod_total} lines{RESET}\n")
 
     # Dead test files
@@ -383,7 +389,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    raw_config, config = load_config(args.config)
+    loaded = load_config(args.config)
+    raw_config = cast(RawConfig, loaded.raw)
+    config = cast(DeadCodeConfig, loaded.config)
     scan_paths: list[str] = raw_config.get("scan_paths", ["ami"])
     ignore_paths: list[str] = raw_config.get("ignore_paths", [])
 

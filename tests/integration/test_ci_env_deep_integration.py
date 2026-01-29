@@ -47,6 +47,7 @@ from ami.scripts.ci.verify_coverage import (
 from ami.scripts.ci.verify_coverage import (
     run_coverage,
 )
+from ami.types.results import FileViolation
 
 # -- Constants for expected test values --------------------------------------
 
@@ -75,7 +76,7 @@ class TestGetAllFiles:
         (tmp_path / "b.txt").write_text("x")
         (tmp_path / "c.py").write_text("x")
         monkeypatch.chdir(tmp_path)
-        result = get_all_files(set(), (".py",))
+        result = get_all_files(set(), [".py"])
         basenames = {os.path.basename(f) for f in result}
         assert "a.py" in basenames
         assert "c.py" in basenames
@@ -88,7 +89,7 @@ class TestGetAllFiles:
         (subdir / "lib.py").write_text("x")
         (tmp_path / "main.py").write_text("x")
         monkeypatch.chdir(tmp_path)
-        result = get_all_files({"node_modules"}, (".py",))
+        result = get_all_files({"node_modules"}, [".py"])
         basenames = {os.path.basename(f) for f in result}
         assert "main.py" in basenames
         assert "lib.py" not in basenames
@@ -100,27 +101,27 @@ class TestShouldCheckFile:
     def test_true_for_valid_py_file(self, tmp_path: Path):
         f = tmp_path / "good.py"
         f.write_text("pass")
-        assert should_check_file(str(f), (".py",), set(), set()) is True
+        assert should_check_file(str(f), [".py"], set(), set()) is True
 
     def test_false_for_wrong_extension(self, tmp_path: Path):
         f = tmp_path / "readme.txt"
         f.write_text("hello")
-        assert should_check_file(str(f), (".py",), set(), set()) is False
+        assert should_check_file(str(f), [".py"], set(), set()) is False
 
     def test_false_for_ignored_filename(self, tmp_path: Path):
         f = tmp_path / "skip_me.py"
         f.write_text("pass")
-        assert should_check_file(str(f), (".py",), {"skip_me.py"}, set()) is False
+        assert should_check_file(str(f), [".py"], {"skip_me.py"}, set()) is False
 
     def test_false_for_nonexistent_file(self):
-        assert should_check_file("/no/such/file.py", (".py",), set(), set()) is False
+        assert should_check_file("/no/such/file.py", [".py"], set(), set()) is False
 
     def test_false_for_file_in_ignored_dir(self, tmp_path: Path):
         d = tmp_path / ".venv"
         d.mkdir()
         f = d / "lib.py"
         f.write_text("pass")
-        assert should_check_file(str(f), (".py",), set(), {".venv"}) is False
+        assert should_check_file(str(f), [".py"], set(), {".venv"}) is False
 
 
 class TestCheckFileLength:
@@ -142,7 +143,7 @@ class TestPrintViolations:
     """Tests for print_violations."""
 
     def test_outputs_violation_report(self, capsys):
-        violations = [("a.py", 600), ("b.py", 550)]
+        violations = [FileViolation("a.py", 600), FileViolation("b.py", 550)]
         print_violations(violations, EXPECTED_DEFAULT_MAX_LINES)
         captured = capsys.readouterr().out
         assert "FAILED" in captured

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Podman Guard - Blocks destructive commands
+# Installed to ${VENV_DIR}/bin/podman, calls podman-real
+#
+# This wrapper prevents accidental data loss from dangerous podman commands.
+# It cannot be bypassed because it IS the podman binary in PATH.
+
+set -euo pipefail
+
+PODMAN_REAL="$(dirname "$0")/podman-real"
+ARGS="$*"
+
+# Ensure real podman exists
+if [[ ! -x "$PODMAN_REAL" ]]; then
+    echo "ERROR: podman-real not found at $PODMAN_REAL"
+    echo "Run bootstrap_podman.sh to fix installation"
+    exit 1
+fi
+
+block() {
+    echo "❌ BLOCKED: $1"
+    echo "This command is forbidden to prevent data loss."
+    echo ""
+    echo "If you REALLY need to run this command, use podman-real directly:"
+    echo "  $(dirname "$0")/podman-real $ARGS"
+    exit 1
+}
+
+# Handle empty args
+if [[ $# -eq 0 ]]; then
+    exec "$PODMAN_REAL"
+fi
+
+# Check for destructive commands
+case "$1" in
+    rm)
+        [[ "$ARGS" == *"-a"* || "$ARGS" == *"--all"* ]] && block "Bulk container removal (rm -a/--all)"
+        ;;
+    rmi)
+        [[ "$ARGS" == *"-a"* || "$ARGS" == *"--all"* ]] && block "Bulk image removal (rmi -a/--all)"
+        ;;
+    system)
+        case "${2:-}" in
+            prune)   block "system prune" ;;
+            migrate) block "system migrate (causes state corruption)" ;;
+            reset)   block "system reset (destroys all data)" ;;
+        esac
+        ;;
+    volume)
+        [[ "${2:-}" == "prune" ]] && block "volume prune"
+        [[ "${2:-}" == "rm" && ( "$ARGS" == *"-a"* || "$ARGS" == *"--all"* ) ]] && block "Bulk volume removal"
+        ;;
+    image)
+        [[ "${2:-}" == "prune" && "$ARGS" == *"-a"* ]] && block "image prune -a"
+        ;;
+    container)
+        [[ "${2:-}" == "prune" ]] && block "container prune"
+        ;;
+    network)
+        [[ "${2:-}" == "prune" ]] && block "network prune"
+        ;;
+esac
+
+# Safe - pass through to real podman
+exec "$PODMAN_REAL" "$@"

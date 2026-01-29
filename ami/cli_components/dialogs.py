@@ -14,6 +14,9 @@ from ami.cli_components.selection_dialog import (
 from ami.cli_components.text_input_utils import Colors, read_key_sequence
 from ami.cli_components.tui import TUI, BoxStyle
 
+# Type alias for selectable items union
+SelectableUnion = SelectableItem | SelectableItemDict
+
 # Regex to strip ANSI escape codes
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -228,7 +231,7 @@ def multiselect(
     title: str = "Select Options",
     preselected: set[str] | None = None,
     max_height: int = 15,
-) -> list[SelectableItem | SelectableItemDict]:
+) -> list[SelectableUnion]:
     """Select multiple items. Returns list of items or empty list if cancelled.
 
     Args:

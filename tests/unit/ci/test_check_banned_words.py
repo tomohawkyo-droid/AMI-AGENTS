@@ -7,6 +7,7 @@ import pytest
 from ami.scripts.ci.check_banned_words import (
     IGNORE_DIRS,
     INCLUDE_EXTENSIONS,
+    BannedPatternError,
     PatternConfig,
     PatternRule,
     check_file_content,
@@ -132,7 +133,9 @@ ignored_files:
         config = load_config(str(config_file))
 
         assert len(config["banned"]) == 1
-        assert "tests" in config["directory_rules"]
+        dir_rules = config["directory_rules"]
+        assert isinstance(dir_rules, dict)
+        assert "tests" in dir_rules
 
     def test_handles_empty_config(self, tmp_path: Path) -> None:
         """Test handling empty config file."""
@@ -302,28 +305,28 @@ class TestPrintErrors:
 
     def test_prints_grouped_by_file(self, capsys) -> None:
         """Test errors are printed grouped by file."""
-        errors = [
-            {
-                "file": "a.py",
-                "line": 1,
-                "pattern": "foo",
-                "reason": "r1",
-                "content": "x",
-            },
-            {
-                "file": "a.py",
-                "line": 2,
-                "pattern": "bar",
-                "reason": "r2",
-                "content": "y",
-            },
-            {
-                "file": "b.py",
-                "line": 5,
-                "pattern": "baz",
-                "reason": "r3",
-                "content": "z",
-            },
+        errors: list[BannedPatternError] = [
+            BannedPatternError(
+                file="a.py",
+                line=1,
+                pattern="foo",
+                reason="r1",
+                content="x",
+            ),
+            BannedPatternError(
+                file="a.py",
+                line=2,
+                pattern="bar",
+                reason="r2",
+                content="y",
+            ),
+            BannedPatternError(
+                file="b.py",
+                line=5,
+                pattern="baz",
+                reason="r3",
+                content="z",
+            ),
         ]
 
         print_errors(errors)
@@ -356,14 +359,14 @@ class TestPrintErrorsLineInfo:
 
     def test_prints_without_line_number(self, capsys) -> None:
         """Test prints correctly when line is 0 (filename match)."""
-        errors = [
-            {
-                "file": "file.bak",
-                "line": 0,
-                "pattern": r"\.bak$",
-                "reason": "No backups",
-                "content": "file.bak",
-            }
+        errors: list[BannedPatternError] = [
+            BannedPatternError(
+                file="file.bak",
+                line=0,
+                pattern=r"\.bak$",
+                reason="No backups",
+                content="file.bak",
+            )
         ]
 
         print_errors(errors)
@@ -375,8 +378,10 @@ class TestPrintErrorsLineInfo:
 
     def test_prints_without_content(self, capsys) -> None:
         """Test prints correctly when content is empty."""
-        errors = [
-            {"file": "a.py", "line": 1, "pattern": "foo", "reason": "r1", "content": ""}
+        errors: list[BannedPatternError] = [
+            BannedPatternError(
+                file="a.py", line=1, pattern="foo", reason="r1", content=""
+            )
         ]
 
         print_errors(errors)

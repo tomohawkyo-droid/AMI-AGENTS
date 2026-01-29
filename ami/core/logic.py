@@ -10,7 +10,7 @@ from typing import Literal, TypedDict
 
 import yaml
 
-from ami.core.policies.engine import get_policy_engine
+from ami.core.policies.engine import BashPattern, get_policy_engine
 
 
 class PythonPattern(TypedDict):
@@ -50,7 +50,9 @@ def load_python_patterns() -> list[PythonPattern]:
     return get_policy_engine().load_python_patterns()
 
 
-def load_bash_patterns(patterns_path: Path | None = None) -> list[dict[str, str]]:
+def load_bash_patterns(
+    patterns_path: Path | None = None,
+) -> list[BashPattern]:
     """Load Bash command validation patterns.
 
     Args:
@@ -62,20 +64,18 @@ def load_bash_patterns(patterns_path: Path | None = None) -> list[dict[str, str]
             return []
         with patterns_path.open() as f:
             data = yaml.safe_load(f)
-        patterns: list[dict[str, str]] = (
-            data.get("deny_patterns", []) if isinstance(data, dict) else []
-        )
+        patterns = data.get("deny_patterns", []) if isinstance(data, dict) else []
         return patterns
 
     return get_policy_engine().load_bash_patterns()
 
 
-def load_sensitive_patterns() -> list[dict[str, str]]:
+def load_sensitive_patterns() -> list[BashPattern]:
     """Load sensitive file patterns."""
     return get_policy_engine().load_sensitive_patterns()
 
 
-def load_communication_patterns() -> list[dict[str, str]]:
+def load_communication_patterns() -> list[BashPattern]:
     """Load prohibited communication patterns."""
     return get_policy_engine().load_communication_patterns()
 
@@ -135,10 +135,11 @@ def parse_moderator_result(output: str) -> ModeratorResult:
 GREETING_PATTERNS = [r"^hello\b", r"^hi\b", r"^hey\b"]
 
 
-def parse_json_block(
-    output: str,
-) -> dict[str, str | int | float | bool | None | list[object] | dict[str, object]]:
-    """Parse JSON block from LLM output, handling markdown fences."""
+def parse_json_block(output: str) -> object:
+    """Parse JSON block from LLM output, handling markdown fences.
+
+    Returns parsed JSON as an object. Caller should validate structure.
+    """
     cleaned = output.strip()
 
     # Try finding JSON block

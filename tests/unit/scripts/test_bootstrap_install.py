@@ -1,6 +1,7 @@
 """Unit tests for scripts/bootstrap_install module."""
 
 from pathlib import Path
+from typing import NamedTuple
 from unittest.mock import MagicMock, patch
 
 from ami.scripts.bootstrap_components import Component, ComponentType
@@ -16,8 +17,25 @@ from ami.scripts.bootstrap_install import (
     run_bootstrap_script,
 )
 
+
+class ProgressCall(NamedTuple):
+    """Progress callback invocation data."""
+
+    current: int
+    total: int
+    label: str
+
+
+class ResultCall(NamedTuple):
+    """Result callback invocation data."""
+
+    component: Component
+    success: bool
+
+
 EXPECTED_DIRECTORY_COUNT = 2
 EXPECTED_SCRIPT_INSTALL_CALL_COUNT = 2
+EXPECTED_COMPONENT_RESULT_COUNT = 2
 
 
 class TestEnsureDirectories:
@@ -309,7 +327,12 @@ class TestInstallComponents:
 
         results = install_components(comps)
 
-        assert results == {"a": True, "b": True}
+        # Results is now a list of InstallationResult
+        assert len(results) == EXPECTED_COMPONENT_RESULT_COUNT
+        names = [r["component_name"] for r in results]
+        assert "a" in names
+        assert "b" in names
+        assert all(r["success"] for r in results)
         mock_npm.assert_called_once_with(["pkg-a", "pkg-b"])
 
     @patch("ami.scripts.bootstrap_install.ensure_directories")
@@ -339,17 +362,22 @@ class TestInstallComponents:
 
         results = install_components(comps)
 
-        assert results == {"a": True, "b": True}
+        # Results is now a list of InstallationResult
+        assert len(results) == EXPECTED_COMPONENT_RESULT_COUNT
+        names = [r["component_name"] for r in results]
+        assert "a" in names
+        assert "b" in names
+        assert all(r["success"] for r in results)
         assert mock_install.call_count == EXPECTED_SCRIPT_INSTALL_CALL_COUNT
 
     @patch("ami.scripts.bootstrap_install.ensure_directories")
     @patch("ami.scripts.bootstrap_install.install_npm_packages", return_value=True)
     def test_calls_progress_callback(self, mock_npm, mock_dirs) -> None:
         """Test calls progress callback."""
-        progress_calls: list[tuple[int, int, str]] = []
+        progress_calls: list[ProgressCall] = []
 
         def on_progress(current: int, total: int, label: str) -> None:
-            progress_calls.append((current, total, label))
+            progress_calls.append(ProgressCall(current, total, label))
 
         comps = [
             Component(
@@ -370,10 +398,10 @@ class TestInstallComponents:
     @patch("ami.scripts.bootstrap_install.install_npm_packages", return_value=True)
     def test_calls_result_callback(self, mock_npm, mock_dirs) -> None:
         """Test calls result callback."""
-        result_calls: list[tuple[Component, bool]] = []
+        result_calls: list[ResultCall] = []
 
         def on_result(comp: Component, success: bool) -> None:
-            result_calls.append((comp, success))
+            result_calls.append(ResultCall(comp, success))
 
         comps = [
             Component(
@@ -389,4 +417,4 @@ class TestInstallComponents:
         install_components(comps, on_result=on_result)
 
         assert len(result_calls) == 1
-        assert result_calls[0][1] is True
+        assert result_calls[0].success is True

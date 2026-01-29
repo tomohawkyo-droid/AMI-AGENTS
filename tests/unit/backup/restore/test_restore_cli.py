@@ -12,6 +12,7 @@ from ami.scripts.backup.restore.cli import (
     RestoreCLI,
     _format_file_size,
 )
+from ami.scripts.backup.restore.drive_client import DriveFileMetadata
 
 EXPECTED_PARSED_REVISION = 2
 MINIMUM_SUCCESS_LOG_CALL_COUNT = 3
@@ -316,7 +317,7 @@ class TestRestoreCLIPrintRevisionTable:
     def test_prints_formatted_table(self, capsys) -> None:
         """Test prints formatted table."""
         cli = RestoreCLI()
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "1",
                 "name": "backup1.tar.zst",
@@ -345,7 +346,7 @@ class TestRestoreCLIPrintRevisionTable:
         """Test truncates long file names."""
         cli = RestoreCLI()
         long_name = "a" * 60 + ".tar.zst"
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "1",
                 "name": long_name,

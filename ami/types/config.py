@@ -34,7 +34,7 @@ class AgentConfig(BaseModel):
     enable_hooks: bool = True
     enable_streaming: bool | None = False
     timeout: int | None = 180
-    mcp_servers: dict[str, MCPServerConfig] | None = None
+    mcp_servers: list[MCPServerConfig] | None = None
     capture_content: bool = False
     stream_callback: StreamCallback = None
     guard_rules_path: Path | None = Field(default=None)

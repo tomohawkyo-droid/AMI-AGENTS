@@ -9,6 +9,9 @@ from pathlib import Path
 
 import zstandard as zstd
 
+# tar exit codes
+TAR_FATAL_ERROR = 2  # Fatal error exit code
+
 
 class ArchiveError(Exception):
     """Error during archive creation."""
@@ -107,6 +110,8 @@ async def create_archive(
         "tar",
         "-cf",
         "-",
+        "--ignore-failed-read",
+        "--warning=no-file-changed",
         *exclude_args,
         "-C",
         str(root_dir.parent),
@@ -124,7 +129,9 @@ async def create_archive(
         msg = "tar command not found"
         raise ArchiveError(msg) from None
 
-    if proc.returncode != 0:
+    # tar exit codes: 0=success, 1=some files differ (warnings), 2=fatal error
+    # With --ignore-failed-read, permission errors become warnings (exit 1)
+    if proc.returncode == TAR_FATAL_ERROR:
         msg = f"tar failed: {stderr.decode()}"
         raise ArchiveError(msg)
 

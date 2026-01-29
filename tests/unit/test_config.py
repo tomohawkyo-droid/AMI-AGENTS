@@ -4,6 +4,7 @@ import os
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
+from typing import TypedDict, cast
 
 import pytest
 import yaml
@@ -11,6 +12,39 @@ import yaml
 import ami.core.config as config_module
 from ami.cli.provider_type import ProviderType
 from ami.core.config import Config, get_config
+
+
+class TestConfigData(TypedDict, total=False):
+    """TypedDict for config data used in tests."""
+
+    version: str
+    environment: str
+    logging: object
+    paths: object
+    nested: object
+    test_var: str
+    list_values: object
+    tasks: object
+    non_string_path: object
+    agent: object
+
+
+class TasksConfig(TypedDict, total=False):
+    """TypedDict for tasks config used in tests."""
+
+    file_locking: bool
+    other: str
+
+
+class NestedConfigData(TypedDict, total=False):
+    """TypedDict for nested config data in tests."""
+
+    value: str
+
+
+def _get_data(config: Config) -> TestConfigData:
+    """Get config._data for test assertions."""
+    return cast(TestConfigData, config._data)
 
 
 @pytest.fixture
@@ -59,8 +93,8 @@ class TestConfig:
         config = Config(config_file=temp_config_file)
 
         assert config._data is not None
-        assert config._data["version"] == "2.0.0"
-        assert config._data["environment"] == "test"
+        assert _get_data(config)["version"] == "2.0.0"
+        assert _get_data(config)["environment"] == "test"
 
     def test_environment_variable_substitution(self, temp_env_var_config: Path) -> None:
         """Config substitutes ${VAR:default} patterns."""
@@ -69,7 +103,7 @@ class TestConfig:
 
         try:
             config = Config(config_file=temp_env_var_config)
-            assert config._data["environment"] == "production"
+            assert _get_data(config)["environment"] == "production"
         finally:
             # Cleanup
             if "AMI_ENV" in os.environ:
@@ -83,7 +117,7 @@ class TestConfig:
 
         config = Config(config_file=temp_env_var_config)
         # Should return empty string when var not set and no default
-        assert config._data["test_var"] == ""
+        assert _get_data(config)["test_var"] == ""
 
     def test_nested_environment_substitution(self, temp_env_var_config: Path) -> None:
         """Config substitutes env vars in nested dicts."""
@@ -91,7 +125,8 @@ class TestConfig:
 
         try:
             config = Config(config_file=temp_env_var_config)
-            assert config._data["nested"]["value"] == "nested_value"
+            nested = cast(NestedConfigData, _get_data(config)["nested"])
+            assert nested["value"] == "nested_value"
         finally:
             if "NESTED_VAR" in os.environ:
                 del os.environ["NESTED_VAR"]
@@ -204,7 +239,7 @@ class TestConfig:
         config = Config(config_file=temp_config_file)
 
         # Manually set a non-string value
-        config._data["non_string_path"] = 12345
+        _get_data(config)["non_string_path"] = 12345
 
         with pytest.raises(TypeError) as exc_info:
             config.resolve_path("non_string_path")
@@ -222,9 +257,10 @@ class TestConfig:
 
         try:
             config = Config(config_file=temp_path)
-            assert config._data["list_values"][0] == "item1"
-            assert config._data["list_values"][1] == "static"
-            assert config._data["list_values"][2] == "item2"
+            list_values = cast(list[str], _get_data(config)["list_values"])
+            assert list_values[0] == "item1"
+            assert list_values[1] == "static"
+            assert list_values[2] == "item2"
         finally:
             if temp_path.exists():
                 temp_path.unlink()
@@ -241,8 +277,10 @@ class TestConfig:
 
         try:
             config = Config(config_file=temp_path)
-            assert "tasks" in config._data
-            assert config._data["tasks"]["file_locking"] is False
+            data = _get_data(config)
+            assert "tasks" in data
+            tasks = cast(TasksConfig, data["tasks"])
+            assert tasks["file_locking"] is False
         finally:
             if temp_path.exists():
                 temp_path.unlink()
@@ -260,8 +298,9 @@ class TestConfig:
 
         try:
             config = Config(config_file=temp_path)
-            assert config._data["tasks"]["file_locking"] is False
-            assert config._data["tasks"]["other"] == "value"
+            tasks = cast(TasksConfig, _get_data(config)["tasks"])
+            assert tasks["file_locking"] is False
+            assert tasks["other"] == "value"
         finally:
             if temp_path.exists():
                 temp_path.unlink()

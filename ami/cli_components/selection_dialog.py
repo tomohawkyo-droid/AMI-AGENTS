@@ -2,10 +2,11 @@
 Selection dialog for CLI menu selection with hierarchical group support.
 """
 
-from typing import Protocol, TypedDict, runtime_checkable
+from typing import Protocol, TypedDict, cast, runtime_checkable
 
 from ami.cli_components.text_input_utils import Colors, read_key_sequence
 from ami.cli_components.tui import TUI, BoxStyle
+from ami.types.results import FormattedPrefix, GroupRange, KeyHandleResult
 
 
 @runtime_checkable
@@ -28,6 +29,9 @@ class SelectableItemDict(TypedDict, total=False):
     is_header: bool
     value: str | object
 
+
+# Type alias for selectable items union (without str for internal use)
+SelectableUnion = SelectableItem | SelectableItemDict
 
 # Union type for all valid item formats
 DialogItem = SelectableItem | SelectableItemDict | str
@@ -76,8 +80,8 @@ class SelectionDialog:
         self.width = config.width
         self._last_render_lines = 0
 
-        self.items: list[SelectableItem | SelectableItemDict] = []
-        self.group_ranges: list[tuple[int, int, int]] = []  # (header_idx, start, end)
+        self.items: list[SelectableUnion] = []
+        self.group_ranges: list[GroupRange] = []
         self._preselected_ids = config.preselected
 
         self._process_items(items)
@@ -130,7 +134,7 @@ class SelectionDialog:
     def _close_group(self, header_idx: int, group_start: int, end_idx: int) -> None:
         """Close a group range if valid."""
         if header_idx >= 0 and group_start >= 0:
-            self.group_ranges.append((header_idx, group_start, end_idx))
+            self.group_ranges.append(GroupRange(header_idx, group_start, end_idx))
 
     def _initialize_preselected(self) -> None:
         """Initialize selected set with preselected item IDs."""
@@ -161,20 +165,12 @@ class SelectionDialog:
 
     def _get_group_items(self, header_idx: int) -> list[int]:
         """Get indices of items in a group (excluding header)."""
-        for h_idx, start, end in self.group_ranges:
-            if h_idx == header_idx:
-                return list(range(start, end))
+        for group_range in self.group_ranges:
+            if group_range.header_idx == header_idx:
+                return list(range(group_range.start, group_range.end))
         return []
 
-    def _handle_key(
-        self, key: str
-    ) -> tuple[
-        bool,
-        SelectableItem
-        | SelectableItemDict
-        | list[SelectableItem | SelectableItemDict]
-        | None,
-    ]:
+    def _handle_key(self, key: str) -> KeyHandleResult:
         """Handle key press. Returns (should_continue, result)."""
         if key == UP and self.cursor > 0:
             self.cursor -= 1
@@ -193,10 +189,10 @@ class SelectionDialog:
             # Select none
             self.selected.clear()
         elif key == ENTER:
-            return False, self._get_selection()
+            return KeyHandleResult(False, self._get_selection())
         elif key == ESC:
-            return False, None
-        return True, None
+            return KeyHandleResult(False, None)
+        return KeyHandleResult(True, None)
 
     def _toggle_selection(self) -> None:
         """Toggle selection of current item or group."""
@@ -224,9 +220,7 @@ class SelectionDialog:
 
     def _get_selection(
         self,
-    ) -> (
-        SelectableItem | SelectableItemDict | list[SelectableItem | SelectableItemDict]
-    ):
+    ) -> SelectableUnion | list[SelectableUnion]:
         """Get current selection result (excluding headers)."""
         if self.multi:
             return [
@@ -238,12 +232,7 @@ class SelectionDialog:
 
     def run(
         self,
-    ) -> (
-        SelectableItem
-        | SelectableItemDict
-        | list[SelectableItem | SelectableItemDict]
-        | None
-    ):
+    ) -> SelectableUnion | list[SelectableUnion] | None:
         """Run loop. Returns selected value(s) or None."""
         try:
             while True:
@@ -252,9 +241,12 @@ class SelectionDialog:
                 # Only process string keys, ignore int/None
                 if not isinstance(key, str):
                     continue
-                should_continue, result = self._handle_key(key)
-                if not should_continue:
-                    return result
+                key_result = self._handle_key(key)
+                if not key_result.should_continue:
+                    return cast(
+                        SelectableUnion | list[SelectableUnion] | None,
+                        key_result.result,
+                    )
         except KeyboardInterrupt:
             return None
         finally:
@@ -294,26 +286,28 @@ class SelectionDialog:
             return item["description"]
         return ""
 
-    def _build_cursor_prefix(self, is_cursor: bool) -> tuple[str, str]:
+    def _build_cursor_prefix(self, is_cursor: bool) -> FormattedPrefix:
         """Build cursor indicator prefix. Returns (formatted, visible)."""
         if is_cursor:
-            return f"{Colors.BOLD}{Colors.REVERSE}>{Colors.RESET} ", "> "
-        return "  ", "  "
+            return FormattedPrefix(
+                f"{Colors.BOLD}{Colors.REVERSE}>{Colors.RESET} ", "> "
+            )
+        return FormattedPrefix("  ", "  ")
 
-    def _build_checkbox_prefix(self, real_idx: int) -> tuple[str, str]:
+    def _build_checkbox_prefix(self, real_idx: int) -> FormattedPrefix:
         """Build checkbox prefix for multi-select. Returns (formatted, visible)."""
         if real_idx in self.selected:
-            return f"{Colors.GREEN}[x]{Colors.RESET} ", "[x] "
-        return "[ ] ", "[ ] "
+            return FormattedPrefix(f"{Colors.GREEN}[x]{Colors.RESET} ", "[x] ")
+        return FormattedPrefix("[ ] ", "[ ] ")
 
-    def _build_group_checkbox_prefix(self, real_idx: int) -> tuple[str, str]:
+    def _build_group_checkbox_prefix(self, real_idx: int) -> FormattedPrefix:
         """Build group checkbox prefix showing selection state."""
         state = self._get_group_selection_state(real_idx)
         if state == "all":
-            return f"{Colors.GREEN}[■]{Colors.RESET} ", "[■] "
+            return FormattedPrefix(f"{Colors.GREEN}[■]{Colors.RESET} ", "[■] ")
         if state == "some":
-            return f"{Colors.YELLOW}[◧]{Colors.RESET} ", "[◧] "
-        return f"{Colors.CYAN}[□]{Colors.RESET} ", "[□] "
+            return FormattedPrefix(f"{Colors.YELLOW}[◧]{Colors.RESET} ", "[◧] ")
+        return FormattedPrefix(f"{Colors.CYAN}[□]{Colors.RESET} ", "[□] ")
 
     def _truncate_text(self, text: str, max_width: int) -> str:
         """Truncate text to fit within max_width."""
@@ -325,12 +319,13 @@ class SelectionDialog:
         self, item: SelectableItem | SelectableItemDict, real_idx: int, is_cursor: bool
     ) -> str:
         """Render a group header item."""
-        prefix, prefix_visible = self._build_cursor_prefix(is_cursor)
+        cursor_result = self._build_cursor_prefix(is_cursor)
+        prefix, prefix_visible = cursor_result.formatted, cursor_result.visible
 
         if self.multi:
-            chk_prefix, chk_visible = self._build_group_checkbox_prefix(real_idx)
-            prefix += chk_prefix
-            prefix_visible += chk_visible
+            chk_result = self._build_group_checkbox_prefix(real_idx)
+            prefix += chk_result.formatted
+            prefix_visible += chk_result.visible
 
         label = self._get_item_label(item)
         available_width = self.width - 4 - len(prefix_visible)
@@ -345,14 +340,14 @@ class SelectionDialog:
         prefix = INDENT_CHILD
         prefix_visible = INDENT_CHILD
 
-        cursor_prefix, cursor_visible = self._build_cursor_prefix(is_cursor)
-        prefix += cursor_prefix
-        prefix_visible += cursor_visible
+        cursor_result = self._build_cursor_prefix(is_cursor)
+        prefix += cursor_result.formatted
+        prefix_visible += cursor_result.visible
 
         if self.multi:
-            chk_prefix, chk_visible = self._build_checkbox_prefix(real_idx)
-            prefix += chk_prefix
-            prefix_visible += chk_visible
+            chk_result = self._build_checkbox_prefix(real_idx)
+            prefix += chk_result.formatted
+            prefix_visible += chk_result.visible
 
         label = self._get_item_label(item)
         desc_text = self._get_item_description(item)

@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 # Ruff E402 exempts sys.path.insert between imports
 sys.path.insert(
@@ -35,10 +35,11 @@ from ami.cli_components import dialogs as _dialogs
 from ami.cli_components import menu_selector as _menu
 from ami.cli_components.selection_dialog import DialogItem
 from ami.cli_components.text_input_utils import Colors
+from ami.types.results import NamedComponentStatus
 
 if TYPE_CHECKING:
     from ami.cli_components.menu_selector import MenuItem
-    from ami.scripts.bootstrap_components import Component, ComponentStatus
+    from ami.scripts.bootstrap_components import Component
 
 # =============================================================================
 # ANSI Colors & Styles
@@ -50,6 +51,21 @@ RED = Colors.RED
 BOLD = Colors.BOLD
 DIM = "\033[2m"
 RESET = Colors.RESET
+
+
+class MenuBuildResult(NamedTuple):
+    """Result from building menu items."""
+
+    menu_items: object  # list of MenuItem with Component or None values
+    preselected_ids: set[str]
+
+
+class InstallationResult(NamedTuple):
+    """Result from running installation."""
+
+    success_count: int
+    failed_labels: list[str]
+
 
 # =============================================================================
 # ASCII Art & Banners
@@ -94,26 +110,41 @@ def print_progress(current: int, total: int, label: str) -> None:
     print(f"{BOLD}  ► {label}{RESET}")
 
 
-def format_component_label(comp: Component, status: ComponentStatus) -> str:
+def _find_status_by_name(
+    statuses: list[NamedComponentStatus], name: str
+) -> NamedComponentStatus | None:
+    """Find a status entry by component name."""
+    for s in statuses:
+        if s.name == name:
+            return s
+    return None
+
+
+def format_component_label(comp: Component, status: NamedComponentStatus | None) -> str:
     """Format component label with version if installed."""
-    if status.installed and status.version:
+    if status and status.installed and status.version:
         return f"{comp.label} {GREEN}v{status.version}{RESET}"
     return comp.label
 
 
-def format_component_description(comp: Component, status: ComponentStatus) -> str:
+def format_component_description(
+    comp: Component, status: NamedComponentStatus | None
+) -> str:
     """Format component description with status."""
-    if status.installed:
+    if status and status.installed:
         return f"{comp.description} {GREEN}✓{RESET}"
     return f"{comp.description} {DIM}(not installed){RESET}"
 
 
-def scan_components() -> dict[str, ComponentStatus]:
-    """Scan all components and return their status."""
+def scan_components() -> list[NamedComponentStatus]:
+    """Scan all components and return their status as a list.
+
+    Each status has a name field for lookups.
+    """
     print(f"\n{CYAN}Scanning installed components...{RESET}")
 
     components_by_group = _bootstrap_components.get_components_by_group()
-    statuses: dict[str, ComponentStatus] = {}
+    statuses: list[NamedComponentStatus] = []
 
     total = sum(len(comps) for comps in components_by_group.values())
 
@@ -124,28 +155,36 @@ def scan_components() -> dict[str, ComponentStatus]:
             sys.stdout.write(f"\r  Checking {comp.label}...{' ' * 20}")
             sys.stdout.flush()
 
-            statuses[comp.name] = comp.get_status()
+            raw_status = comp.get_status()
+            statuses.append(
+                NamedComponentStatus(
+                    name=comp.name,
+                    installed=raw_status.installed,
+                    version=raw_status.version,
+                    path=raw_status.path,
+                )
+            )
 
     sys.stdout.write(f"\r{' ' * 60}\r")  # Clear line
     sys.stdout.flush()
 
     # Print summary
-    installed = sum(1 for s in statuses.values() if s.installed)
+    installed = sum(1 for s in statuses if s.installed)
     print(f"  {GREEN}✓{RESET} Found {installed}/{total} components installed\n")
 
     return statuses
 
 
 def build_menu_items(
-    statuses: dict[str, ComponentStatus],
-) -> tuple[list[MenuItem[Component | None]], set[str]]:
+    statuses: list[NamedComponentStatus],
+) -> MenuBuildResult:
     """Build menu items with status information.
 
     Returns:
-        Tuple of (menu_items, preselected_ids)
+        MenuBuildResult with menu_items and preselected_ids
     """
     components_by_group = _bootstrap_components.get_components_by_group()
-    menu_items: list[MenuItem[Component | None]] = []
+    menu_items: list[DialogItem] = []
     preselected: set[str] = set()
     MenuItemClass = _menu.MenuItem
 
@@ -158,8 +197,9 @@ def build_menu_items(
         installed_count = sum(
             1
             for c in components
-            if statuses.get(
-                c.name, _bootstrap_components.ComponentStatus(installed=False)
+            if (
+                _find_status_by_name(statuses, c.name)
+                or NamedComponentStatus(c.name, False, None, None)
             ).installed
         )
 
@@ -175,12 +215,10 @@ def build_menu_items(
 
         # Add components in this group
         for comp in components:
-            status = statuses.get(
-                comp.name, _bootstrap_components.ComponentStatus(installed=False)
-            )
+            status = _find_status_by_name(statuses, comp.name)
 
             # Pre-select installed components
-            if status.installed:
+            if status and status.installed:
                 preselected.add(comp.name)
 
             menu_items.append(
@@ -192,10 +230,10 @@ def build_menu_items(
                 )
             )
 
-    return menu_items, preselected
+    return MenuBuildResult(menu_items=menu_items, preselected_ids=preselected)
 
 
-def _extract_components(selected: list[MenuItem[Component | None]]) -> list[Component]:
+def _extract_components(selected: list[MenuItem]) -> list[Component]:
     """Extract component values from selected menu items."""
     # MenuItem.value is T | str (uses id if value was None)
     # We know our values are Component instances, so filter and cast
@@ -207,22 +245,20 @@ def _extract_components(selected: list[MenuItem[Component | None]]) -> list[Comp
 
 
 def _show_selection_summary(
-    components: list[Component], statuses: dict[str, ComponentStatus]
+    components: list[Component], statuses: list[NamedComponentStatus]
 ) -> None:
     """Display selected components with install/reinstall status."""
     print_section(f"Selected {len(components)} Component(s)")
     for comp in components:
-        status = statuses.get(
-            comp.name, _bootstrap_components.ComponentStatus(installed=False)
-        )
-        if status.installed:
+        status = _find_status_by_name(statuses, comp.name)
+        if status and status.installed:
             print_status("•", f"{comp.label} {DIM}(reinstall){RESET}", CYAN)
         else:
             print_status("•", comp.label, CYAN)
 
 
-def _run_installation(components: list[Component]) -> tuple[int, list[str]]:
-    """Run installation and return (success_count, failed_labels)."""
+def _run_installation(components: list[Component]) -> InstallationResult:
+    """Run installation and return InstallationResult."""
     _bootstrap_install.ensure_directories()
     print_status("✓", "Ensured directories exist", GREEN)
 
@@ -242,9 +278,9 @@ def _run_installation(components: list[Component]) -> tuple[int, list[str]]:
             print_status("✗", f"{comp.label} failed", RED)
 
     _bootstrap_install.install_components(
-        components, on_progress=on_progress, on_result=on_result
+        list(components), on_progress=on_progress, on_result=on_result
     )
-    return success_count, failed
+    return InstallationResult(success_count=success_count, failed_labels=failed)
 
 
 def _print_summary(success_count: int, failed: list[str]) -> int:
@@ -277,7 +313,9 @@ def main() -> int:
 
     print(BANNER)
     statuses = scan_components()
-    menu_items, preselected = build_menu_items(statuses)
+    menu_build_result = build_menu_items(statuses)
+    menu_items = menu_build_result.menu_items
+    preselected = menu_build_result.preselected_ids
 
     # MenuItem implements SelectableItem protocol structurally
     dialog_items = cast(list[DialogItem], menu_items)
@@ -289,7 +327,7 @@ def main() -> int:
     )
 
     # Cast back to MenuItem since we know what we passed in
-    selected = cast("list[MenuItem[Component | None]]", raw_selected)
+    selected = cast(list["MenuItem"], raw_selected)
     selected = [s for s in selected if s.value is not None]
 
     if not selected:
@@ -305,8 +343,8 @@ def main() -> int:
         return 0
 
     print_section("Installing Components")
-    success_count, failed = _run_installation(components)
-    return _print_summary(success_count, failed)
+    install_result = _run_installation(components)
+    return _print_summary(install_result.success_count, install_result.failed_labels)
 
 
 if __name__ == "__main__":

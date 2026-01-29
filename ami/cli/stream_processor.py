@@ -14,8 +14,9 @@ from loguru import logger
 from ami.cli.exceptions import AgentTimeoutError
 from ami.cli.process_utils import read_streaming_line, start_streaming_process
 from ami.cli.streaming_utils import calculate_timeout
-from ami.types.api import ProviderMetadata, StreamMetadata
+from ami.types.api import ProviderMetadata
 from ami.types.events import StreamEvent
+from ami.types.results import ParseResult
 
 if TYPE_CHECKING:
     from ami.types.config import AgentConfig
@@ -43,7 +44,7 @@ class StreamParserProtocol(Protocol):
         cmd: list[str],
         line_count: int,
         agent_config: "AgentConfig | None",
-    ) -> tuple[str, StreamMetadata | None]:
+    ) -> ParseResult:
         """Parse a single line from CLI's streaming output."""
         ...
 
@@ -89,15 +90,13 @@ class StreamProcessor:
             process.stdin.close()
             process.stdin = None
 
-    def _process_line(
-        self, line: str, line_count: int
-    ) -> tuple[str, StreamMetadata | None]:
+    def _process_line(self, line: str, line_count: int) -> ParseResult:
         """Process a line through provider if available."""
         if self.provider is not None:
             return self.provider._parse_stream_message(
                 line, self.cmd, line_count, self.agent_config
             )
-        return line, None
+        return ParseResult(line, None)
 
     def _check_timeout(self, is_timeout: bool, started_at: float) -> bool:
         """Check if timeout occurred. Returns True if loop should continue."""

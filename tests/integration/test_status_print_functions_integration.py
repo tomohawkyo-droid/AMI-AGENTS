@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -33,36 +34,39 @@ def _reset_config(monkeypatch: pytest.MonkeyPatch):
     _ConfigSingleton.instance = None
 
 
-def _svc(name: str, **kw) -> SystemdService:
-    d = {
-        "name": name,
-        "active": "active",
-        "sub": "running",
-        "scope": "user",
-        "path": "/tmp/test/.config/systemd/user/test.service",
-        "pid": "0",
-        "restart": "always",
-        "enabled": "enabled",
-    }
-    d.update(kw)
-    return SystemdService(**d)
+def _svc(name: str, **kw: Any) -> SystemdService:
+    return SystemdService(
+        name=name,
+        active=kw.get("active", "active"),
+        sub=kw.get("sub", "running"),
+        scope=kw.get("scope", "user"),
+        path=kw.get("path", "/tmp/test/.config/systemd/user/test.service"),
+        pid=kw.get("pid", "0"),
+        restart=kw.get("restart", "always"),
+        enabled=kw.get("enabled", "enabled"),
+        **{
+            k: v
+            for k, v in kw.items()
+            if k not in ("active", "sub", "scope", "path", "pid", "restart", "enabled")
+        },
+    )
 
 
-def _ct(name: str, **kw) -> PodmanContainer:
-    d = {
-        "id": "abcdef123456",
-        "name": name,
-        "state": "running",
-        "image": "docker.io/library/test:v1.0",
-    }
-    d.update(kw)
-    return PodmanContainer(**d)
+def _ct(name: str, **kw: Any) -> PodmanContainer:
+    return PodmanContainer(
+        id=kw.get("id", "abcdef123456"),
+        name=name,
+        state=kw.get("state", "running"),
+        image=kw.get("image", "docker.io/library/test:v1.0"),
+        **{k: v for k, v in kw.items() if k not in ("id", "state", "image")},
+    )
 
 
-def _di(**kw) -> ServiceDisplayInfo:
-    d = {"row_type": "Local Process"}
-    d.update(kw)
-    return ServiceDisplayInfo(**d)
+def _di(**kw: Any) -> ServiceDisplayInfo:
+    return ServiceDisplayInfo(
+        row_type=kw.get("row_type", "Local Process"),
+        **{k: v for k, v in kw.items() if k != "row_type"},
+    )
 
 
 # -- 1. _print_header -------------------------------------------------------

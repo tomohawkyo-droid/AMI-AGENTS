@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, cast
 from uuid import UUID
 
 from ami.cli.base_provider import CLIProvider as BaseProvider
@@ -18,7 +18,9 @@ from ami.cli.interface import AgentCLI
 from ami.cli.provider_type import ProviderType
 from ami.core.config import get_config
 from ami.types.api import StreamMetadata
+from ami.types.common import StreamEvent
 from ami.types.config import AgentConfig
+from ami.types.results import ParseResult
 
 
 class QwenAgentCLI(BaseProvider, AgentCLI):
@@ -95,8 +97,8 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
 
     def _handle_stream_event(
         self,
-        data: dict[str, str | int | float | bool | list[object] | dict[str, object]],
-    ) -> tuple[str, StreamMetadata | None]:
+        data: StreamEvent,
+    ) -> ParseResult:
         """Handle stream_event message type."""
         output_text = ""
         metadata: StreamMetadata | None = None
@@ -123,24 +125,24 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
                 provider="qwen",
             )
 
-        return output_text, metadata
+        return ParseResult(output_text, metadata)
 
     def _handle_system_init(
         self,
-        data: dict[str, str | int | float | bool | list[object] | dict[str, object]],
-    ) -> tuple[str, StreamMetadata | None]:
+        data: StreamEvent,
+    ) -> ParseResult:
         """Handle system init message type."""
         session_id = data.get("session_id")
         metadata = StreamMetadata(
             session_id=str(session_id) if session_id else None,
             provider="qwen",
         )
-        return "", metadata
+        return ParseResult("", metadata)
 
     def _parse_json_message(
         self,
-        data: dict[str, str | int | float | bool | list[object] | dict[str, object]],
-    ) -> tuple[str, StreamMetadata | None]:
+        data: StreamEvent,
+    ) -> ParseResult:
         """Parse a JSON message dict and extract output/metadata."""
         msg_type = data.get("type")
 
@@ -150,17 +152,20 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
             delta = data.get("delta", {})
             if isinstance(delta, dict):
                 text = delta.get("text", "")
-                return str(text) if text else "", None
-            return "", None
+                return ParseResult(str(text) if text else "", None)
+            return ParseResult("", None)
         if msg_type == "system" and data.get("subtype") == "init":
             return self._handle_system_init(data)
         if msg_type == "result":
             session_id = data.get("session_id")
-            return "", StreamMetadata(
-                session_id=str(session_id) if session_id else None,
-                provider="qwen",
+            return ParseResult(
+                "",
+                StreamMetadata(
+                    session_id=str(session_id) if session_id else None,
+                    provider="qwen",
+                ),
             )
-        return "", None
+        return ParseResult("", None)
 
     def _parse_stream_message(
         self,
@@ -168,15 +173,15 @@ class QwenAgentCLI(BaseProvider, AgentCLI):
         _cmd: list[str],
         _line_count: int,
         _agent_config: AgentConfig | None,
-    ) -> tuple[str, StreamMetadata | None]:
+    ) -> ParseResult:
         """Parse a single line from Qwen CLI's streaming output."""
         if not line.strip():
-            return "", None
+            return ParseResult("", None)
 
         try:
             data = json.loads(line)
             if isinstance(data, dict):
-                return self._parse_json_message(data)
-            return str(data), None
+                return self._parse_json_message(cast(StreamEvent, data))
+            return ParseResult(str(data), None)
         except json.JSONDecodeError:
-            return line, None
+            return ParseResult(line, None)

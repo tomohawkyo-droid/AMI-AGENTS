@@ -16,7 +16,6 @@ from ami.cli_components.status_containers import (
     get_container_stats,
     get_container_volumes,
     get_podman_containers,
-    get_system_docker_containers,
 )
 from ami.core.config import _ConfigSingleton
 
@@ -31,12 +30,7 @@ EXPECTED_HTTP_PORT = 80
 EXPECTED_HTTPS_PORT = 443
 EXPECTED_CONTAINER_SIZE_COUNT = 3
 EXPECTED_VOLUME_COUNT = 2
-EXPECTED_PROXY_PORT_COUNT = 2
-EXPECTED_PROXY_HOST_PORT = 8080
-EXPECTED_PROXY_CONTAINER_PORT = 443
 EXPECTED_DB_PORT = 5432
-EXPECTED_SUDO_CALL_COUNT = 2
-EXPECTED_MULTI_CONTAINER_COUNT = 2
 
 
 @pytest.fixture(autouse=True)
@@ -129,6 +123,14 @@ class TestGetContainerInspectInfo:
 # ---------------------------------------------------------------------------
 
 
+def _find_stat_by_name(stats, name):
+    """Helper to find a stat entry by name in a list."""
+    for s in stats:
+        if s["name"] == name:
+            return s
+    return None
+
+
 class TestGetContainerStats:
     def test_standard_keys(self):
         d = json.dumps(
@@ -136,7 +138,11 @@ class TestGetContainerStats:
         )
         with patch(CONT_PATCH, return_value=d):
             s = get_container_stats()
-        assert s["w"] == {"cpu": "5%", "mem_usage": "100M", "mem_percent": "10%"}
+        stat = _find_stat_by_name(s, "w")
+        assert stat is not None
+        assert stat["cpu"] == "5%"
+        assert stat["mem_usage"] == "100M"
+        assert stat["mem_percent"] == "10%"
 
     def test_alternate_keys(self):
         d = json.dumps(
@@ -150,22 +156,23 @@ class TestGetContainerStats:
             ]
         )
         with patch(CONT_PATCH, return_value=d):
-            assert get_container_stats()["a"]["cpu"] == "3%"
+            stat = _find_stat_by_name(get_container_stats(), "a")
+            assert stat["cpu"] == "3%"
 
     def test_empty(self):
         with patch(CONT_PATCH, return_value=""):
-            assert get_container_stats() == {}
+            assert get_container_stats() == []
 
     def test_invalid_json(self):
         with patch(CONT_PATCH, return_value="nope"):
-            assert get_container_stats() == {}
+            assert get_container_stats() == []
 
     def test_skips_no_name(self):
         d = json.dumps([{"CPU": "1%"}, {"Name": "v", "CPU": "2%"}])
         with patch(CONT_PATCH, return_value=d):
             s = get_container_stats()
         assert len(s) == 1
-        assert "v" in s
+        assert _find_stat_by_name(s, "v") is not None
 
 
 # ---------------------------------------------------------------------------
@@ -173,26 +180,40 @@ class TestGetContainerStats:
 # ---------------------------------------------------------------------------
 
 
+def _find_size_by_name(sizes, name):
+    """Helper to find a size entry by name in a list."""
+    for s in sizes:
+        if s["name"] == name:
+            return s
+    return None
+
+
 class TestGetContainerSizes:
     def test_virtual_format(self):
         with patch(CONT_PATCH, return_value="web\t22kB (virtual 198MB)"):
             s = get_container_sizes()
-        assert s["web"] == {"writable": "22kB", "virtual": "198MB"}
+        size = _find_size_by_name(s, "web")
+        assert size is not None
+        assert size["writable"] == "22kB"
+        assert size["virtual"] == "198MB"
 
     def test_no_parens(self):
         with patch(CONT_PATCH, return_value="app\t50kB"):
             s = get_container_sizes()
-        assert s["app"] == {"writable": "50kB", "virtual": "-"}
+        size = _find_size_by_name(s, "app")
+        assert size is not None
+        assert size["writable"] == "50kB"
+        assert size["virtual"] == "-"
 
     def test_empty(self):
         with patch(CONT_PATCH, return_value=""):
-            assert get_container_sizes() == {}
+            assert get_container_sizes() == []
 
     def test_skips_no_tab(self):
         with patch(CONT_PATCH, return_value="notab\nok\t10kB"):
             s = get_container_sizes()
-        assert "notab" not in s
-        assert "ok" in s
+        assert _find_size_by_name(s, "notab") is None
+        assert _find_size_by_name(s, "ok") is not None
 
     def test_multiple(self):
         with patch(
@@ -298,6 +319,14 @@ class TestGetContainerVolumes:
 # ---------------------------------------------------------------------------
 
 
+def _find_container_by_name(containers, name):
+    """Helper to find a container by name in a list."""
+    for c in containers:
+        if c.name == name:
+            return c
+    return None
+
+
 class TestGetPodmanContainers:
     def test_with_ports_and_labels(self):
         ps = json.dumps(
@@ -319,8 +348,10 @@ class TestGetPodmanContainers:
 
         with patch(CONT_PATCH, side_effect=cmd):
             ct = get_podman_containers()
-        assert ct["web"].ports[0].host_port == EXPECTED_HTTP_PORT
-        assert ct["web"].labels["k"] == "v"
+        container = _find_container_by_name(ct, "web")
+        assert container is not None
+        assert container.ports[0].host_port == EXPECTED_HTTP_PORT
+        assert container.labels["k"] == "v"
 
     def test_falls_back_to_exposed(self):
         ps = json.dumps(
@@ -343,18 +374,18 @@ class TestGetPodmanContainers:
             return ps if "ps -a" in c else insp
 
         with patch(CONT_PATCH, side_effect=cmd):
-            assert (
-                get_podman_containers()["db"].ports[0].container_port
-                == EXPECTED_DB_PORT
-            )
+            containers = get_podman_containers()
+            container = _find_container_by_name(containers, "db")
+            assert container is not None
+            assert container.ports[0].container_port == EXPECTED_DB_PORT
 
     def test_empty(self):
         with patch(CONT_PATCH, return_value=""):
-            assert get_podman_containers() == {}
+            assert get_podman_containers() == []
 
     def test_invalid_json(self):
         with patch(CONT_PATCH, return_value="bad"):
-            assert get_podman_containers() == {}
+            assert get_podman_containers() == []
 
     def test_no_names_uses_id(self):
         ps = json.dumps(
@@ -374,108 +405,5 @@ class TestGetPodmanContainers:
             return ps if "ps -a" in c else insp
 
         with patch(CONT_PATCH, side_effect=cmd):
-            assert "abcdef123456" in get_podman_containers()
-
-
-# ---------------------------------------------------------------------------
-# 7. get_system_docker_containers
-# ---------------------------------------------------------------------------
-
-
-class TestGetSystemDockerContainers:
-    def test_not_installed(self):
-        with patch(CONT_EXISTS, return_value=False):
-            assert get_system_docker_containers() == {}
-
-    def test_parses_port_string(self):
-        line = json.dumps(
-            {
-                "ID": "aabbcc",
-                "Names": "proxy",
-                "State": "running",
-                "Status": "Up",
-                "Image": "nginx",
-                "Ports": "0.0.0.0:8080->80/tcp, 0.0.0.0:443->443/tcp",
-            }
-        )
-        with (
-            patch(CONT_EXISTS, return_value=True),
-            patch(CONT_PATCH, return_value=line),
-        ):
-            c = get_system_docker_containers()
-        assert len(c["proxy"].ports) == EXPECTED_PROXY_PORT_COUNT
-        assert c["proxy"].ports[0].host_port == EXPECTED_PROXY_HOST_PORT
-        assert c["proxy"].ports[1].container_port == EXPECTED_PROXY_CONTAINER_PORT
-
-    def test_no_ports(self):
-        line = json.dumps(
-            {
-                "ID": "ff1122",
-                "Names": "wrk",
-                "State": "running",
-                "Status": "Up",
-                "Image": "w",
-                "Ports": "",
-            }
-        )
-        with (
-            patch(CONT_EXISTS, return_value=True),
-            patch(CONT_PATCH, return_value=line),
-        ):
-            assert get_system_docker_containers()["wrk"].ports == []
-
-    def test_sudo_fallback(self):
-        line = json.dumps(
-            {
-                "ID": "001122",
-                "Names": "sec",
-                "State": "running",
-                "Status": "Up",
-                "Image": "v",
-                "Ports": "",
-            }
-        )
-        calls = []
-
-        def cmd(c):
-            calls.append(c)
-            return line if "sudo" in c else ""
-
-        with patch(CONT_EXISTS, return_value=True), patch(CONT_PATCH, side_effect=cmd):
-            assert "sec" in get_system_docker_containers()
-        assert len(calls) == EXPECTED_SUDO_CALL_COUNT
-
-    def test_empty_output(self):
-        with patch(CONT_EXISTS, return_value=True), patch(CONT_PATCH, return_value=""):
-            assert get_system_docker_containers() == {}
-
-    def test_multiple_lines(self):
-        lines = "\n".join(
-            [
-                json.dumps(
-                    {
-                        "ID": "a",
-                        "Names": "c1",
-                        "State": "r",
-                        "Status": "U",
-                        "Image": "i",
-                        "Ports": "",
-                    }
-                ),
-                json.dumps(
-                    {
-                        "ID": "b",
-                        "Names": "c2",
-                        "State": "r",
-                        "Status": "U",
-                        "Image": "i",
-                        "Ports": "",
-                    }
-                ),
-            ]
-        )
-        with (
-            patch(CONT_EXISTS, return_value=True),
-            patch(CONT_PATCH, return_value=lines),
-        ):
-            assert len(get_system_docker_containers()) == EXPECTED_MULTI_CONTAINER_COUNT
+            containers = get_podman_containers()
+            assert _find_container_by_name(containers, "abcdef123456") is not None

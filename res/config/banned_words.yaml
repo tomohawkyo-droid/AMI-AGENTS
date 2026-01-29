@@ -22,9 +22,16 @@ banned:
   - pattern: '#\s*noqa'
     reason: "Linter suppression forbidden. Fix the code style."
 
-  # === DEPRECATED TYPING ===
-  - pattern: '\b(List|Dict|Tuple)\['
-    reason: "Use lowercase generics (list, dict, tuple) for Python 3.9+."
+  # === FORBIDDEN COMPLEX TYPES ===
+  # NO EXCEPTIONS. Use TypedDict/NamedTuple/Pydantic everywhere.
+  - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
+    reason: "BANNED. Use TypedDict/NamedTuple/Pydantic. NO EXCEPTIONS."
+
+  - pattern: '\b(Mapping|Sequence|MutableMapping|MutableSequence|Iterable|Iterator)\['
+    reason: "BANNED. Use TypedDict/NamedTuple/Pydantic. NO EXCEPTIONS."
+
+  - pattern: '\b(List|Set|list|set)\[(?!\s*[''"]?[a-zA-Z0-9_.]+[''"]?\s*\]).*\]'
+    reason: "BANNED. Use simple list[Type] only. NO EXCEPTIONS."
 
   # === UNSAFE TYPING ===
   - pattern: 'dict\[.*,\s*Any\]'

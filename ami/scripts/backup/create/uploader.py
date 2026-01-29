@@ -14,6 +14,7 @@ from loguru import logger
 
 from ami.scripts.backup.backup_config import BackupConfig
 from ami.scripts.backup.backup_exceptions import UploadError
+from ami.types.common import DriveFileResponse
 
 if TYPE_CHECKING:
     from ami.scripts.backup.common.auth import AuthenticationManager
@@ -38,7 +39,7 @@ class DriveFilesResource(Protocol):
 class DriveRequest(Protocol):
     """Protocol for Google Drive request objects."""
 
-    def execute(self) -> dict[str, object]:
+    def execute(self) -> DriveFileResponse:
         """Execute the request."""
         ...
 
@@ -118,10 +119,11 @@ class BackupUploader:
             if config.folder_id:
                 search_query += f" and '{config.folder_id}' in parents"
 
-            # Build file metadata for new uploads
-            file_metadata: dict[str, str | list[str]] = {"name": zip_path.name}
+            # Build file metadata - include optional parents if configured
             if config.folder_id:
-                file_metadata["parents"] = [config.folder_id]
+                file_metadata = {"name": zip_path.name, "parents": [config.folder_id]}
+            else:
+                file_metadata = {"name": zip_path.name}
 
             existing_file_id = await self._search_existing_file(service, search_query)
 

@@ -54,7 +54,7 @@ def select_backup_interactive(backup_files: list[BackupFileInfo]) -> str | None:
         # We use file_id as the value
         menu_items.append(MenuItem(str(i), name, file_id, description))
 
-    selector = MenuSelector(
+    selector: MenuSelector[str] = MenuSelector(
         menu_items, "Select a backup to restore", max_visible_items=10
     )
     selected = selector.run()

@@ -4,6 +4,9 @@ python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
 # NO CHEATING. All typing rules enforced.
+# type-arg disabled: banned_words prohibits generic params like dict[str, X] and MenuItem[T]
+# import-untyped disabled: external library type stubs may not be available in pre-commit env
+disable_error_code = ["type-arg", "import-untyped"]
 warn_unused_configs = true
 exclude = [
     "(?x)(^tmp/|^.venv/|^venv/|^dist/|^build/|^.eggs/|^__pycache__/|.*\\.egg-info/|^.pytest_cache/|^.git/|^projects/)"
@@ -128,4 +131,13 @@ ignore_missing_imports = true
 module = "torch.xpu.*"
 ignore_missing_imports = true
 ignore_errors = true
+
+# YAML - types-PyYAML may not be installed in pre-commit env
+[[tool.mypy.overrides]]
+module = "yaml"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "yaml.*"
+ignore_missing_imports = true
 

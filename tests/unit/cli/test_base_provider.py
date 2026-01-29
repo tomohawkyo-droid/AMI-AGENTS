@@ -8,8 +8,8 @@ import pytest
 
 from ami.cli.base_provider import CLIProvider
 from ami.core.interfaces import RunInteractiveParams, RunPrintParams
-from ami.types.api import StreamMetadata
 from ami.types.config import AgentConfig
+from ami.types.results import ParseResult
 
 
 class MockCLIProvider(CLIProvider):
@@ -29,8 +29,8 @@ class MockCLIProvider(CLIProvider):
         cmd: list[str],
         line_count: int,
         agent_config: AgentConfig | None,
-    ) -> tuple[str, StreamMetadata | None]:
-        return line, None
+    ) -> ParseResult:
+        return ParseResult(line, None)
 
     def _get_default_config(self) -> AgentConfig:
         return AgentConfig(

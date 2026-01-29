@@ -12,6 +12,7 @@ from ami.scripts.ci.check_dependency_versions import (
     parse_dependency,
     upgrade_pyproject,
 )
+from ami.types.results import LooseDependency, OutdatedDependency
 
 
 class TestConstants:
@@ -275,7 +276,7 @@ dependencies = [
 ]
 """)
 
-        loose = [("numpy", "numpy>=1.0.0", "2.0.0")]
+        loose = [LooseDependency("numpy", "numpy>=1.0.0", "2.0.0")]
         upgrade_pyproject(pyproject, loose, [])
 
         content = pyproject.read_text()
@@ -290,7 +291,7 @@ dependencies = [
 ]
 """)
 
-        outdated = [("numpy", None, "1.0.0", "2.0.0")]
+        outdated = [OutdatedDependency("numpy", None, "1.0.0", "2.0.0")]
         upgrade_pyproject(pyproject, [], outdated)
 
         content = pyproject.read_text()
@@ -305,7 +306,7 @@ dependencies = [
 ]
 """)
 
-        outdated = [("uvicorn", "[standard]", "0.29.0", "0.30.0")]
+        outdated = [OutdatedDependency("uvicorn", "[standard]", "0.29.0", "0.30.0")]
         upgrade_pyproject(pyproject, [], outdated)
 
         content = pyproject.read_text()

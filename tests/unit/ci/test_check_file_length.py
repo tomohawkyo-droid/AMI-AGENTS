@@ -14,6 +14,7 @@ from ami.scripts.ci.check_file_length import (
     print_violations,
     should_check_file,
 )
+from ami.types.results import FileViolation
 
 EXPECTED_DEFAULT_MAX_LINES = 512
 EXPECTED_CUSTOM_MAX_LINES = 300
@@ -94,7 +95,7 @@ class TestGetAllFiles:
             mock_walk.return_value = [
                 (str(tmp_path), [], ["file.py", "file.sh", "file.txt"])
             ]
-            files = get_all_files(set(), (".py", ".sh"))
+            files = get_all_files(set(), [".py", ".sh"])
 
         assert len([f for f in files if f.endswith(".py")]) == 1
         assert len([f for f in files if f.endswith(".sh")]) == 1
@@ -108,7 +109,7 @@ class TestGetAllFiles:
         dirs = [".git", "src", "__pycache__", "tests"]
         with patch("os.walk") as mock_walk:
             mock_walk.return_value = [(str(tmp_path), dirs, ["file.py"])]
-            get_all_files(ignore_dirs, (".py",))
+            get_all_files(ignore_dirs, [".py"])
 
             # Check that dirs were filtered
             # (this happens via dirs[:] = ... in the function)
@@ -123,7 +124,7 @@ class TestShouldCheckFile:
         test_file = tmp_path / "test.py"
         test_file.touch()
 
-        result = should_check_file(str(test_file), (".py",), set(), set())
+        result = should_check_file(str(test_file), [".py"], set(), set())
 
         assert result is True
 
@@ -132,7 +133,7 @@ class TestShouldCheckFile:
         test_file = tmp_path / "test.txt"
         test_file.touch()
 
-        result = should_check_file(str(test_file), (".py",), set(), set())
+        result = should_check_file(str(test_file), [".py"], set(), set())
 
         assert result is False
 
@@ -141,13 +142,13 @@ class TestShouldCheckFile:
         test_file = tmp_path / "conftest.py"
         test_file.touch()
 
-        result = should_check_file(str(test_file), (".py",), {"conftest.py"}, set())
+        result = should_check_file(str(test_file), [".py"], {"conftest.py"}, set())
 
         assert result is False
 
     def test_returns_false_for_nonexistent_file(self) -> None:
         """Test returns False for nonexistent file."""
-        result = should_check_file("/nonexistent/file.py", (".py",), set(), set())
+        result = should_check_file("/nonexistent/file.py", [".py"], set(), set())
 
         assert result is False
 
@@ -158,7 +159,7 @@ class TestShouldCheckFile:
         test_file = subdir / "test.py"
         test_file.touch()
 
-        result = should_check_file(str(test_file), (".py",), set(), {".venv"})
+        result = should_check_file(str(test_file), [".py"], set(), {".venv"})
 
         assert result is False
 
@@ -215,8 +216,8 @@ class TestPrintViolations:
     def test_prints_violation_count(self, capsys) -> None:
         """Test prints violation count."""
         violations = [
-            ("file1.py", 600),
-            ("file2.py", 550),
+            FileViolation("file1.py", 600),
+            FileViolation("file2.py", 550),
         ]
 
         print_violations(violations, 512)
@@ -227,9 +228,9 @@ class TestPrintViolations:
     def test_prints_sorted_by_count(self, capsys) -> None:
         """Test violations are sorted by line count (highest first)."""
         violations = [
-            ("file1.py", 550),
-            ("file2.py", 700),
-            ("file3.py", 600),
+            FileViolation("file1.py", 550),
+            FileViolation("file2.py", 700),
+            FileViolation("file3.py", 600),
         ]
 
         print_violations(violations, 512)

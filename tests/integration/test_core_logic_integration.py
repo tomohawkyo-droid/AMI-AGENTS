@@ -83,6 +83,7 @@ class TestConfigLoading:
 
     def test_config_root_substitution(self, real_config: Config):
         result = real_config._substitute_env("{root}/some/path")
+        assert isinstance(result, str)
         assert str(real_config.root) in result
         assert result.endswith("/some/path")
 

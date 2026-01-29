@@ -7,6 +7,7 @@ from ami.cli_components.legend import (
     C_RESET,
     WIDE_EMOJI,
     Legend,
+    LegendGroup,
     LegendItem,
     get_visual_width,
     pad_center,
@@ -125,19 +126,23 @@ class TestLegend:
 
     def test_init_defaults(self):
         """Test Legend initialization with defaults."""
-        legend = Legend([[LegendItem("🟢", "ok")]])
+        legend = Legend([LegendGroup([LegendItem("🟢", "ok")])])
         assert legend.separator == "│"
         assert legend.dim is True
 
     def test_init_custom(self):
         """Test Legend initialization with custom params."""
-        legend = Legend([[LegendItem("🟢", "ok")]], separator="|", dim=False)
+        legend = Legend(
+            [LegendGroup([LegendItem("🟢", "ok")])], separator="|", dim=False
+        )
         assert legend.separator == "|"
         assert legend.dim is False
 
     def test_render_single_group(self):
         """Test render with single group."""
-        legend = Legend([[LegendItem("🟢", "ok"), LegendItem("🔴", "fail")]], dim=False)
+        legend = Legend(
+            [LegendGroup([LegendItem("🟢", "ok"), LegendItem("🔴", "fail")])], dim=False
+        )
         icons_line, labels_line = legend.render(40)
 
         assert "🟢" in icons_line
@@ -149,8 +154,8 @@ class TestLegend:
         """Test render with multiple groups."""
         legend = Legend(
             [
-                [LegendItem("🟢", "ok"), LegendItem("🔴", "fail")],
-                [LegendItem("🚀", "boot"), LegendItem("💤", "manual")],
+                LegendGroup([LegendItem("🟢", "ok"), LegendItem("🔴", "fail")]),
+                LegendGroup([LegendItem("🚀", "boot"), LegendItem("💤", "manual")]),
             ],
             dim=False,
         )
@@ -163,7 +168,7 @@ class TestLegend:
 
     def test_render_with_dim(self):
         """Test render applies dim styling when enabled."""
-        legend = Legend([[LegendItem("🟢", "ok")]], dim=True)
+        legend = Legend([LegendGroup([LegendItem("🟢", "ok")])], dim=True)
         icons_line, labels_line = legend.render(40)
 
         assert icons_line.startswith(C_DIM)
@@ -173,7 +178,7 @@ class TestLegend:
 
     def test_render_without_dim(self):
         """Test render skips dim styling when disabled."""
-        legend = Legend([[LegendItem("🟢", "ok")]], dim=False)
+        legend = Legend([LegendGroup([LegendItem("🟢", "ok")])], dim=False)
         icons_line, labels_line = legend.render(40)
 
         assert not icons_line.startswith(C_DIM)
@@ -181,7 +186,7 @@ class TestLegend:
 
     def test_render_centering(self):
         """Test render centers content within width."""
-        legend = Legend([[LegendItem("x", "y")]], dim=False)
+        legend = Legend([LegendGroup([LegendItem("x", "y")])], dim=False)
         icons_line, labels_line = legend.render(80)
 
         # Content should be centered with spaces

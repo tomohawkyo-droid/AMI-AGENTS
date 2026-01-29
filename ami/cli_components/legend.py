@@ -3,6 +3,8 @@
 import re
 import unicodedata
 
+from ami.types.results import LegendRender
+
 C_DIM = "\033[2m"
 C_RESET = "\033[0m"
 
@@ -95,13 +97,22 @@ class LegendItem:
         self.label = label
 
 
+class LegendGroup:
+    """A group of legend items."""
+
+    __slots__ = ("items",)
+
+    def __init__(self, items: list[LegendItem]):
+        self.items = items
+
+
 class Legend:
     """Renders a centered legend with icons and labels on separate rows.
 
     Usage:
         legend = Legend([
-            [LegendItem("🟢", "ok"), LegendItem("🔴", "fail")],
-            [LegendItem("🚀", "boot"), LegendItem("💤", "manual")],
+            LegendGroup([LegendItem("🟢", "ok"), LegendItem("🔴", "fail")]),
+            LegendGroup([LegendItem("🚀", "boot"), LegendItem("💤", "manual")]),
         ])
         icons_line, labels_line = legend.render(width=80)
         print(icons_line)
@@ -110,7 +121,7 @@ class Legend:
 
     def __init__(
         self,
-        groups: list[list[LegendItem]],
+        groups: list[LegendGroup],
         separator: str = "│",
         dim: bool = True,
     ):
@@ -125,14 +136,14 @@ class Legend:
         self.separator = separator
         self.dim = dim
 
-    def render(self, width: int) -> tuple[str, str]:
+    def render(self, width: int) -> LegendRender:
         """Render legend as two lines: icons and labels, centered.
 
         Args:
             width: Total width to center within.
 
         Returns:
-            Tuple of (icons_line, labels_line).
+            LegendRender with icons_line and labels_line.
         """
         icon_parts: list[str] = []
         label_parts: list[str] = []
@@ -142,7 +153,7 @@ class Legend:
             icons: list[str] = []
             labels: list[str] = []
 
-            for item in group:
+            for item in group.items:
                 icon_width = get_visual_width(item.icon)
                 label_width = len(item.label)
                 col_width = max(icon_width, label_width)
@@ -173,8 +184,8 @@ class Legend:
         labels_centered = pad_center(labels_line, content_width)
 
         if self.dim:
-            return (
+            return LegendRender(
                 f"{C_DIM}{icons_centered}{C_RESET}",
                 f"{C_DIM}{labels_centered}{C_RESET}",
             )
-        return icons_centered, labels_centered
+        return LegendRender(icons_centered, labels_centered)

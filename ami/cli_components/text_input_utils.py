@@ -8,6 +8,7 @@ import termios
 import tty
 
 from ami.cli_components.terminal.ansi import AnsiTerminal
+from ami.types.results import CharWithOrdinal
 
 # ASCII control character codes
 ESC = 27  # Escape character (arrow keys prefix)
@@ -88,10 +89,10 @@ def getchar() -> str:
     return ch
 
 
-def get_char_with_ordinals() -> tuple[str, int]:
+def get_char_with_ordinals() -> CharWithOrdinal:
     """Read a character and return it along with its ordinal value."""
     ch = getchar()
-    return ch, ord(ch)
+    return CharWithOrdinal(ch, ord(ch))
 
 
 def _handle_escape_sequence() -> str | None:

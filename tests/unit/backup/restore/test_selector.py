@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+from ami.scripts.backup.restore.drive_client import DriveFileMetadata
 from ami.scripts.backup.restore.selector import select_backup_interactive
 
 
@@ -16,7 +17,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", return_value="q")
     def test_returns_none_on_cancel(self, mock_input, capsys) -> None:
         """Test returns None when user cancels with 'q'."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",
@@ -32,7 +33,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", return_value="0")
     def test_returns_file_id_for_valid_selection(self, mock_input, capsys) -> None:
         """Test returns file ID for valid selection."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",
@@ -54,7 +55,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", return_value="1")
     def test_selects_second_backup(self, mock_input, capsys) -> None:
         """Test selects second backup when user enters 1."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",
@@ -76,7 +77,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", side_effect=["invalid", "0"])
     def test_reprompts_on_invalid_input(self, mock_input, capsys) -> None:
         """Test reprompts when invalid input given."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",
@@ -94,7 +95,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", side_effect=["99", "0"])
     def test_reprompts_on_out_of_range(self, mock_input, capsys) -> None:
         """Test reprompts when selection out of range."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",
@@ -112,7 +113,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", side_effect=KeyboardInterrupt)
     def test_returns_none_on_keyboard_interrupt(self, mock_input) -> None:
         """Test returns None on KeyboardInterrupt."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",
@@ -128,7 +129,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", side_effect=EOFError)
     def test_returns_none_on_eof(self, mock_input) -> None:
         """Test returns None on EOFError."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",
@@ -144,7 +145,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", return_value="0")
     def test_prints_backup_info(self, mock_input, capsys) -> None:
         """Test prints backup information."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",
@@ -163,7 +164,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", return_value="0")
     def test_handles_missing_fields(self, mock_input, capsys) -> None:
         """Test handles missing fields in backup metadata."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {"id": "file1"}  # Missing name, modifiedTime, size
         ]
 
@@ -176,7 +177,7 @@ class TestSelectBackupInteractive:
     @patch("builtins.input", return_value="Q")
     def test_cancel_case_insensitive(self, mock_input) -> None:
         """Test cancel works with uppercase Q."""
-        backup_files = [
+        backup_files: list[DriveFileMetadata] = [
             {
                 "id": "file1",
                 "name": "backup1.tar.zst",

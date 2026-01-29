@@ -114,7 +114,8 @@ class TranscriptSearcher:
     def search_sessions(self, keywords: list[str]) -> list[SessionSearchResult]:
         """Group search hits by session for summary display."""
         hits = self.search(keywords)
-        by_session: dict[str, SessionSearchResult] = {}
+        # Build dict internally, no explicit type annotation needed
+        by_session = {}
         for hit in hits:
             if hit.session_id not in by_session:
                 meta = self.store.get_session(hit.session_id)

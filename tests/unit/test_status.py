@@ -19,6 +19,7 @@ from ami.cli_components.status import (
     print_box_line,
     run_cmd,
 )
+from ami.types.common import PortData
 from ami.types.status import PortMapping
 
 EXPECTED_ASCII_WIDTH = 5
@@ -118,7 +119,7 @@ class TestFormatPorts:
 
     def test_host_and_container_port(self) -> None:
         """Test formats host->container port mapping."""
-        ports = [PortMapping(host_port=8080, container_port=80, protocol="tcp")]
+        ports = [PortMapping(hostPort=8080, containerPort=80, protocol="tcp")]
 
         result = format_ports(ports)
 
@@ -126,7 +127,7 @@ class TestFormatPorts:
 
     def test_container_port_only(self) -> None:
         """Test formats container port only."""
-        ports = [PortMapping(container_port=80, protocol="tcp")]
+        ports = [PortMapping(containerPort=80, protocol="tcp")]
 
         result = format_ports(ports)
 
@@ -135,8 +136,8 @@ class TestFormatPorts:
     def test_multiple_ports(self) -> None:
         """Test formats multiple port mappings."""
         ports = [
-            PortMapping(host_port=8080, container_port=80, protocol="tcp"),
-            PortMapping(host_port=8443, container_port=443, protocol="tcp"),
+            PortMapping(hostPort=8080, containerPort=80, protocol="tcp"),
+            PortMapping(hostPort=8443, containerPort=443, protocol="tcp"),
         ]
 
         result = format_ports(ports)
@@ -160,11 +161,11 @@ class TestParseSystemdDetails:
 
     def test_handles_empty_values(self) -> None:
         """Test handles empty values."""
-        raw = "Key="
+        raw = "Id="
 
         result = _parse_systemd_details(raw)
 
-        assert result["Key"] == ""
+        assert result["Id"] == ""
 
     def test_handles_values_with_equals(self) -> None:
         """Test handles values containing equals sign."""
@@ -218,7 +219,7 @@ class TestParsePortMapping:
 
     def test_parses_camel_case_keys(self) -> None:
         """Test parses camelCase keys."""
-        data = {"hostPort": 8080, "containerPort": 80, "protocol": "tcp"}
+        data: PortData = {"hostPort": 8080, "containerPort": 80, "protocol": "tcp"}
 
         result = _parse_port_mapping(data)
 
@@ -228,7 +229,7 @@ class TestParsePortMapping:
 
     def test_parses_pascal_case_keys(self) -> None:
         """Test parses PascalCase keys."""
-        data = {"HostPort": 8080, "ContainerPort": 80, "Protocol": "udp"}
+        data: PortData = {"HostPort": 8080, "ContainerPort": 80, "Protocol": "udp"}
 
         result = _parse_port_mapping(data)
 
@@ -238,7 +239,7 @@ class TestParsePortMapping:
 
     def test_parses_snake_case_keys(self) -> None:
         """Test parses snake_case keys."""
-        data = {"host_port": 8080, "container_port": 80}
+        data: PortData = {"host_port": 8080, "container_port": 80}
 
         result = _parse_port_mapping(data)
 
@@ -247,7 +248,7 @@ class TestParsePortMapping:
 
     def test_defaults_protocol_to_tcp(self) -> None:
         """Test defaults protocol to tcp."""
-        data = {"hostPort": 8080, "containerPort": 80}
+        data: PortData = {"hostPort": 8080, "containerPort": 80}
 
         result = _parse_port_mapping(data)
 

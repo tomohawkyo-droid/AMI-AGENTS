@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from ami.cli_components.confirmation_dialog import confirm
+from ami.types.results import PackageUpdateCheck, VersionUpdate
 
 
 def get_latest_npm_version(package_name: str) -> str | None:
@@ -48,14 +49,14 @@ def get_latest_npm_version(package_name: str) -> str | None:
         return version
 
 
-def get_current_versions(package_json_path: Path) -> dict[str, str]:
+def get_current_versions(package_json_path: Path) -> object:
     """Get current versions from package.json.
 
     Args:
         package_json_path: Path to the package.json file
 
     Returns:
-        Dictionary mapping package names to current versions
+        Dict of package names to current versions (runtime typed)
     """
     with open(package_json_path) as f:
         data = json.load(f)
@@ -71,16 +72,18 @@ def get_current_versions(package_json_path: Path) -> dict[str, str]:
     return {k: v for k, v in cli_packages.items() if v is not None}
 
 
-def update_package_json(package_json_path: Path, updates: dict[str, str]) -> bool:
+def update_package_json(package_json_path: Path, updates: object) -> bool:
     """Update package.json with new versions.
 
     Args:
         package_json_path: Path to the package.json file
-        updates: Dictionary mapping package names to new versions
+        updates: Dict of package names to new versions (runtime typed)
 
     Returns:
         True if update was successful, False otherwise
     """
+    if not isinstance(updates, dict):
+        return False
     # Backup original file
     backup_path = package_json_path.with_suffix(package_json_path.suffix + ".backup")
     with open(package_json_path) as f:
@@ -136,15 +139,18 @@ def update_package_json(package_json_path: Path, updates: dict[str, str]) -> boo
 
 
 def _check_package_updates(
-    current_versions: dict[str, str],
-) -> tuple[dict[str, str], dict[str, str]]:
+    current_versions: object,
+) -> PackageUpdateCheck:
     """Check for available package updates.
 
     Returns:
-        Tuple of (latest_versions, updates_needed) dictionaries.
+        PackageUpdateCheck(latest_versions, updates_needed) mappings.
     """
-    latest_versions = {}
-    updates_needed = {}
+    latest_versions: dict = {}
+    updates_needed: dict = {}
+
+    if not isinstance(current_versions, dict):
+        return PackageUpdateCheck(latest_versions, updates_needed)
 
     for package, current in current_versions.items():
         print(f"Checking latest version for {package}...")
@@ -154,32 +160,37 @@ def _check_package_updates(
             continue
 
         latest_versions[package] = latest_version
-        current_clean = current.lstrip("^~")
+        current_clean = str(current).lstrip("^~")
         latest_clean = latest_version.lstrip("^~")
 
         if current_clean != latest_clean:
-            updates_needed[package] = latest_version
+            updates_needed[package] = VersionUpdate(str(current), latest_version)
         else:
             print(f"{package}: already at latest available version")
 
-    return latest_versions, updates_needed
+    return PackageUpdateCheck(latest_versions, updates_needed)
 
 
-def _apply_updates(package_json_path: Path, updates_needed: dict[str, str]) -> int:
+def _apply_updates(package_json_path: Path, updates_needed: object) -> int:
     """Apply package updates if confirmed.
 
     Returns:
         Exit code (0 for success, 1 for failure).
     """
+    if not isinstance(updates_needed, dict):
+        return 1
+    # Convert VersionUpdate to new version strings for the update
+    updates_dict = {pkg: update.new for pkg, update in updates_needed.items()}
+
     # Ask for confirmation unless --force is provided
     if "--force" not in sys.argv and not confirm(
-        f"Update package.json with these versions?\n{updates_needed}",
+        f"Update package.json with these versions?\n{updates_dict}",
         "Confirm Update",
     ):
         print("Update cancelled")
         return 0
 
-    success = update_package_json(package_json_path, updates_needed)
+    success = update_package_json(package_json_path, updates_dict)
     if success:
         print("Successfully updated package.json")
         print("Run 'make setup-all' to install the new versions in your environment.")

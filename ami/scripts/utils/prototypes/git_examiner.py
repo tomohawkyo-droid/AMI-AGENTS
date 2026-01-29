@@ -1,6 +1,6 @@
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import questionary
 from rich.console import Console
@@ -10,9 +10,18 @@ console = Console()
 EXPECTED_GIT_LOG_PARTS = 4
 
 
+class GitCommitInfo(NamedTuple):
+    """Information about a git commit."""
+
+    hash: str
+    author: str
+    date: str
+    msg: str
+
+
 class GitManager:
     @staticmethod
-    def get_commits(limit: int = 30) -> list[dict[str, str]]:
+    def get_commits(limit: int = 30) -> list[GitCommitInfo]:
         cmd = ["git", "log", "-n", str(limit), "--pretty=format:%h|%an|%ar|%s"]
         try:
             result = subprocess.check_output(cmd, encoding="utf-8")
@@ -20,14 +29,14 @@ class GitManager:
             console.print(f"[red]Error fetching commits: {e}[/red]")
             return []
         else:
-            commits = []
+            commits: list[GitCommitInfo] = []
             for line in result.splitlines():
                 if "|" in line:
                     parts = line.split("|", 3)
                     if len(parts) == EXPECTED_GIT_LOG_PARTS:
                         h, auth, date, msg = parts
                         commits.append(
-                            {"hash": h, "author": auth, "date": date, "msg": msg}
+                            GitCommitInfo(hash=h, author=auth, date=date, msg=msg)
                         )
             return commits
 
@@ -80,7 +89,7 @@ def main() -> None:
             break
 
         choices: list[Any] = [
-            f"{c['hash']} - {c['msg']} ({c['author']}, {c['date']})" for c in commits
+            f"{c.hash} - {c.msg} ({c.author}, {c.date})" for c in commits
         ]
         choices.append("Exit")
 

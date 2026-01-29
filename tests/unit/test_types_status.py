@@ -27,7 +27,7 @@ class TestPortMapping:
 
     def test_with_values(self) -> None:
         """Test PortMapping with explicit values."""
-        port = PortMapping(host_port=8080, container_port=80, protocol="udp")
+        port = PortMapping(hostPort=8080, containerPort=80, protocol="udp")
         assert port.host_port == EXPECTED_HOST_PORT
         assert port.container_port == EXPECTED_CONTAINER_PORT
         assert port.protocol == "udp"
@@ -60,8 +60,8 @@ class TestPodmanContainer:
     def test_with_ports(self) -> None:
         """Test PodmanContainer with port mappings."""
         ports = [
-            PortMapping(host_port=8080, container_port=80),
-            PortMapping(host_port=443, container_port=443),
+            PortMapping(hostPort=8080, containerPort=80),
+            PortMapping(hostPort=443, containerPort=443),
         ]
         container = PodmanContainer(
             id="container1",
@@ -77,13 +77,17 @@ class TestPodmanContainer:
 
     def test_with_labels(self) -> None:
         """Test PodmanContainer with labels."""
+        labels = {"app": "web", "env": "prod"}
         container = PodmanContainer(
             id="abc",
             name="test",
-            labels={"app": "web", "env": "prod"},
+            labels=labels,
         )
-        assert container.labels["app"] == "web"
-        assert container.labels["env"] == "prod"
+        # Labels are stored as object, cast for dict access in test
+        stored_labels = container.labels
+        assert isinstance(stored_labels, dict)
+        assert stored_labels["app"] == "web"
+        assert stored_labels["env"] == "prod"
 
 
 class TestSystemdService:

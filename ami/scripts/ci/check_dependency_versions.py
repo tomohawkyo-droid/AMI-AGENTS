@@ -20,7 +20,13 @@ import tomllib
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+
+from ami.types.results import (
+    DependencyCheckResult,
+    LooseDependency,
+    OutdatedDependency,
+    ParsedDependency,
+)
 
 BUILTIN_EXCLUDES = {
     "torch",
@@ -46,49 +52,43 @@ def get_latest_pypi_version(package_name: str) -> str | None:
         return None
 
 
-def parse_dependency(dep: str) -> tuple[str, str | None, str | None, str | None]:
+def parse_dependency(dep: str) -> ParsedDependency:
     """
     Parse a dependency string into (name, extras, operator, version).
 
     Returns:
-        (package_name, extras, operator, version) - extras/operator/version may be None
+        ParsedDependency with name, extras, operator, version (may be None)
     """
     dep = dep.strip()
     extras_match = re.match(r"^([a-zA-Z0-9_-]+)(\[[^\]]+\])?(.*)$", dep)
     if not extras_match:
-        return dep, None, None, None
+        return ParsedDependency(dep, None, None, None)
 
     name = extras_match.group(1)
     extras = extras_match.group(2)
     remainder = extras_match.group(3).strip()
 
     if not remainder:
-        return name, extras, None, None
+        return ParsedDependency(name, extras, None, None)
 
     for op in ["==", ">=", "<=", "~=", ">", "<"]:
         if remainder.startswith(op):
             version = remainder[len(op) :].strip()
             if ";" in version:
                 version = version.split(";")[0].strip()
-            return name, extras, op, version
+            return ParsedDependency(name, extras, op, version)
 
-    return name, extras, None, None
+    return ParsedDependency(name, extras, None, None)
 
 
-def check_and_collect(
-    path: Path, excludes: set[str]
-) -> tuple[
-    list[tuple[str, str, str]],
-    list[tuple[str, str | None, str | None, str]],
-    dict[str, Any],
-]:
+def check_and_collect(path: Path, excludes: set[str]) -> DependencyCheckResult:
     """
     Check pyproject.toml and collect issues.
 
     Returns:
-        (loose_deps, outdated_deps, toml_data)
-        loose_deps: [(name, current_spec, latest_version), ...]
-        outdated_deps: [(name, extras, old_version, new_version), ...]
+        DependencyCheckResult(loose, outdated, toml_data)
+        loose: list of LooseDependency(name, current_spec, latest_version)
+        outdated: list of OutdatedDependency(name, extras, old_version, new_version)
     """
     with open(path, "rb") as f:
         data = tomllib.load(f)
@@ -100,13 +100,13 @@ def check_and_collect(
     for extra_deps in optional_deps.values():
         all_deps.extend(extra_deps)
 
-    loose_deps = []
-    outdated_deps = []
-    checked = set()
+    loose_deps: list[LooseDependency] = []
+    outdated_deps: list[OutdatedDependency] = []
+    checked: set[str] = set()
 
     for dep in all_deps:
-        name, extras, op, version = parse_dependency(dep)
-        name_lower = name.lower()
+        parsed = parse_dependency(dep)
+        name_lower = parsed.name.lower()
 
         if name_lower in excludes or name_lower in BUILTIN_EXCLUDES:
             continue
@@ -114,39 +114,48 @@ def check_and_collect(
             continue
         checked.add(name_lower)
 
-        latest = get_latest_pypi_version(name)
+        latest = get_latest_pypi_version(parsed.name)
         if latest is None:
             continue
 
-        if op is None or op != "==":
-            current_spec = f"{name}{extras or ''}{op or ''}{version or ''}"
-            loose_deps.append((name, current_spec, latest))
-        elif version != latest:
-            outdated_deps.append((name, extras, version, latest))
+        if parsed.operator is None or parsed.operator != "==":
+            extras = parsed.extras or ""
+            op = parsed.operator or ""
+            ver = parsed.version or ""
+            current_spec = f"{parsed.name}{extras}{op}{ver}"
+            loose_deps.append(LooseDependency(parsed.name, current_spec, latest))
+        elif parsed.version != latest:
+            outdated_deps.append(
+                OutdatedDependency(parsed.name, parsed.extras, parsed.version, latest)
+            )
 
-    return loose_deps, outdated_deps, data
+    return DependencyCheckResult(loose_deps, outdated_deps, data)
 
 
 def upgrade_pyproject(
     path: Path,
-    loose: list[tuple[str, str, str]],
-    outdated: list[tuple[str, str | None, str | None, str]],
+    loose: list[LooseDependency],
+    outdated: list[OutdatedDependency],
 ) -> None:
     """Upgrade versions in pyproject.toml."""
     content = path.read_text()
 
     # Only match deps inside arrays (lines starting with whitespace + quote)
-    for name, _current_spec, latest in loose:
-        pattern = rf'(^\s+)"{re.escape(name)}(\[[^\]]*\])?(>=|<=|~=|>|<)?[^"]*"'
-        replacement = rf'\1"{name}\2=={latest}"'
+    for loose_dep in loose:
+        pattern = (
+            rf'(^\s+)"{re.escape(loose_dep.name)}(\[[^\]]*\])?(>=|<=|~=|>|<)?[^"]*"'
+        )
+        replacement = rf'\1"{loose_dep.name}\2=={loose_dep.latest_version}"'
         content = re.sub(
             pattern, replacement, content, flags=re.IGNORECASE | re.MULTILINE
         )
 
-    for name, extras, _old, new in outdated:
-        extras_pattern = re.escape(extras) if extras else ""
-        pattern = rf'(^\s+)"{re.escape(name)}{extras_pattern}==[^"]*"'
-        replacement = rf'\1"{name}{extras or ""}=={new}"'
+    for outdated_dep in outdated:
+        extras_pat = re.escape(outdated_dep.extras) if outdated_dep.extras else ""
+        pattern = rf'(^\s+)"{re.escape(outdated_dep.name)}{extras_pat}==[^"]*"'
+        extras = outdated_dep.extras or ""
+        new_ver = outdated_dep.new_version
+        replacement = rf'\1"{outdated_dep.name}{extras}=={new_ver}"'
         content = re.sub(
             pattern, replacement, content, flags=re.IGNORECASE | re.MULTILINE
         )
@@ -199,15 +208,20 @@ def main() -> int:
         has_errors = True
         print("\n!!! LOOSE DEPENDENCY CONSTRAINTS !!!")
         print("All dependencies must use strict pinning (==)")
-        for name, current, latest in loose:
-            print(f"  - {current} -> {name}=={latest}")
+        for loose_dep in loose:
+            spec = loose_dep.current_spec
+            latest = loose_dep.latest_version
+            print(f"  - {spec} -> {loose_dep.name}=={latest}")
 
     if outdated:
         has_errors = True
         print("\n!!! OUTDATED DEPENDENCIES !!!")
         print("The following dependencies are not at their latest PyPI version:")
-        for name, extras, old, new in outdated:
-            print(f"  - {name}{extras or ''}=={old} -> {new}")
+        for outdated_dep in outdated:
+            extras = outdated_dep.extras or ""
+            old_ver = outdated_dep.old_version
+            new_ver = outdated_dep.new_version
+            print(f"  - {outdated_dep.name}{extras}=={old_ver} -> {new_ver}")
 
     if has_errors:
         print("\nRun with --upgrade to auto-fix.")

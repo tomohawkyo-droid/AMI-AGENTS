@@ -9,6 +9,7 @@ from ami.cli.stream_processor import StreamObserver, StreamProcessor
 from ami.cli_components.stream_renderer import StreamRenderer
 from ami.types.api import ProviderMetadata, StreamEventData
 from ami.types.events import StreamEvent, StreamEventType
+from ami.types.results import ProviderResult
 from ami.utils.uuid_utils import uuid7
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ def execute_streaming(
     cwd: Path | None = None,
     agent_config: AgentConfig | None = None,
     provider: StreamParserProtocol | None = None,
-) -> tuple[str, ProviderMetadata | None]:
+) -> ProviderResult:
     """Execute command using the unified StreamProcessor."""
     timeout = agent_config.timeout if agent_config else None
     processor = StreamProcessor(
@@ -83,7 +84,7 @@ def execute_streaming(
                     duration=metadata.duration,
                     exit_code=metadata.exit_code,
                 )
-            return output, metadata
+            return ProviderResult(output, metadata)
 
     # Standard non-display execution
     output = ""
@@ -94,4 +95,4 @@ def execute_streaming(
         ):
             output = event.data.output
             metadata = event.data.metadata
-    return output, metadata
+    return ProviderResult(output, metadata)

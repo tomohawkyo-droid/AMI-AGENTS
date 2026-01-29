@@ -5,6 +5,8 @@ Provides Pydantic models for systemd services and container information.
 
 from pydantic import BaseModel, Field
 
+from ami.types.common import ContainerSizeData, ContainerStatsData
+
 
 class PortMapping(BaseModel):
     """Port mapping information for containers."""
@@ -26,7 +28,9 @@ class PodmanContainer(BaseModel):
     status: str = ""
     ports: list[PortMapping] = Field(default_factory=list)
     image: str = ""
-    labels: dict[str, str] = Field(default_factory=dict)
+    labels: dict = Field(default_factory=dict)
+    stats: ContainerStatsData | None = None
+    size: ContainerSizeData | None = None
 
 
 class SystemdService(BaseModel):

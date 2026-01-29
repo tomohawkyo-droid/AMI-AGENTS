@@ -9,7 +9,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 from threading import Event
-from typing import ClassVar
+from typing import ClassVar, NamedTuple
 
 import yaml
 from pydantic import BaseModel, ConfigDict
@@ -30,6 +30,13 @@ _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # Type alias for stream callback
 StreamCallbackType = Callable[[str | StreamEvent], None] | None
+
+
+class AgentRunResult(NamedTuple):
+    """Result from agent run execution."""
+
+    response_text: str
+    session_id: str | None
 
 
 class RunContext(BaseModel):
@@ -261,10 +268,8 @@ class BootloaderAgent:
             guard_rules_path=ctx.guard_rules_path,
         )
 
-    def _handle_agent_error(
-        self, e: Exception, ctx: RunContext
-    ) -> tuple[str, str | None]:
-        """Handle agent execution errors. Returns (error_msg, None) or raises."""
+    def _handle_agent_error(self, e: Exception, ctx: RunContext) -> AgentRunResult:
+        """Handle agent execution errors. Returns AgentRunResult or raises."""
         if isinstance(e, KeyboardInterrupt | SystemExit):
             raise e
 
@@ -276,7 +281,7 @@ class BootloaderAgent:
 
         if "isinstance() arg 2 must be a type" in str(e):
             raise e from None
-        return error_msg, None
+        return AgentRunResult(response_text=error_msg, session_id=None)
 
     def _execute_shell_blocks(
         self,
@@ -321,7 +326,7 @@ class BootloaderAgent:
         context = TranscriptContextBuilder(store).build_context(ctx.transcript_id)
         return f"{context}\n\n{base_prompt}" if context else base_prompt
 
-    def run(self, ctx: RunContext) -> tuple[str, str | None]:
+    def run(self, ctx: RunContext) -> AgentRunResult:
         """Run the agent loop.
 
         Each iteration spawns a fresh provider subprocess. No --resume is
@@ -332,7 +337,7 @@ class BootloaderAgent:
             ctx: RunContext containing all execution parameters.
 
         Returns:
-            Tuple of (response_text, session_id_always_None)
+            AgentRunResult with response_text and session_id (always None)
         """
         transcript_id = ctx.transcript_id
         response_parts: list[str] = []
@@ -347,7 +352,10 @@ class BootloaderAgent:
             if ctx.stop_event and ctx.stop_event.is_set():
                 if ctx.stream_callback:
                     ctx.stream_callback("\n\n🛑 Agent execution stopped by user.\n")
-                return "\n".join(response_parts) + "\n🛑 Agent stopped.", None
+                return AgentRunResult(
+                    response_text="\n".join(response_parts) + "\n🛑 Agent stopped.",
+                    session_id=None,
+                )
 
             config = self._build_agent_config(ctx, None, allowed_tools)
             if transcript_id:
@@ -390,4 +398,4 @@ class BootloaderAgent:
             conversation.append(f"[Tool]\n{tool_text}")
             next_prompt = "\n\n".join(conversation)
 
-        return "\n".join(response_parts), None
+        return AgentRunResult(response_text="\n".join(response_parts), session_id=None)

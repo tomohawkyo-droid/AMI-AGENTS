@@ -39,6 +39,62 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
 }
 
+# =============================================================================
+# Reset function - cleans corrupted Podman state while preserving volumes
+# =============================================================================
+reset_podman_state() {
+    log_warn "Resetting corrupted Podman state (volumes will be preserved)..."
+
+    # Kill any stuck container processes
+    pkill -9 conmon 2>/dev/null || true
+    pkill -9 catatonit 2>/dev/null || true
+    pkill -9 -f podman 2>/dev/null || true
+
+    # Remove corrupted state files (but NOT volumes!)
+    rm -rf ~/.local/share/containers/storage/libpod
+    rm -rf ~/.local/share/containers/storage/overlay-containers
+    rm -rf ~/.local/share/containers/storage/db.sql
+
+    # Clear runtime state (stale netns and pause files cause "reexec: Permission denied")
+    rm -rf "/run/user/$(id -u)/containers"
+    rm -rf "/run/user/$(id -u)/libpod"
+    rm -rf "/run/user/$(id -u)/netns"
+    mkdir -p "/run/user/$(id -u)/containers"
+
+    log_info "Reset complete. Volumes at ~/.local/share/containers/storage/volumes/ preserved."
+}
+
+# =============================================================================
+# CLI argument parsing
+# =============================================================================
+DO_RESET=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --reset|-r)
+            DO_RESET=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --reset, -r    Reset corrupted Podman state before install (preserves volumes)"
+            echo "  --help, -h     Show this help message"
+            exit 0
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Run reset if requested
+if [[ "$DO_RESET" == "true" ]]; then
+    reset_podman_state
+fi
+
 # Check if running on Linux
 if [[ "$(uname -s)" != "Linux" ]]; then
     log_error "This script only supports Linux. For other platforms, install Podman manually."
@@ -161,15 +217,42 @@ elif command -v wget &> /dev/null; then
 fi
 chmod +x "${AARDVARK_BIN}"
 
-# Create symlinks in venv/bin
+# Create symlinks in venv/bin (with guard for podman)
 log_info "Creating symlinks in ${VENV_DIR}/bin"
-for binary in podman conmon netavark aardvark-dns; do
+
+# First, link helper binaries directly
+for binary in conmon netavark aardvark-dns; do
     if [[ -f "${PODMAN_DIR}/usr/local/bin/${binary}" ]]; then
         ln -sf "${PODMAN_DIR}/usr/local/bin/${binary}" "${VENV_DIR}/bin/${binary}"
     elif [[ -f "${PODMAN_DIR}/bin/${binary}" ]]; then
         ln -sf "${PODMAN_DIR}/bin/${binary}" "${VENV_DIR}/bin/${binary}"
     fi
 done
+
+# Link real podman to podman-real
+log_info "Installing Podman with safety guard"
+if [[ -f "${PODMAN_DIR}/usr/local/bin/podman" ]]; then
+    ln -sf "${PODMAN_DIR}/usr/local/bin/podman" "${VENV_DIR}/bin/podman-real"
+elif [[ -f "${PODMAN_DIR}/bin/podman" ]]; then
+    ln -sf "${PODMAN_DIR}/bin/podman" "${VENV_DIR}/bin/podman-real"
+fi
+
+# Install guard script as the main podman command
+GUARD_SCRIPT="${SCRIPT_DIR}/../utils/podman-guard"
+if [[ -f "$GUARD_SCRIPT" ]]; then
+    rm -f "${VENV_DIR}/bin/podman"  # Remove existing symlink first
+    cp "$GUARD_SCRIPT" "${VENV_DIR}/bin/podman"
+    chmod +x "${VENV_DIR}/bin/podman"
+    log_info "✓ Installed podman-guard as ${VENV_DIR}/bin/podman"
+    log_info "  Real podman available at: ${VENV_DIR}/bin/podman-real"
+else
+    log_warn "Guard script not found at $GUARD_SCRIPT, falling back to direct symlink"
+    if [[ -f "${PODMAN_DIR}/usr/local/bin/podman" ]]; then
+        ln -sf "${PODMAN_DIR}/usr/local/bin/podman" "${VENV_DIR}/bin/podman"
+    elif [[ -f "${PODMAN_DIR}/bin/podman" ]]; then
+        ln -sf "${PODMAN_DIR}/bin/podman" "${VENV_DIR}/bin/podman"
+    fi
+fi
 
 # Create symlink for rootlessport (required for port forwarding in rootless mode)
 if [[ -f "${PODMAN_DIR}/usr/local/lib/podman/rootlessport" ]]; then
@@ -238,13 +321,21 @@ log_info "✓ Created ${POLICY_JSON}"
 
 log_info "✓ Created ${CONTAINERS_CONF}"
 
-# Verify installation
+# Verify installation (use podman-real for direct check)
 log_info "Verifying Podman installation"
-if "${VENV_DIR}/bin/podman" --version; then
-    log_info "Podman installed successfully: $(${VENV_DIR}/bin/podman --version)"
+if "${VENV_DIR}/bin/podman-real" --version; then
+    log_info "Podman installed successfully: $(${VENV_DIR}/bin/podman-real --version)"
 else
     log_error "Podman installation verification failed"
     exit 1
+fi
+
+# Verify guard is working
+log_info "Verifying safety guard"
+if "${VENV_DIR}/bin/podman" --version >/dev/null 2>&1; then
+    log_info "✓ Safety guard is operational"
+else
+    log_warn "Safety guard verification failed - check podman-guard script"
 fi
 
 # Verify podman-compose with PATH set
@@ -270,11 +361,20 @@ log_info "  - conmon ${CONMON_VERSION}"
 log_info "  - netavark ${NETAVARK_VERSION}"
 log_info "  - aardvark-dns ${AARDVARK_DNS_VERSION}"
 log_info "  - podman-compose (installed via pip if available)"
+log_info "  - podman-guard (safety wrapper)"
 log_info ""
 log_info "Docker alias symlinks created: docker -> podman, docker-compose -> podman-compose"
+log_info ""
+log_warn "SAFETY GUARD ACTIVE - The following commands are BLOCKED:"
+log_warn "  - podman system migrate/reset/prune"
+log_warn "  - podman rm -a / rmi -a"
+log_warn "  - podman volume/container/network/image prune"
+log_warn "  Use podman-real to bypass (at your own risk)"
 log_info ""
 log_info "To use Podman:"
 log_info "  1. Run: ami-run commands (Podman is auto-available)"
 log_info "  2. Or activate venv: source ${VENV_DIR}/bin/activate"
 log_info "  3. Run podman commands: podman ps, podman-compose up, etc."
 log_info "  4. Or use docker commands: docker ps, docker-compose up (they map to podman)"
+log_info ""
+log_info "To reset corrupted state: $0 --reset"

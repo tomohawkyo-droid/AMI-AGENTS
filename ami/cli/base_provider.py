@@ -7,8 +7,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from ami.core.interfaces import RunInteractiveParams, RunPrintParams
-from ami.types.api import ProviderMetadata, StreamMetadata
 from ami.types.config import AgentConfig
+from ami.types.results import ParseResult, ProviderResult
 from ami.utils.uuid_utils import uuid7
 
 from .agent_logging import TranscriptLogger
@@ -72,7 +72,7 @@ class CLIProvider(ABC):
         cmd: list[str],
         line_count: int,
         agent_config: AgentConfig | None,
-    ) -> tuple[str, StreamMetadata | None]:
+    ) -> ParseResult:
         """Parse a single line from CLI's streaming output.
 
         Args:
@@ -82,7 +82,7 @@ class CLIProvider(ABC):
             agent_config: Agent configuration
 
         Returns:
-            Tuple of (output text, metadata or None)
+            ParseResult with (text, metadata or None)
         """
 
     @abstractmethod
@@ -99,7 +99,7 @@ class CLIProvider(ABC):
         cwd: Path | None,
         agent_config: AgentConfig,
         stdin_data: str | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
+    ) -> ProviderResult:
         """Execute CLI command with timeout handling.
 
         Args:
@@ -109,7 +109,7 @@ class CLIProvider(ABC):
             stdin_data: Data to provide to stdin
 
         Returns:
-            Tuple of (output, metadata)
+            ProviderResult with (output, metadata)
 
         Raises:
             AgentError: If execution fails or times out
@@ -133,7 +133,7 @@ class CLIProvider(ABC):
         cmd = self._build_command(instruction, cwd, agent_config)
 
         try:
-            output, metadata = execute_streaming(
+            result = execute_streaming(
                 cmd=cmd,
                 stdin_data=stdin_data,
                 cwd=cwd,
@@ -144,20 +144,20 @@ class CLIProvider(ABC):
             logger.log_error(str(e))
             raise
         else:
-            logger.log_assistant_message(output, metadata)
-            return output, metadata
+            logger.log_assistant_message(result.output, result.metadata)
+            return result
 
     def run_interactive(
         self,
         params: RunInteractiveParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
+    ) -> ProviderResult:
         """Run agent interactively with CLI.
 
         Args:
             params: RunInteractiveParams with instruction, cwd, session_id
 
         Returns:
-            Tuple of (output, metadata) where metadata includes session info
+            ProviderResult with (output, metadata) where metadata includes session info
 
         Raises:
             AgentError: If agent execution fails
@@ -179,14 +179,14 @@ class CLIProvider(ABC):
     def run_print(
         self,
         params: RunPrintParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
+    ) -> ProviderResult:
         """Run agent in print mode with CLI.
 
         Args:
             params: Parameters for execution (instruction, cwd, config, etc.)
 
         Returns:
-            Tuple of (output, metadata) where metadata includes session info
+            ProviderResult with (output, metadata) where metadata includes session info
 
         Raises:
             AgentError: If agent execution fails

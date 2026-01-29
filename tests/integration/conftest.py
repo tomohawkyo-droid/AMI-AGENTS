@@ -3,6 +3,7 @@
 Provides common configuration fixtures and singleton resets.
 """
 
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ from ami.core.env import get_project_root
 
 
 @pytest.fixture
-def real_config(monkeypatch: pytest.MonkeyPatch) -> Config:
+def real_config(monkeypatch: pytest.MonkeyPatch) -> Generator[Config, None, None]:
     """Return a Config() loaded from real YAML, resetting the singleton."""
     monkeypatch.setenv("AMI_TEST_MODE", "1")
     _ConfigSingleton.instance = None

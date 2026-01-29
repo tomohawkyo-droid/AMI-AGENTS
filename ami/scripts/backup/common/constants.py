@@ -44,7 +44,8 @@ DEFAULT_EXCLUSION_PATTERNS = [
     "*.sqlite",
     "*.sqlite3",
     # Docker-managed service data (transient, root-owned)
-    "postfix/spool/",
+    # Use wildcard to match postfix/spool anywhere in the path
+    "*/postfix/spool/*",
 ]
 
 # Secondary backup locations (Linux default)

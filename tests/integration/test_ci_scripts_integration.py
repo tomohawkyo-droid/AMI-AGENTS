@@ -250,23 +250,23 @@ class TestShouldCheckFile:
     def test_python_file(self, tmp_path: Path):
         test_file = tmp_path / "test.py"
         test_file.write_text("pass")
-        assert should_check_file(str(test_file), (".py",), set(), set()) is True
+        assert should_check_file(str(test_file), [".py"], set(), set()) is True
 
     def test_wrong_extension(self, tmp_path: Path):
         test_file = tmp_path / "readme.md"
         test_file.write_text("content")
-        assert should_check_file(str(test_file), (".py",), set(), set()) is False
+        assert should_check_file(str(test_file), [".py"], set(), set()) is False
 
     def test_ignored_file(self, tmp_path: Path):
         test_file = tmp_path / "conftest.py"
         test_file.write_text("pass")
         assert (
-            should_check_file(str(test_file), (".py",), {"conftest.py"}, set()) is False
+            should_check_file(str(test_file), [".py"], {"conftest.py"}, set()) is False
         )
 
     def test_ignored_dir(self):
         assert (
-            should_check_file(".venv/lib/test.py", (".py",), set(), {".venv"}) is False
+            should_check_file(".venv/lib/test.py", [".py"], set(), {".venv"}) is False
         )
 
 

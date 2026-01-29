@@ -11,6 +11,14 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from typing import NamedTuple
+
+
+class VPNHealthStatus(NamedTuple):
+    """VPN health check status."""
+
+    status: str
+    connected: bool
 
 
 def check_openvpn_installed() -> bool:
@@ -74,12 +82,12 @@ def check_vpn_connection() -> bool:
         return False
 
 
-async def health_check() -> dict[str, str | bool]:
+async def health_check() -> VPNHealthStatus:
     is_connected = check_vpn_connection()
-    return {
-        "status": "connected" if is_connected else "disconnected",
-        "connected": is_connected,
-    }
+    return VPNHealthStatus(
+        status="connected" if is_connected else "disconnected",
+        connected=is_connected,
+    )
 
 
 async def main() -> int:
@@ -90,7 +98,12 @@ async def main() -> int:
     parser.add_argument("--daemon", action="store_true")
     args = parser.parse_args()
     if args.action == "health":
-        print(json.dumps(await health_check()))
+        health_status = await health_check()
+        print(
+            json.dumps(
+                {"status": health_status.status, "connected": health_status.connected}
+            )
+        )
         return 0
     if args.action == "start":
         ovpn = args.ovpn_file or os.environ.get("OPENVPN_CONFIG_FILE")

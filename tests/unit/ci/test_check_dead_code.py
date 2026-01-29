@@ -2,6 +2,8 @@
 
 import json
 import os
+from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -11,6 +13,7 @@ from ami.scripts.ci.check_dead_code import (
     IGNORE_DIRS,
     KIND_LABELS,
     KIND_ORDER,
+    RawConfig,
     _is_ignored,
     discover_files,
     format_json_output,
@@ -18,6 +21,7 @@ from ami.scripts.ci.check_dead_code import (
     print_report,
 )
 from ami.scripts.ci.dead_code_analyzer import (
+    DeadCodeConfig,
     DeadCodeItem,
     Definition,
 )
@@ -92,54 +96,62 @@ class TestModuleConstants:
 class TestLoadConfig:
     """Tests for load_config."""
 
-    def test_load_from_file(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_load_from_file(self, tmp_path: Path) -> None:
         cfg_file = tmp_path / "dead_code.yaml"
         cfg_file.write_text("scan_paths:\n  - src\nignored_names:\n  - main\n")
-        raw, config = load_config(str(cfg_file))
+        loaded = load_config(str(cfg_file))
+        raw = cast(RawConfig, loaded.raw)
+        config = cast(DeadCodeConfig, loaded.config)
         assert raw["scan_paths"] == ["src"]
         assert "main" in config.ignored_names
 
     def test_missing_file_uses_defaults(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        raw, _config = load_config("/nonexistent/config.yaml")
+        loaded = load_config("/nonexistent/config.yaml")
+        raw = cast(RawConfig, loaded.raw)
         captured = capsys.readouterr()
         assert "Warning" in captured.out
         assert raw.get("scan_paths") == EXPECTED_DEFAULT_SCAN
 
-    def test_empty_file_uses_defaults(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_empty_file_uses_defaults(self, tmp_path: Path) -> None:
         cfg_file = tmp_path / "empty.yaml"
         cfg_file.write_text("")
-        raw, _config = load_config(str(cfg_file))
+        loaded = load_config(str(cfg_file))
+        raw = cast(RawConfig, loaded.raw)
         assert raw.get("scan_paths") == EXPECTED_DEFAULT_SCAN
 
-    def test_regex_patterns_compiled(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_regex_patterns_compiled(self, tmp_path: Path) -> None:
         cfg_file = tmp_path / "cfg.yaml"
         cfg_file.write_text('ignored_name_patterns:\n  - "^test_"\n')
-        _raw, config = load_config(str(cfg_file))
+        loaded = load_config(str(cfg_file))
+        config = cast(DeadCodeConfig, loaded.config)
         assert len(config.ignored_name_regexes) == 1
         assert config.ignored_name_regexes[0].search("test_foo")
 
     def test_invalid_regex_warns(
-        self, tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         cfg_file = tmp_path / "bad.yaml"
         cfg_file.write_text('ignored_name_patterns:\n  - "[invalid"\n')
-        _raw, config = load_config(str(cfg_file))
+        loaded = load_config(str(cfg_file))
+        config = cast(DeadCodeConfig, loaded.config)
         captured = capsys.readouterr()
         assert "invalid regex" in captured.out
         assert len(config.ignored_name_regexes) == 0
 
-    def test_entry_points_loaded(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_entry_points_loaded(self, tmp_path: Path) -> None:
         cfg_file = tmp_path / "cfg.yaml"
         cfg_file.write_text("entry_points:\n  - ami/scripts/*.py\n")
-        _raw, config = load_config(str(cfg_file))
+        loaded = load_config(str(cfg_file))
+        config = cast(DeadCodeConfig, loaded.config)
         assert "ami/scripts/*.py" in config.entry_point_patterns
 
-    def test_reference_only_loaded(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_reference_only_loaded(self, tmp_path: Path) -> None:
         cfg_file = tmp_path / "cfg.yaml"
         cfg_file.write_text("reference_only_paths:\n  - tests/\n")
-        _raw, config = load_config(str(cfg_file))
+        loaded = load_config(str(cfg_file))
+        config = cast(DeadCodeConfig, loaded.config)
         assert "tests/" in config.reference_only_patterns
 
 
@@ -167,14 +179,14 @@ class TestIsIgnored:
 class TestDiscoverFiles:
     """Tests for discover_files."""
 
-    def test_discovers_python_files(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_discovers_python_files(self, tmp_path: Path) -> None:
         (tmp_path / "mod.py").write_text("x = 1")
         (tmp_path / "readme.md").write_text("# hi")
         files = discover_files([str(tmp_path)], [])
         assert len(files) == 1
         assert files[0].endswith("mod.py")
 
-    def test_excludes_ignored_paths(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_excludes_ignored_paths(self, tmp_path: Path) -> None:
         (tmp_path / "a.py").write_text("x = 1")
         (tmp_path / "b.py").write_text("y = 2")
         a_path = str(tmp_path / "a.py").replace("\\", "/")
@@ -182,7 +194,7 @@ class TestDiscoverFiles:
         assert len(files) == 1
         assert files[0].endswith("b.py")
 
-    def test_excludes_pycache(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_excludes_pycache(self, tmp_path: Path) -> None:
         cache_dir = tmp_path / "__pycache__"
         cache_dir.mkdir()
         (cache_dir / "mod.cpython-311.pyc").write_text("")
@@ -190,7 +202,7 @@ class TestDiscoverFiles:
         files = discover_files([str(tmp_path)], [])
         assert len(files) == 1
 
-    def test_returns_sorted(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_returns_sorted(self, tmp_path: Path) -> None:
         (tmp_path / "z.py").write_text("")
         (tmp_path / "a.py").write_text("")
         files = discover_files([str(tmp_path)], [])

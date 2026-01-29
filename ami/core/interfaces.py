@@ -10,8 +10,9 @@ from typing import TYPE_CHECKING, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ami.types.api import MCPServerConfig, ProviderMetadata
+from ami.types.api import MCPServerConfig
 from ami.types.config import AgentConfig
+from ami.types.results import ProviderResult
 
 if TYPE_CHECKING:
     pass  # All imports are now runtime imports
@@ -35,7 +36,7 @@ class RunInteractiveParams(BaseModel):
     instruction: str = ""
     cwd: Path | None = None
     session_id: str | None = None
-    mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
+    mcp_servers: list[MCPServerConfig] = Field(default_factory=list)
 
 
 class AgentRuntimeProtocol(Protocol):
@@ -44,13 +45,13 @@ class AgentRuntimeProtocol(Protocol):
     def run_print(
         self,
         params: RunPrintParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
+    ) -> ProviderResult:
         """Run agent in print mode."""
         ...
 
     def run_interactive(
         self,
         params: RunInteractiveParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
+    ) -> ProviderResult:
         """Run agent interactively."""
         ...

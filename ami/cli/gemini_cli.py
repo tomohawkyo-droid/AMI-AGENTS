@@ -10,8 +10,8 @@ from ami.cli.interface import AgentCLI
 from ami.cli.provider_type import ProviderType
 from ami.core.config import get_config
 from ami.core.interfaces import RunPrintParams
-from ami.types.api import ProviderMetadata, StreamMetadata
 from ami.types.config import AgentConfig
+from ami.types.results import ParseResult, ProviderResult
 from ami.utils.uuid_utils import uuid7
 
 
@@ -48,7 +48,7 @@ class GeminiAgentCLI(BaseProvider, AgentCLI):
     def run_print(
         self,
         params: RunPrintParams | None = None,
-    ) -> tuple[str, ProviderMetadata | None]:
+    ) -> ProviderResult:
         """Run agent in print mode."""
         return super().run_print(params=params)
 
@@ -85,6 +85,6 @@ class GeminiAgentCLI(BaseProvider, AgentCLI):
         _cmd: list[str],
         _line_count: int,
         _agent_config: AgentConfig | None,
-    ) -> tuple[str, StreamMetadata | None]:
+    ) -> ParseResult:
         """Parse streaming output from Gemini CLI."""
-        return line, None
+        return ParseResult(line, None)
