@@ -102,9 +102,10 @@ class TestGetLocalPorts:
         result = get_local_ports("")
         assert result == []
 
-    @patch("ami.cli_components.status_utils.psutil", None)
-    def test_returns_empty_without_psutil(self) -> None:
-        """Test returns empty when psutil not available."""
+    @patch("ami.cli_components.status_utils.psutil.Process")
+    def test_returns_empty_on_process_error(self, mock_process: MagicMock) -> None:
+        """Test returns empty when process lookup fails."""
+        mock_process.side_effect = ValueError("Invalid pid")
         result = get_local_ports("1234")
         assert result == []
 
