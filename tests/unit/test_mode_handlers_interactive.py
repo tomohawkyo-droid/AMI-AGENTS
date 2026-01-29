@@ -15,6 +15,8 @@ from ami.cli.mode_handlers import (
     mode_print,
     mode_query,
 )
+from ami.core.bootloader_agent import AgentRunResult
+from ami.types.results import ProviderResult
 
 # Test constants
 EXPECTED_EDITOR_RUN_CALLS = 2
@@ -74,7 +76,7 @@ class TestModeInteractiveEditor:
         mock_store.create_session.return_value = "test-transcript-id"
 
         mock_agent = MockCreateBootloader.return_value
-        mock_agent.run.return_value = ("Output", "sess-id")
+        mock_agent.run.return_value = AgentRunResult("Output", "sess-id")
 
         # Execute
         exit_code = mode_interactive_editor()
@@ -194,7 +196,7 @@ class TestModeQuery:
         """Test successful query execution."""
         mock_wrap.return_value = "boxed text"
         mock_cli = MagicMock()
-        mock_cli.run_print.return_value = ("output", MagicMock())
+        mock_cli.run_print.return_value = ProviderResult("output", MagicMock())
         mock_get_cli.return_value = mock_cli
 
         result = mode_query("What is Python?")
@@ -252,7 +254,7 @@ class TestModePrint:
         """Test successful print execution."""
         mock_stdin_read.return_value = ""
         mock_cli = MagicMock()
-        mock_cli.run_print.return_value = ("output", MagicMock())
+        mock_cli.run_print.return_value = ProviderResult("output", MagicMock())
         mock_get_cli.return_value = mock_cli
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:

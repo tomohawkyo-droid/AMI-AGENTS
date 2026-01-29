@@ -9,6 +9,8 @@ from ami.cli.main import main as cli_main
 from ami.cli.mode_handlers import mode_interactive_editor, mode_query
 from ami.cli.timer_utils import TimerDisplay, wrap_text_in_box
 from ami.cli_components.text_editor import TextEditor
+from ami.core.bootloader_agent import AgentRunResult
+from ami.types.results import ProviderResult
 
 
 class TestMainIntegration:
@@ -56,7 +58,7 @@ class TestModeHandlersIntegration:
 
         # Mock the BootloaderAgent returned by factory
         mock_agent = Mock()
-        mock_agent.run.return_value = ("Response", "session-id")
+        mock_agent.run.return_value = AgentRunResult("Response", "session-id")
         mock_create_bootloader.return_value = mock_agent
 
         # Call the mode handler
@@ -70,7 +72,7 @@ class TestModeHandlersIntegration:
     def test_mode_query_end_to_end(self, mock_get_cli):
         """End-to-end test of query mode."""
         mock_cli = Mock()
-        mock_cli.run_print.return_value = ("Response", {})
+        mock_cli.run_print.return_value = ProviderResult("Response", None)
         mock_get_cli.return_value = mock_cli
 
         result = mode_query("Test query")

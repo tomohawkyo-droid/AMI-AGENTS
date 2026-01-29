@@ -7,6 +7,7 @@ import pytest
 from ami.cli.exceptions import AgentTimeoutError
 from ami.cli.stream_processor import StreamProcessor
 from ami.types.api import StreamEventData, StreamMetadata
+from ami.types.results import ParseResult
 
 # Test constants
 EXPECTED_EVENT_COUNT_WITH_COMPLETE = 3  # chunk1, chunk2, complete
@@ -125,7 +126,9 @@ class TestStreamProcessor:
         mock_provider = MagicMock()
         # Returns (text, metadata) - metadata is StreamMetadata object
         test_metadata = StreamMetadata(session_id="test-session")
-        mock_provider._parse_stream_message.return_value = ("parsed", test_metadata)
+        mock_provider._parse_stream_message.return_value = ParseResult(
+            "parsed", test_metadata
+        )
 
         processor = StreamProcessor(cmd=["test"], provider=mock_provider)
 

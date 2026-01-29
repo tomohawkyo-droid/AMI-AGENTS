@@ -9,7 +9,7 @@ import pytest
 from ami.cli.base_provider import CLIProvider
 from ami.core.interfaces import RunInteractiveParams, RunPrintParams
 from ami.types.config import AgentConfig
-from ami.types.results import ParseResult
+from ami.types.results import ParseResult, ProviderResult
 
 
 class MockCLIProvider(CLIProvider):
@@ -109,7 +109,7 @@ class TestRunInteractive:
         """Test run_interactive with default params."""
         mock_logger = MagicMock()
         mock_logger_cls.return_value = mock_logger
-        mock_execute.return_value = ("output", None)
+        mock_execute.return_value = ProviderResult("output", None)
 
         provider = MockCLIProvider()
         output, _metadata = provider.run_interactive()
@@ -123,7 +123,7 @@ class TestRunInteractive:
         """Test run_interactive with custom params."""
         mock_logger = MagicMock()
         mock_logger_cls.return_value = mock_logger
-        mock_execute.return_value = ("output", None)
+        mock_execute.return_value = ProviderResult("output", None)
 
         provider = MockCLIProvider()
         params = RunInteractiveParams(
@@ -142,7 +142,7 @@ class TestRunInteractive:
         """Test logs user message."""
         mock_logger = MagicMock()
         mock_logger_cls.return_value = mock_logger
-        mock_execute.return_value = ("output", None)
+        mock_execute.return_value = ProviderResult("output", None)
 
         provider = MockCLIProvider()
         params = RunInteractiveParams(instruction="Hello")
@@ -160,7 +160,7 @@ class TestRunPrint:
         """Test run_print with instruction."""
         mock_logger = MagicMock()
         mock_logger_cls.return_value = mock_logger
-        mock_execute.return_value = ("output", None)
+        mock_execute.return_value = ProviderResult("output", None)
 
         provider = MockCLIProvider()
         params = RunPrintParams(instruction="Test instruction")
@@ -177,7 +177,7 @@ class TestRunPrint:
         """Test run_print with instruction_file."""
         mock_logger = MagicMock()
         mock_logger_cls.return_value = mock_logger
-        mock_execute.return_value = ("output", None)
+        mock_execute.return_value = ProviderResult("output", None)
         mock_load.return_value = "File content"
 
         provider = MockCLIProvider()
@@ -236,7 +236,7 @@ class TestRunPrint:
         """Test uses default config when not provided."""
         mock_logger = MagicMock()
         mock_logger_cls.return_value = mock_logger
-        mock_execute.return_value = ("output", None)
+        mock_execute.return_value = ProviderResult("output", None)
 
         provider = MockCLIProvider()
         params = RunPrintParams(instruction="Test")
@@ -252,7 +252,7 @@ class TestRunPrint:
         """Test stdin data is included in log message."""
         mock_logger = MagicMock()
         mock_logger_cls.return_value = mock_logger
-        mock_execute.return_value = ("output", None)
+        mock_execute.return_value = ProviderResult("output", None)
 
         provider = MockCLIProvider()
         params = RunPrintParams(instruction="Test", stdin="input data")
@@ -289,7 +289,7 @@ class TestExecuteWithTimeout:
         mock_logger = MagicMock()
         mock_logger_cls.return_value = mock_logger
         mock_metadata = MagicMock()
-        mock_execute.return_value = ("output text", mock_metadata)
+        mock_execute.return_value = ProviderResult("output text", mock_metadata)
 
         provider = MockCLIProvider()
         config = provider._get_default_config()

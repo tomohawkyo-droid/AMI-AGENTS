@@ -18,6 +18,7 @@ from ami.core.config import _ConfigSingleton
 from ami.core.env import get_project_root
 from ami.core.interfaces import RunInteractiveParams, RunPrintParams
 from ami.types.api import ProviderMetadata
+from ami.types.results import ProviderResult
 
 # Named constants for magic numbers used in assertions
 DEFAULT_TIMEOUT = 300
@@ -38,7 +39,7 @@ def _ensure_config(monkeypatch: pytest.MonkeyPatch):
 def mock_runtime():
     """Create a mock AgentRuntimeProtocol."""
     runtime = MagicMock()
-    runtime.run_print.return_value = ("No shell blocks.", None)
+    runtime.run_print.return_value = ProviderResult("No shell blocks.", None)
     return runtime
 
 

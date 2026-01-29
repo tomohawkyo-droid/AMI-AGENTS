@@ -6,6 +6,7 @@ import pytest
 
 from ami.core.bootloader_agent import BootloaderAgent, RunContext
 from ami.types.api import ProviderMetadata
+from ami.types.results import ProviderResult
 
 
 class TestBootloaderAgent:
@@ -91,7 +92,9 @@ class TestBootloaderAgent:
 
     def test_run_resume_session(self, mock_runtime, agent):
         """run() uses existing session if provided."""
-        mock_runtime.run_print.return_value = ("Resumed response", ProviderMetadata())
+        mock_runtime.run_print.return_value = ProviderResult(
+            "Resumed response", ProviderMetadata()
+        )
 
         ctx = RunContext(instruction="Continue", session_id="existing-uuid")
         response, session_id = agent.run(ctx)

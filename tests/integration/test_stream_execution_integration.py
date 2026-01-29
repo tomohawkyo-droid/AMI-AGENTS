@@ -18,6 +18,7 @@ from ami.core.config import _ConfigSingleton
 from ami.core.interfaces import RunPrintParams
 from ami.types.api import ProviderMetadata, StreamEventData, StreamMetadata
 from ami.types.events import StreamEvent, StreamEventType
+from ami.types.results import ParseResult
 
 # ---------------------------------------------------------------------------
 # Constants for magic number comparisons
@@ -145,7 +146,7 @@ class TestStreamProcessorProvider:
 
     def test_provider_parser_called(self):
         mock_provider = MagicMock()
-        mock_provider._parse_stream_message.return_value = ("parsed", None)
+        mock_provider._parse_stream_message.return_value = ParseResult("parsed", None)
         proc = StreamProcessor(cmd=["echo", "raw"], provider=mock_provider)
         list(proc.run())
         assert mock_provider._parse_stream_message.called
@@ -153,7 +154,7 @@ class TestStreamProcessorProvider:
     def test_provider_metadata_emitted(self):
         meta = StreamMetadata(session_id="s1", model="test")
         mock_provider = MagicMock()
-        mock_provider._parse_stream_message.return_value = ("text", meta)
+        mock_provider._parse_stream_message.return_value = ParseResult("text", meta)
         proc = StreamProcessor(cmd=["echo", "meta"], provider=mock_provider)
         events = list(proc.run())
         meta_events = [e for e in events if e.type == StreamEventType.METADATA]
