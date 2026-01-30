@@ -6,6 +6,9 @@
 # (no Node.js, no pip packages, etc.)
 
 components:
+  # Core Dependencies (installed FIRST)
+  - uv
+
   # Development Tools (system packages, usually pre-installed)
   - git
   - go

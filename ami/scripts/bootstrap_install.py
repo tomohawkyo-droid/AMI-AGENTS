@@ -8,9 +8,18 @@ import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 from ami.scripts.bootstrap_components import PROJECT_ROOT, Component, ComponentType
 from ami.types.common import InstallationResult
+
+
+class CategorizedComponents(NamedTuple):
+    """Components separated by installation order."""
+
+    core: list[Component]
+    npm: list[Component]
+    other: list[Component]
 
 
 def ensure_directories() -> None:
@@ -133,63 +142,91 @@ def install_component(component: Component) -> bool:
     return False
 
 
+def _categorize_components(components: list[Component]) -> CategorizedComponents:
+    """Separate components into core, npm, and other categories."""
+    core = [c for c in components if c.group == "Core Dependencies"]
+    npm = [c for c in components if c.type == ComponentType.NPM]
+    other = [c for c in components if c.type != ComponentType.NPM and c not in core]
+    return CategorizedComponents(core=core, npm=npm, other=other)
+
+
+def _make_result(name: str, success: bool) -> InstallationResult:
+    """Create an InstallationResult with keyword arguments."""
+    return InstallationResult(component_name=name, success=success, error=None)
+
+
+def _install_core_deps(cat: CategorizedComponents, ctx: "_InstallContext") -> int:
+    """Install core dependencies. Returns next index."""
+    for comp in cat.core:
+        ctx.idx += 1
+        if ctx.on_progress:
+            ctx.on_progress(ctx.idx, ctx.total, f"Core: {comp.label}")
+        success = install_component(comp)
+        ctx.results.append(_make_result(comp.name, success))
+        if ctx.on_result:
+            ctx.on_result(comp, success)
+    return ctx.idx
+
+
+def _install_npm_batch(cat: CategorizedComponents, ctx: "_InstallContext") -> None:
+    """Install npm packages as a batch."""
+    if not cat.npm:
+        return
+    ctx.idx += 1
+    if ctx.on_progress:
+        ctx.on_progress(
+            ctx.idx, ctx.total, f"NPM: {', '.join(c.label for c in cat.npm)}"
+        )
+    packages = [c.package for c in cat.npm if c.package]
+    success = install_npm_packages(packages)
+    for comp in cat.npm:
+        ctx.results.append(_make_result(comp.name, success))
+        if ctx.on_result:
+            ctx.on_result(comp, success)
+
+
+def _install_other_components(
+    cat: CategorizedComponents, ctx: "_InstallContext"
+) -> None:
+    """Install remaining components."""
+    for comp in cat.other:
+        ctx.idx += 1
+        if ctx.on_progress:
+            ctx.on_progress(ctx.idx, ctx.total, comp.label)
+        success = install_component(comp)
+        ctx.results.append(_make_result(comp.name, success))
+        if ctx.on_result:
+            ctx.on_result(comp, success)
+
+
+class _InstallContext:
+    """Mutable context for installation process."""
+
+    def __init__(
+        self,
+        total: int,
+        on_progress: Callable[[int, int, str], None] | None,
+        on_result: Callable[[Component, bool], None] | None,
+    ) -> None:
+        self.total = total
+        self.on_progress = on_progress
+        self.on_result = on_result
+        self.results: list[InstallationResult] = []
+        self.idx = 0
+
+
 def install_components(
     components: list[Component],
     on_progress: Callable[[int, int, str], None] | None = None,
     on_result: Callable[[Component, bool], None] | None = None,
 ) -> list[InstallationResult]:
-    """Install multiple components.
-
-    Args:
-        components: List of components to install
-        on_progress: Callback(current, total, label) for progress updates
-        on_result: Callback(component, success) for each result
-
-    Returns:
-        list of InstallationResult with name and success status
-    """
+    """Install components in order: core deps, npm batch, others."""
     ensure_directories()
+    cat = _categorize_components(components)
+    ctx = _InstallContext(len(components), on_progress, on_result)
 
-    results: list[InstallationResult] = []
+    _install_core_deps(cat, ctx)
+    _install_npm_batch(cat, ctx)
+    _install_other_components(cat, ctx)
 
-    # Separate npm packages from scripts for batching
-    npm_components = [c for c in components if c.type == ComponentType.NPM]
-    other_components = [c for c in components if c.type != ComponentType.NPM]
-
-    total = len(components)
-    current = 0
-
-    # Install all npm packages at once (to avoid conflicts)
-    if npm_components:
-        current += 1
-        if on_progress:
-            labels = [c.label for c in npm_components]
-            on_progress(current, total, f"NPM: {', '.join(labels)}")
-
-        packages = [c.package for c in npm_components if c.package]
-        success = install_npm_packages(packages)
-
-        for comp in npm_components:
-            results.append(
-                InstallationResult(
-                    component_name=comp.name, success=success, error=None
-                )
-            )
-            if on_result:
-                on_result(comp, success)
-
-    # Install other components one at a time
-    for comp in other_components:
-        current += 1
-        if on_progress:
-            on_progress(current, total, comp.label)
-
-        success = install_component(comp)
-        results.append(
-            InstallationResult(component_name=comp.name, success=success, error=None)
-        )
-
-        if on_result:
-            on_result(comp, success)
-
-    return results
+    return ctx.results

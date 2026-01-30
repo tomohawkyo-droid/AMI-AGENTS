@@ -141,6 +141,21 @@ class Component(BaseModel):
 # Component Definitions
 # =============================================================================
 
+# Core Dependencies (installed FIRST, before anything else)
+CORE_DEPS = [
+    Component(
+        name="uv",
+        label="uv",
+        description="Python package manager",
+        type=ComponentType.SCRIPT,
+        group="Core Dependencies",
+        script="bootstrap_uv.sh",
+        detect_path=".boot-linux/bin/uv",
+        version_cmd=[".boot-linux/bin/uv", "--version"],
+        version_pattern=r"uv (\d+\.\d+\.\d+)",
+    ),
+]
+
 
 def _npm_detect_path(package_name: str) -> str:
     """Get detection path for npm package."""
@@ -403,8 +418,9 @@ MISC = [
     ),
 ]
 
-# All components grouped
+# All components grouped (CORE_DEPS first for installation order)
 ALL_COMPONENTS: list[Component] = [
+    *CORE_DEPS,
     *AI_AGENTS,
     *CONTAINERS,
     *DEV_TOOLS,
@@ -414,8 +430,9 @@ ALL_COMPONENTS: list[Component] = [
     *MISC,
 ]
 
-# Group names in order
+# Group names in order (Core Dependencies first)
 GROUPS = [
+    "Core Dependencies",
     "AI Coding Assistants",
     "Containers & Orchestration",
     "Development Tools",
