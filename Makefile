@@ -28,7 +28,7 @@ install: ## Install AMI Agents in editable mode with all setup (CPU version)
 	$(MAKE) install-bootstrap
 	$(MAKE) install-shell
 	@echo "✨ Installation complete!"
-	@. ~/.bashrc
+	@. ami/scripts/shell/shell-setup --welcome
 
 .PHONY: install-ci
 install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
