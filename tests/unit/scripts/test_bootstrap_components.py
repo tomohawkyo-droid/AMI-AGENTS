@@ -8,6 +8,7 @@ from ami.scripts.bootstrap_components import (
     AI_AGENTS,
     ALL_COMPONENTS,
     CONTAINERS,
+    CORE_DEPS,
     DEV_TOOLS,
     DOCUMENTS,
     GROUPS,
@@ -23,7 +24,7 @@ from ami.scripts.bootstrap_components import (
     get_components_by_group,
 )
 
-EXPECTED_GROUP_COUNT = 7
+EXPECTED_GROUP_COUNT = 8
 
 
 class TestComponentType:
@@ -337,6 +338,11 @@ class TestGetComponentByName:
 class TestComponentLists:
     """Tests for component list constants."""
 
+    def test_core_deps_not_empty(self) -> None:
+        """Test CORE_DEPS is not empty."""
+        assert len(CORE_DEPS) > 0
+        assert all(c.group == "Core Dependencies" for c in CORE_DEPS)
+
     def test_ai_agents_not_empty(self) -> None:
         """Test AI_AGENTS is not empty."""
         assert len(AI_AGENTS) > 0
@@ -375,7 +381,8 @@ class TestComponentLists:
     def test_all_components_has_all(self) -> None:
         """Test ALL_COMPONENTS contains all components."""
         total = (
-            len(AI_AGENTS)
+            len(CORE_DEPS)
+            + len(AI_AGENTS)
             + len(CONTAINERS)
             + len(DEV_TOOLS)
             + len(SECURITY)
@@ -396,6 +403,7 @@ class TestGroups:
     def test_groups_contains_expected(self) -> None:
         """Test GROUPS contains expected groups."""
         expected = [
+            "Core Dependencies",
             "AI Coding Assistants",
             "Containers & Orchestration",
             "Development Tools",
