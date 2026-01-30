@@ -85,7 +85,13 @@ def register_extensions() -> None:
         f.write(bashrc_content)
 
     print("✅ Added/Updated extensions in ~/.bashrc")
-    print("🔄 Source ~/.bashrc or restart your shell to apply changes.")
+
+    # Print the commands so user can apply immediately via eval
+    print("\n📋 To apply now, run:\n")
+    print("eval \"$(cat <<'EOF'")
+    print(new_block_content.rstrip())
+    print("EOF")
+    print(')"')
 
 
 if __name__ == "__main__":
