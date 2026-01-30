@@ -42,11 +42,11 @@ install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
 
 .PHONY: install-bootstrap
 install-bootstrap: ## Interactive TUI to select and install optional bootstrap components
-	@python3 ami/scripts/bootstrap_installer.py
+	@.venv/bin/python ami/scripts/bootstrap_installer.py
 
 .PHONY: install-bootstrap-ci
 install-bootstrap-ci: ## Non-interactive bootstrap using defaults file
-	@python3 ami/scripts/bootstrap_installer.py --defaults ami/config/install-defaults.yaml
+	@.venv/bin/python ami/scripts/bootstrap_installer.py --defaults ami/config/install-defaults.yaml
 
 .PHONY: install-shell
 install-shell: ## Install AMI shell environment to ~/.bashrc
