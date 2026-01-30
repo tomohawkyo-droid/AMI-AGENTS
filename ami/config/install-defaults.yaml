@@ -8,6 +8,7 @@
 components:
   # Core Dependencies (installed FIRST)
   - uv
+  - python
 
   # Development Tools (system packages, usually pre-installed)
   - git

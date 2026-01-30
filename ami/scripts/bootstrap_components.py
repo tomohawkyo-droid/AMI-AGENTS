@@ -154,6 +154,17 @@ CORE_DEPS = [
         version_cmd=[".boot-linux/bin/uv", "--version"],
         version_pattern=r"uv (\d+\.\d+\.\d+)",
     ),
+    Component(
+        name="python",
+        label="Python",
+        description="Python venv for .boot-linux",
+        type=ComponentType.SCRIPT,
+        group="Core Dependencies",
+        script="bootstrap_python.sh",
+        detect_path=".boot-linux/bin/python",
+        version_cmd=[".boot-linux/bin/python", "--version"],
+        version_pattern=r"Python (\d+\.\d+\.\d+)",
+    ),
 ]
 
 
