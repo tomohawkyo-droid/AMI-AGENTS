@@ -221,7 +221,7 @@ setup-extensions: ## Setup extensions configuration
 .PHONY: register-extensions
 register-extensions: ## Register extensions in .bashrc
 	@echo "🔌 Registering extensions in ~/.bashrc..."
-	@python3 ami/scripts/register_extensions.py
+	@.venv/bin/python ami/scripts/register_extensions.py
 
 .PHONY: clean
 clean: ## Clean build artifacts
