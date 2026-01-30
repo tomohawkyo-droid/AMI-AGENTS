@@ -31,9 +31,23 @@ install: ## Install AMI Agents in editable mode with all setup (CPU version)
 	@echo "   Run 'source ~/.bashrc' to activate shell environment."
 	@echo "   Then use 'ami-*' commands or './ami-agent' to start."
 
+.PHONY: install-ci
+install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
+	@echo "🚀 Installing AMI Agents (CI mode)..."
+	$(MAKE) install-package
+	$(MAKE) setup-config
+	$(MAKE) register-extensions
+	$(MAKE) install-safety-scripts
+	$(MAKE) install-bootstrap-ci
+	@echo "✨ Installation complete (CI mode)!"
+
 .PHONY: install-bootstrap
 install-bootstrap: ## Interactive TUI to select and install optional bootstrap components
 	@python3 ami/scripts/bootstrap_installer.py
+
+.PHONY: install-bootstrap-ci
+install-bootstrap-ci: ## Non-interactive bootstrap using defaults file
+	@python3 ami/scripts/bootstrap_installer.py --defaults ami/config/install-defaults.yaml
 
 .PHONY: install-shell
 install-shell: ## Install AMI shell environment to ~/.bashrc

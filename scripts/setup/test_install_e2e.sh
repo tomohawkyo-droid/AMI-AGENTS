@@ -97,16 +97,16 @@ cd AMI-AGENTS
 echo "[PASS] AMI-AGENTS cloned."
 
 # =============================================================================
-# 2. Run make install-package (non-interactive install)
+# 2. Run make install-ci (non-interactive full install)
 # =============================================================================
-echo "2. Running make install-package..."
-make install-package 2>&1 | tee install.log | tail -20
+echo "2. Running make install-ci..."
+make install-ci 2>&1 | tee install.log | tail -30
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
-    echo "[FAIL] make install-package failed."
+    echo "[FAIL] make install-ci failed."
     cat install.log
     exit 1
 fi
-echo "[PASS] make install-package executed."
+echo "[PASS] make install-ci executed."
 
 # =============================================================================
 # 3. Deep Verification

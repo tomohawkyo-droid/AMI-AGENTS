@@ -1,0 +1,26 @@
+# Default components to install in CI/non-interactive mode
+# Used by: make install-ci
+# Edit this file to change which components are installed by default
+
+components:
+  # AI Coding Assistants
+  - claude
+  - gemini
+
+  # Development Tools
+  - git
+  - go
+
+  # Containers & Orchestration
+  - podman
+
+  # Security & Networking
+  - openssh
+  - openssl
+
+  # Matrix & Communication
+  - matrix_commander
+  - synadm
+
+  # Miscellaneous
+  - ansible

@@ -4,14 +4,19 @@ Bootstrap Installer TUI for AMI Orchestrator.
 
 Provides an interactive multi-select interface for installing optional
 bootstrap components with status detection.
+
+Supports non-interactive mode via --defaults flag for CI environments.
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, cast
+
+import yaml
 
 # Ruff E402 exempts sys.path.insert between imports
 sys.path.insert(
@@ -304,11 +309,73 @@ def _print_summary(success_count: int, failed: list[str]) -> int:
     return 0
 
 
+def _load_defaults(defaults_file: Path) -> list[str]:
+    """Load component names from defaults file."""
+    if not defaults_file.exists():
+        print(f"{RED}Error:{RESET} Defaults file not found: {defaults_file}")
+        sys.exit(1)
+
+    with open(defaults_file) as f:
+        data = yaml.safe_load(f)
+
+    if not data or "components" not in data:
+        print(f"{RED}Error:{RESET} Invalid defaults file: missing 'components' key")
+        sys.exit(1)
+
+    return list(data["components"])
+
+
+def _run_from_defaults(defaults_file: Path) -> int:
+    """Run installation from defaults file (non-interactive CI mode)."""
+    print(f"{CYAN}Running in CI mode with defaults from:{RESET} {defaults_file}\n")
+
+    component_names = _load_defaults(defaults_file)
+    print(f"  Components to install: {', '.join(component_names)}\n")
+
+    # Resolve component names to Component objects
+    components: list[Component] = []
+    for name in component_names:
+        comp = _bootstrap_components.get_component_by_name(name)
+        if comp:
+            components.append(comp)
+        else:
+            print(f"{YELLOW}Warning:{RESET} Unknown component '{name}', skipping")
+
+    if not components:
+        print(f"{YELLOW}No valid components found. Exiting.{RESET}")
+        return 0
+
+    print_section(f"Installing {len(components)} Component(s)")
+    for comp in components:
+        print_status("•", comp.label, CYAN)
+
+    print()
+    install_result = _run_installation(components)
+    return _print_summary(install_result.success_count, install_result.failed_labels)
+
+
 def main() -> int:
     """Main entry point for the bootstrap installer TUI."""
+    parser = argparse.ArgumentParser(
+        description="Bootstrap Installer for AMI Orchestrator"
+    )
+    parser.add_argument(
+        "--defaults",
+        type=Path,
+        metavar="FILE",
+        help="Run non-interactively using component list from YAML file",
+    )
+    args = parser.parse_args()
+
+    # Non-interactive mode
+    if args.defaults:
+        return _run_from_defaults(args.defaults)
+
+    # Interactive mode requires TTY
     if not sys.stdin.isatty():
         print(f"{RED}Error:{RESET} This script requires an interactive terminal.")
         print("Run it directly, not through a pipe.")
+        print(f"\n{CYAN}Tip:{RESET} Use --defaults FILE for non-interactive CI mode.")
         return 1
 
     print(BANNER)

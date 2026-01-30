@@ -96,6 +96,7 @@ class TestPrintSummary:
 class TestMain:
     """Tests for main function."""
 
+    @patch("sys.argv", ["bootstrap_installer.py"])
     @patch("sys.stdin")
     def test_returns_error_when_not_tty(self, mock_stdin, capsys) -> None:
         """Test returns 1 when not running in TTY."""
@@ -107,6 +108,7 @@ class TestMain:
         captured = capsys.readouterr()
         assert "interactive terminal" in captured.out
 
+    @patch("sys.argv", ["bootstrap_installer.py"])
     @patch("ami.scripts.bootstrap_installer._dialogs.multiselect")
     @patch("ami.scripts.bootstrap_installer.build_menu_items")
     @patch("ami.scripts.bootstrap_installer.scan_components")
@@ -142,6 +144,7 @@ class TestMain:
         captured = capsys.readouterr()
         assert "cancelled" in captured.out
 
+    @patch("sys.argv", ["bootstrap_installer.py"])
     @patch("ami.scripts.bootstrap_installer._dialogs.multiselect")
     @patch("ami.scripts.bootstrap_installer.build_menu_items")
     @patch("ami.scripts.bootstrap_installer.scan_components")
@@ -161,6 +164,7 @@ class TestMain:
         captured = capsys.readouterr()
         assert "No components selected" in captured.out
 
+    @patch("sys.argv", ["bootstrap_installer.py"])
     @patch("ami.scripts.bootstrap_installer._dialogs.multiselect")
     @patch("ami.scripts.bootstrap_installer.build_menu_items")
     @patch("ami.scripts.bootstrap_installer.scan_components")
