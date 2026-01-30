@@ -1,0 +1,40 @@
+# Full installation for e2e testing - ALL components
+# Used by: scripts/setup/test_install_e2e.sh with --full flag
+#
+# WARNING: This installs everything and takes significantly longer than
+# install-defaults.yaml. Only use for comprehensive testing.
+
+components:
+  # AI Coding Assistants (NPM packages - require Node.js bootstrap)
+  - claude
+  - gemini
+  - qwen
+
+  # Development Tools
+  - git
+  - go
+  - sd
+
+  # Containers & Orchestration
+  - podman
+  - kubernetes
+
+  # Security & Networking
+  - openssh
+  - openssl
+  - openvpn
+  - cloudflared
+
+  # Document Processing
+  - pandoc
+  - texlive
+  - pdfjam
+  - wkhtmltopdf
+
+  # Communication
+  - matrix_commander
+  - synadm
+
+  # Miscellaneous
+  - adb
+  - ansible

@@ -76,20 +76,51 @@ class InstallationResult(NamedTuple):
 # ASCII Art & Banners
 # =============================================================================
 
+# Box inner width (between ║ characters)
+_BOX_WIDTH = 64
+
+
+def _visible_width(s: str) -> int:
+    """Calculate visible width excluding ANSI escape codes."""
+    import re
+
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    return len(ansi_escape.sub("", s))
+
+
+def _pad_to_width(content: str, total_width: int) -> str:
+    """Pad content to total visible width."""
+    visible = _visible_width(content)
+    padding = total_width - visible
+    return content + " " * max(0, padding)
+
+
+def _box_line(content: str) -> str:
+    """Create a box line with proper padding for visible width."""
+    return f"║{_pad_to_width(content, _BOX_WIDTH)}║"
+
+
+# ASCII art for "AMI BOOT" - defined separately for line length compliance
+# fmt: off
+_ART = [
+    " █████╗ ███╗   ███╗██╗   ██████╗  ██████╗  ██████╗ ████████╗",
+    "██╔══██╗████╗ ████║██║   ██╔══██╗██╔═══██╗██╔═══██╗╚══██╔══╝",
+    "███████║██╔████╔██║██║   ██████╔╝██║   ██║██║   ██║   ██║   ",
+    "██╔══██║██║╚██╔╝██║██║   ██╔══██╗██║   ██║██║   ██║   ██║   ",
+    "██║  ██║██║ ╚═╝ ██║██║   ██████╔╝╚██████╔╝╚██████╔╝   ██║   ",
+    "╚═╝  ╚═╝╚═╝     ╚═╝╚═╝   ╚═════╝  ╚═════╝  ╚═════╝    ╚═╝   ",
+]
+# fmt: on
+
 _BANNER_LINES = [
-    f"{CYAN}╔══════════════════════════════════════════════════════════════╗",
-    f"║{' ' * 64}║",
-    f"║  {BOLD}█████╗ ███╗   ███╗██╗   ██████╗  ██████╗ ████████╗{RESET}{CYAN}   ║",
-    f"║ {BOLD}██╔══██╗████╗ ████║██║   ██╔══██╗██╔═══██╗╚══██╔══╝{RESET}{CYAN}   ║",
-    f"║ {BOLD}███████║██╔████╔██║██║   ██████╔╝██║   ██║   ██║{RESET}{CYAN}      ║",
-    f"║ {BOLD}██╔══██║██║╚██╔╝██║██║   ██╔══██╗██║   ██║   ██║{RESET}{CYAN}      ║",
-    f"║ {BOLD}██║  ██║██║ ╚═╝ ██║██║   ██████╔╝╚██████╔╝   ██║{RESET}{CYAN}      ║",
-    f"║ {BOLD}╚═╝  ╚═╝╚═╝     ╚═╝╚═╝   ╚═════╝  ╚═════╝    ╚═╝{RESET}{CYAN}      ║",
-    f"║{' ' * 64}║",
-    f"║ {YELLOW}Bootstrap Component Installer{RESET}{CYAN}" + " " * 33 + "║",
-    f"║ {DIM}Select components to install{RESET}{CYAN}" + " " * 34 + "║",
-    f"║{' ' * 64}║",
-    f"╚══════════════════════════════════════════════════════════════╝{RESET}",
+    f"{CYAN}╔{'═' * _BOX_WIDTH}╗",
+    _box_line(""),
+    *[_box_line(f" {BOLD}{line}{RESET}{CYAN}") for line in _ART],
+    _box_line(""),
+    _box_line(f" {YELLOW}Bootstrap Component Installer{RESET}{CYAN}"),
+    _box_line(f" {DIM}Select components to install{RESET}{CYAN}"),
+    _box_line(""),
+    f"╚{'═' * _BOX_WIDTH}╝{RESET}",
 ]
 BANNER = "\n".join(_BANNER_LINES)
 

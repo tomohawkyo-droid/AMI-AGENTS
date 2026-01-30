@@ -11,14 +11,6 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import NamedTuple
-
-
-class VPNHealthStatus(NamedTuple):
-    """VPN health check status."""
-
-    status: str
-    connected: bool
 
 
 def check_openvpn_installed() -> bool:
@@ -26,7 +18,7 @@ def check_openvpn_installed() -> bool:
         result = subprocess.run(
             ["which", "openvpn"], capture_output=True, text=True, check=False
         )
-    except OSError:
+    except Exception:
         return False
     else:
         return result.returncode == 0
@@ -47,7 +39,7 @@ def run_openvpn_client(
     ovpn_file: str,
     auth_user_pass: str | None = None,
     additional_args: list[str] | None = None,
-) -> subprocess.Popen[str]:
+) -> subprocess.Popen:
     cmd = ["openvpn", "--config", ovpn_file]
     if auth_user_pass:
         cmd.extend(["--auth-user-pass", auth_user_pass])
@@ -65,29 +57,26 @@ def run_openvpn_client(
 
 def check_vpn_connection() -> bool:
     try:
-        if (
-            subprocess.run(
-                ["pgrep", "-f", "openvpn"], capture_output=True, check=False
-            ).returncode
-            != 0
-        ):
+        pgrep_result = subprocess.run(
+            ["pgrep", "-f", "openvpn"], capture_output=True, check=False
+        )
+        if pgrep_result.returncode != 0:
             return False
-        return (
-            subprocess.run(
-                ["ip", "addr", "show", "tun0"], capture_output=True, check=False
-            ).returncode
-            == 0
+        ip_result = subprocess.run(
+            ["ip", "addr", "show", "tun0"], capture_output=True, check=False
         )
     except Exception:
         return False
+    else:
+        return ip_result.returncode == 0
 
 
-async def health_check() -> VPNHealthStatus:
+async def health_check() -> dict:
     is_connected = check_vpn_connection()
-    return VPNHealthStatus(
-        status="connected" if is_connected else "disconnected",
-        connected=is_connected,
-    )
+    return {
+        "status": "connected" if is_connected else "disconnected",
+        "connected": is_connected,
+    }
 
 
 async def main() -> int:
@@ -98,12 +87,7 @@ async def main() -> int:
     parser.add_argument("--daemon", action="store_true")
     args = parser.parse_args()
     if args.action == "health":
-        health_status = await health_check()
-        print(
-            json.dumps(
-                {"status": health_status.status, "connected": health_status.connected}
-            )
-        )
+        print(json.dumps(await health_check()))
         return 0
     if args.action == "start":
         ovpn = args.ovpn_file or os.environ.get("OPENVPN_CONFIG_FILE")
