@@ -57,18 +57,18 @@ def run_openvpn_client(
 
 def check_vpn_connection() -> bool:
     try:
-        pgrep_result = subprocess.run(
+        pgrep = subprocess.run(
             ["pgrep", "-f", "openvpn"], capture_output=True, check=False
         )
-        if pgrep_result.returncode != 0:
+        if pgrep.returncode != 0:
             return False
-        ip_result = subprocess.run(
+        ip_check = subprocess.run(
             ["ip", "addr", "show", "tun0"], capture_output=True, check=False
         )
     except Exception:
         return False
     else:
-        return ip_result.returncode == 0
+        return ip_check.returncode == 0
 
 
 async def health_check() -> dict:

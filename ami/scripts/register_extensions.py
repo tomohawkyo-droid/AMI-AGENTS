@@ -86,12 +86,10 @@ def register_extensions() -> None:
 
     print("✅ Added/Updated extensions in ~/.bashrc")
 
-    # Print the commands so user can apply immediately via eval
+    # Print command to source shell-setup directly
+    shell_setup = Path.cwd() / "ami/scripts/shell/shell-setup"
     print("\n📋 To apply now, run:\n")
-    print("eval \"$(cat <<'EOF'")
-    print(new_block_content.rstrip())
-    print("EOF")
-    print(')"')
+    print(f"source {shell_setup} --welcome")
 
 
 if __name__ == "__main__":
