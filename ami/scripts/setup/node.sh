@@ -24,14 +24,16 @@ check_node() {
 
 # Install nodeenv to create Node.js environment (using uv)
 install_nodeenv() {
-    # Use uv from bootstrapped environment
+    # Use uv from bootstrapped environment or PATH
     local uv_cmd
     if [ -n "${UV_CMD:-}" ] && [ -x "$UV_CMD" ]; then
         uv_cmd="$UV_CMD"
     elif [ -x "$PWD/.boot-linux/bin/uv" ]; then
         uv_cmd="$PWD/.boot-linux/bin/uv"
+    elif command -v uv &> /dev/null; then
+        uv_cmd="uv"
     else
-        log_error "uv not found. Run bootstrap first."
+        log_error "uv not found. Install uv first: https://docs.astral.sh/uv/"
         return 1
     fi
 
@@ -46,14 +48,16 @@ install_nodeenv() {
 setup_node_env() {
     local venv_dir="${1:-.boot-linux/node-env}"
 
-    # Use uv from bootstrapped environment
+    # Use uv from bootstrapped environment or PATH
     local uv_cmd
     if [ -n "${UV_CMD:-}" ] && [ -x "$UV_CMD" ]; then
         uv_cmd="$UV_CMD"
     elif [ -x "$PWD/.boot-linux/bin/uv" ]; then
         uv_cmd="$PWD/.boot-linux/bin/uv"
+    elif command -v uv &> /dev/null; then
+        uv_cmd="uv"
     else
-        log_error "uv not found. Run bootstrap first."
+        log_error "uv not found. Install uv first: https://docs.astral.sh/uv/"
         return 1
     fi
 
