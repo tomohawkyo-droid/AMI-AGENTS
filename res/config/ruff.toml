@@ -1,4 +1,4 @@
-exclude = ["__pycache__", "*.egg-info", ".venv", ".git", "node_modules", ".pytest_cache"]
+exclude = ["__pycache__", "*.egg-info", ".venv", ".git", "node_modules", ".pytest_cache", ".boot-linux"]
 line-length = 88
 target-version = "py311"
 

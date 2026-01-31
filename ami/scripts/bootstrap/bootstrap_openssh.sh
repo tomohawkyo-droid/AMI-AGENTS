@@ -10,8 +10,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # Use environment variables if set, otherwise default
+BOOT_LINUX_DIR="${BOOT_LINUX_DIR:-${PROJECT_ROOT}/.boot-linux}"
 VENV_DIR="${VENV_DIR:-${PROJECT_ROOT}/.venv}"
-OPENSSH_DIR="${VENV_DIR}/openssh"
+OPENSSH_DIR="${BOOT_LINUX_DIR}/openssh"
 SSH_PORT="${SSH_PORT:-2222}"
 
 # Color output
@@ -153,53 +154,52 @@ log_info "✓ Created ${OPENSSH_DIR}/etc/sshd_config"
 # Create startup script
 log_info "Creating startup script..."
 mkdir -p "${VENV_DIR}/bin"
-cat > "${VENV_DIR}/bin/sshd-venv" <<'EOFSCRIPT'
+cat > "${VENV_DIR}/bin/sshd-venv" <<EOFSCRIPT
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="$(dirname "${SCRIPT_DIR}")"
-OPENSSH_DIR="${VENV_DIR}/openssh"
-SSHD_BIN="${OPENSSH_DIR}/sbin/sshd"
-SSHD_CONFIG="${OPENSSH_DIR}/etc/sshd_config"
-PID_FILE="${OPENSSH_DIR}/var/run/sshd.pid"
+# OpenSSH is installed in .boot-linux, but this script is in .venv/bin for convenience
+OPENSSH_DIR="${OPENSSH_DIR}"
+SSHD_BIN="\${OPENSSH_DIR}/sbin/sshd"
+SSHD_CONFIG="\${OPENSSH_DIR}/etc/sshd_config"
+PID_FILE="\${OPENSSH_DIR}/var/run/sshd.pid"
 
-if [[ ! -f "${SSHD_BIN}" ]]; then
-    echo "Error: sshd not found at ${SSHD_BIN}" >&2
+if [[ ! -f "\${SSHD_BIN}" ]]; then
+    echo "Error: sshd not found at \${SSHD_BIN}" >&2
     echo "Run: scripts/bootstrap_openssh.sh" >&2
     exit 1
 fi
 
-case "${1:-}" in
+case "\${1:-}" in
     start)
-        if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
-            echo "sshd is already running (PID: $(cat "${PID_FILE}"))"
+        if [[ -f "\${PID_FILE}" ]] && kill -0 "\$(cat "\${PID_FILE}")" 2>/dev/null; then
+            echo "sshd is already running (PID: \$(cat "\${PID_FILE}"))"
             exit 0
         fi
-        echo "Starting sshd on port $(grep "^Port" "${SSHD_CONFIG}" | awk '{print $2}')..."
-        "${SSHD_BIN}" -f "${SSHD_CONFIG}" -E "${OPENSSH_DIR}/var/run/sshd.log"
+        echo "Starting sshd on port \$(grep "^Port" "\${SSHD_CONFIG}" | awk '{print \$2}')..."
+        "\${SSHD_BIN}" -f "\${SSHD_CONFIG}" -E "\${OPENSSH_DIR}/var/run/sshd.log"
         echo "✓ sshd started"
         ;;
     stop)
-        if [[ -f "${PID_FILE}" ]]; then
-            echo "Stopping sshd (PID: $(cat "${PID_FILE}"))"
-            kill "$(cat "${PID_FILE}")"
-            rm -f "${PID_FILE}"
+        if [[ -f "\${PID_FILE}" ]]; then
+            echo "Stopping sshd (PID: \$(cat "\${PID_FILE}"))"
+            kill "\$(cat "\${PID_FILE}")"
+            rm -f "\${PID_FILE}"
             echo "✓ sshd stopped"
         else
             echo "sshd is not running"
         fi
         ;;
     restart)
-        "$0" stop
+        "\$0" stop
         sleep 1
-        "$0" start
+        "\$0" start
         ;;
     status)
-        if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
-            echo "sshd is running (PID: $(cat "${PID_FILE}"))"
-            PORT=$(grep "^Port" "${SSHD_CONFIG}" | awk '{print $2}')
-            echo "Listening on port: ${PORT}"
+        if [[ -f "\${PID_FILE}" ]] && kill -0 "\$(cat "\${PID_FILE}")" 2>/dev/null; then
+            echo "sshd is running (PID: \$(cat "\${PID_FILE}"))"
+            PORT=\$(grep "^Port" "\${SSHD_CONFIG}" | awk '{print \$2}')
+            echo "Listening on port: \${PORT}"
             exit 0
         else
             echo "sshd is not running"
@@ -207,7 +207,7 @@ case "${1:-}" in
         fi
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status}"
+        echo "Usage: \$0 {start|stop|restart|status}"
         exit 1
         ;;
 esac

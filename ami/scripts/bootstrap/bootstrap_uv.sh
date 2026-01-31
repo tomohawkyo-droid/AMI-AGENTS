@@ -30,12 +30,7 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
 }
 
-# Check if uv is already available
-if command -v uv &> /dev/null; then
-    log_info "uv already available in PATH: $(command -v uv)"
-    # Still install to .boot-linux for consistency
-fi
-
+# Check if uv is already installed in .boot-linux
 if [ -x "${BIN_DIR}/uv" ]; then
     log_info "uv already installed at ${BIN_DIR}/uv"
     "${BIN_DIR}/uv" --version

@@ -225,6 +225,10 @@ def build_menu_items(
     MenuItemClass = _menu.MenuItem
 
     for group_name in _bootstrap_components.GROUPS:
+        # Skip Core Dependencies - installed automatically by bootstrap-core
+        if group_name == "Core Dependencies":
+            continue
+
         components = components_by_group.get(group_name, [])
         if not components:
             continue

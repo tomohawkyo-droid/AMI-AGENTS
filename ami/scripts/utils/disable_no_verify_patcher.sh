@@ -1,183 +1,121 @@
 #!/bin/bash
 
-# Safe Git Patcher
-# Installs a shell function to prevent ANY destructive git operations.
-# Does NOT replace system binaries.
+# Git Safety Patcher
+# Installs a wrapper script in .boot-linux/bin/git to block destructive commands.
+# Also installs shell function as backup for interactive shells.
 
-echo "--- Installing Git Safety Function ---"
+set -euo pipefail
 
-RC_FILE="$HOME/.bashrc"
-if [ -f "$HOME/.zshrc" ]; then
-    RC_FILE="$HOME/.zshrc"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+BOOT_LINUX_DIR="${BOOT_LINUX_DIR:-${PROJECT_ROOT}/.boot-linux}"
+BIN_DIR="${BOOT_LINUX_DIR}/bin"
+
+echo "--- Installing Git Safety Wrapper ---"
+
+# Create bin directory if needed
+mkdir -p "${BIN_DIR}"
+
+# Find the real git binary
+REAL_GIT="/usr/bin/git"
+if [ ! -x "$REAL_GIT" ]; then
+    REAL_GIT=$(command -v git 2>/dev/null || true)
+    if [ -z "$REAL_GIT" ] || [ ! -x "$REAL_GIT" ]; then
+        echo "ERROR: Cannot find git binary"
+        exit 1
+    fi
 fi
 
-# Remove old definition if exists (simple cleanup of previous alias attempt)
-if grep -q "alias git=git_safe" "$RC_FILE"; then
-    # We can't easily remove it, but defining a function 'git' will override the alias 'git'
-    # in zsh, but in bash aliases usually take precedence over functions.
-    # To be safe, we should unalias git if it exists.
-    :
-fi
+# Create the wrapper script
+cat > "${BIN_DIR}/git" <<WRAPPER_EOF
+#!/usr/bin/env bash
+# Git Safety Guard - Blocks destructive commands
+# Calls ${REAL_GIT} after safety checks
 
-# Append the function definition directly using quoted heredoc
-cat <<'EOF' >> "$RC_FILE"
+set -euo pipefail
 
-# STRICT Git Safety Function
-git() {
-    local cmd="$1"
-    
-    # 1. Block destructive commands
-    case "$cmd" in
-        reset|checkout|clean|restore|rm|rebase|gc|prune)
-            echo "❌ ERROR: git $cmd is FORBIDDEN to prevent data loss!"
-            return 1
-            ;;
-    esac
+REAL_GIT="${REAL_GIT}"
+ARGS="\$*"
 
-    # 2. Block destructive sub-commands
-    if [[ "$cmd" == "stash" ]]; then
-        for arg in "$@"; do
-            if [[ "$arg" == "drop" || "$arg" == "clear" ]]; then
-                echo "❌ ERROR: git stash $arg is FORBIDDEN!"
-                return 1
-            fi
-        done
-    fi
-    if [[ "$cmd" == "branch" ]]; then
-        for arg in "$@"; do
-            if [[ "$arg" == "-D" ]]; then
-                echo "❌ ERROR: git branch -D is FORBIDDEN! Use -d instead."
-                return 1
-            fi
-        done
-    fi
-
-    # 3. Block destructive flags globally
-    for arg in "$@"; do
-        if [[ "$arg" == "--hard" ]]; then
-            echo "❌ ERROR: --hard flag is FORBIDDEN!"
-            return 1
-        fi
-        if [[ "$arg" == "--force" || "$arg" == "-f" ]]; then
-            echo "❌ ERROR: --force flag is FORBIDDEN!"
-            return 1
-        fi
-        if [[ "$arg" == "--no-verify" ]]; then
-            echo "❌ ERROR: --no-verify is FORBIDDEN!"
-            return 1
-        fi
-    done
-
-    # Execute original git command
-    command git "$@"
+block() {
+    echo "❌ BLOCKED: \$1"
+    echo "This command is forbidden to prevent data loss."
+    echo ""
+    echo "If you REALLY need to run this command, use the real git directly:"
+    echo "  \$REAL_GIT \$ARGS"
+    exit 1
 }
-export -f git
-EOF
 
-echo "✅ Installed STRICT 'git' function to $RC_FILE."
+# Handle empty args
+if [[ \$# -eq 0 ]]; then
+    exec "\$REAL_GIT"
+fi
 
-echo "--- Patching /usr/bin/git Binary ---"
-
-# Define the Strict Binary Wrapper content
-read -r -d '' STRICT_BINARY_CONTENT <<'WRAPPER_EOF'
-#!/bin/bash
-
-# STRICT Git Safety Wrapper
-# Enforces preventing data loss by blocking destructive commands and flags.
-
-cmd="$1"
+cmd="\$1"
 
 # 1. Block destructive commands
-case "$cmd" in
-    reset|checkout|clean|restore|rm|rebase|gc|prune)
-        echo "❌ ERROR: git $cmd is FORBIDDEN to prevent data loss!"
-        exit 1
-        ;;
+case "\$cmd" in
+    reset)    block "git reset" ;;
+    checkout) block "git checkout" ;;
+    clean)    block "git clean" ;;
+    restore)  block "git restore" ;;
+    rm)       block "git rm" ;;
+    rebase)   block "git rebase" ;;
+    gc)       block "git gc" ;;
+    prune)    block "git prune" ;;
 esac
 
 # 2. Block destructive sub-commands
-if [[ "$cmd" == "stash" ]]; then
-    for arg in "$@"; do
-        if [[ "$arg" == "drop" || "$arg" == "clear" ]]; then
-            echo "❌ ERROR: git stash $arg is FORBIDDEN!"
-            exit 1
-        fi
+if [[ "\$cmd" == "stash" ]]; then
+    for arg in "\$@"; do
+        [[ "\$arg" == "drop" ]] && block "git stash drop"
+        [[ "\$arg" == "clear" ]] && block "git stash clear"
     done
 fi
-if [[ "$cmd" == "branch" ]]; then
-    for arg in "$@"; do
-        if [[ "$arg" == "-D" ]]; then
-            echo "❌ ERROR: git branch -D is FORBIDDEN! Use -d instead."
-            exit 1
-        fi
+
+if [[ "\$cmd" == "branch" ]]; then
+    for arg in "\$@"; do
+        [[ "\$arg" == "-D" ]] && block "git branch -D (use -d instead)"
+    done
+fi
+
+if [[ "\$cmd" == "push" ]]; then
+    for arg in "\$@"; do
+        [[ "\$arg" == "--force" || "\$arg" == "-f" ]] && block "git push --force"
+        [[ "\$arg" == "--force-with-lease" ]] && block "git push --force-with-lease"
     done
 fi
 
 # 3. Block destructive flags globally
-for arg in "$@"; do
-    if [[ "$arg" == "--hard" ]]; then
-        echo "❌ ERROR: --hard flag is FORBIDDEN!"
-        exit 1
-    fi
-    if [[ "$arg" == "--force" || "$arg" == "-f" ]]; then
-        echo "❌ ERROR: --force flag is FORBIDDEN!"
-        exit 1
-    fi
-    if [[ "$arg" == "--no-verify" ]]; then
-        echo "❌ ERROR: --no-verify is FORBIDDEN!"
-        exit 1
-    fi
+for arg in "\$@"; do
+    [[ "\$arg" == "--hard" ]] && block "--hard flag"
+    [[ "\$arg" == "--no-verify" ]] && block "--no-verify flag"
 done
 
-# Execute original git binary
-exec /usr/bin/git.original "$@"
+# Safe - pass through to real git
+exec "\$REAL_GIT" "\$@"
 WRAPPER_EOF
 
-# Backup original binary if not already backed up
-if [ ! -f /usr/bin/git.original ]; then
-    echo "📦 Backing up original /usr/bin/git to /usr/bin/git.original..."
-    cp /usr/bin/git /usr/bin/git.original
-    echo "✅ Backup created at /usr/bin/git.original"
+chmod +x "${BIN_DIR}/git"
+echo "✅ Installed git wrapper to ${BIN_DIR}/git"
+
+# Verify wrapper is in PATH before system git
+WHICH_GIT=$(which git 2>/dev/null || true)
+if [[ "$WHICH_GIT" == "${BIN_DIR}/git" ]]; then
+    echo "✅ Wrapper is first in PATH"
 else
-    echo "ℹ️  Backup already exists at /usr/bin/git.original"
+    echo "⚠️  WARNING: ${BIN_DIR} may not be first in PATH"
+    echo "   Current 'which git': $WHICH_GIT"
+    echo "   Ensure .boot-linux/bin is in PATH before /usr/bin"
 fi
 
-# Overwrite the binary
-echo "$STRICT_BINARY_CONTENT" > /usr/bin/git
-chmod +x /usr/bin/git
-
-# Verify Exact Match
-echo "--- Verifying /usr/bin/git Content ---"
-INSTALLED_CONTENT=$(cat /usr/bin/git)
-
-if [ "$INSTALLED_CONTENT" == "$STRICT_BINARY_CONTENT" ]; then
-    echo "✅ VERIFICATION PASSED: /usr/bin/git matches the STRICT wrapper exactly."
-else
-    echo "❌ VERIFICATION FAILED: /usr/bin/git does NOT match source!"
-    echo "Expected:"
-    echo "$STRICT_BINARY_CONTENT"
-    echo "Found:"
-    echo "$INSTALLED_CONTENT"
-    exit 1
-fi
-
-echo "🎉 Full System Patch (Function + Binary) installed and verified."
-
-# --- Patch pre-commit hook to auto-stage all files ---
-# pre-commit stashes unstaged files BEFORE any hooks run.
-# This causes "Stashed changes conflicted with hook auto-fixes" errors
-# when ruff-format or ruff --fix modify files.
-# Fix: inject 'git add -A' into the hook script BEFORE pre-commit executes,
-# so there are zero unstaged files when pre-commit starts.
-echo "--- Patching pre-commit hook for auto-staging ---"
-HOOK_FILE=".git/hooks/pre-commit"
-if [ -f "$HOOK_FILE" ]; then
-    if ! grep -q "git add -A" "$HOOK_FILE"; then
-        sed -i '/^if \[ -x "\$INSTALL_PYTHON" \]/i # Auto-stage all files before pre-commit stashes\ngit add -A\n' "$HOOK_FILE"
-        echo "✅ Injected auto-staging into $HOOK_FILE"
-    else
-        echo "ℹ️  Auto-staging already present in $HOOK_FILE"
-    fi
-else
-    echo "ℹ️  No pre-commit hook found at $HOOK_FILE (run 'make install-hooks' first)"
-fi
+echo ""
+echo -e "\033[1;33m[WARN]\033[0m SAFETY GUARD ACTIVE - The following commands are BLOCKED:"
+echo -e "\033[1;33m[WARN]\033[0m   - git reset/checkout/clean/restore/rm/rebase/gc/prune"
+echo -e "\033[1;33m[WARN]\033[0m   - git stash drop/clear"
+echo -e "\033[1;33m[WARN]\033[0m   - git branch -D"
+echo -e "\033[1;33m[WARN]\033[0m   - git push --force / --force-with-lease"
+echo -e "\033[1;33m[WARN]\033[0m   - --hard, --no-verify flags"
+echo -e "\033[1;33m[WARN]\033[0m   Use ${REAL_GIT} to bypass (at your own risk)"
+echo ""
+echo "🎉 Git safety guard installed."

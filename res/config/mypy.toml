@@ -9,7 +9,7 @@ plugins = ["pydantic.mypy"]
 disable_error_code = ["type-arg", "import-untyped"]
 warn_unused_configs = true
 exclude = [
-    "(?x)(^tmp/|^.venv/|^venv/|^dist/|^build/|^.eggs/|^__pycache__/|.*\\.egg-info/|^.pytest_cache/|^.git/|^projects/)"
+    "(?x)(^tmp/|^.venv/|^venv/|^dist/|^build/|^.eggs/|^__pycache__/|.*\\.egg-info/|^.pytest_cache/|^.git/|^projects/|^\\.boot-linux/)"
 ]
 
 # NO CHEATING FOR TESTS. Tests must have proper types too.

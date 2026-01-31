@@ -10,16 +10,17 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # Use BOOT_LINUX_DIR env var if set, otherwise default
 BOOT_LINUX_DIR="${BOOT_LINUX_DIR:-${PROJECT_ROOT}/.boot-linux}"
-PYTHON_CMD="$BOOT_LINUX_DIR/bin/python"
+UV_CMD="$BOOT_LINUX_DIR/bin/uv"
+PYTHON_ENV="$BOOT_LINUX_DIR/python-env"
 
 echo "Bootstrapping matrix-commander..."
 
-if [ ! -f "$PYTHON_CMD" ]; then
-    echo "Error: .boot-linux python not found at $PYTHON_CMD"
+if [ ! -f "$UV_CMD" ]; then
+    echo "Error: uv not found at $UV_CMD"
     exit 1
 fi
 
-# Install matrix-commander using pip (in boot-linux venv)
-"$PYTHON_CMD" -m pip install matrix-commander
+# Install matrix-commander using uv pip into the boot-linux python env
+"$UV_CMD" pip install --python "$PYTHON_ENV" matrix-commander
 
 echo "matrix-commander installed in .boot-linux"

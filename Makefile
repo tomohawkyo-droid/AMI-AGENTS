@@ -28,7 +28,7 @@ install: ## Install AMI Agents in editable mode with all setup (CPU version)
 	$(MAKE) install-bootstrap
 	$(MAKE) install-shell
 	@echo "✨ Installation complete!"
-	@. ami/scripts/shell/shell-setup --welcome
+	@bash ami/scripts/shell/shell-setup --welcome
 
 .PHONY: install-ci
 install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
@@ -47,6 +47,14 @@ install-bootstrap: ## Interactive TUI to select and install optional bootstrap c
 .PHONY: install-bootstrap-ci
 install-bootstrap-ci: ## Non-interactive bootstrap using defaults file
 	@.venv/bin/python ami/scripts/bootstrap_installer.py --defaults ami/config/install-defaults.yaml
+
+.PHONY: bootstrap-core
+bootstrap-core: ## Bootstrap core tools (uv, python, git-lfs/xet) into .boot-linux
+	@echo "🔧 Bootstrapping core tools..."
+	@bash ami/scripts/bootstrap/bootstrap_uv.sh
+	@bash ami/scripts/bootstrap/bootstrap_python.sh
+	@bash ami/scripts/bootstrap/bootstrap_git_xet.sh
+	@echo "✅ Core bootstrap complete"
 
 .PHONY: install-shell
 install-shell: ## Install AMI shell environment to ~/.bashrc
@@ -132,38 +140,38 @@ install-mps: ## Install AMI Agents with MPS support (Apple Silicon)
 	@echo "✨ Installation complete with MPS support. Run './ami-agent' to start."
 
 .PHONY: sync
-sync: ## Sync dependencies using uv
+sync: bootstrap-core ## Sync dependencies using uv
 	@echo "📦 Syncing dependencies..."
-	uv sync
+	.boot-linux/bin/uv sync
 
 .PHONY: install-package
-install-package: ## Install package in editable mode with CPU PyTorch (default)
+install-package: bootstrap-core ## Install package in editable mode with CPU PyTorch (default)
 	@echo "🔧 Installing ami-agents with CPU PyTorch..."
-	uv sync --extra torch-cpu --extra dev
+	.boot-linux/bin/uv sync --extra torch-cpu --extra dev
 	@echo "✅ Package 'ami-agents' installed with CPU PyTorch and dev dependencies"
 
 .PHONY: install-package-cuda
-install-package-cuda: ## Install package in editable mode with CUDA PyTorch
+install-package-cuda: bootstrap-core ## Install package in editable mode with CUDA PyTorch
 	@echo "🔧 Installing ami-agents with CUDA PyTorch..."
-	uv sync --extra torch-cuda --extra dev
+	.boot-linux/bin/uv sync --extra torch-cuda --extra dev
 	@echo "✅ Package 'ami-agents' installed with CUDA PyTorch and dev dependencies"
 
 .PHONY: install-package-rocm
-install-package-rocm: ## Install package in editable mode with ROCm PyTorch
+install-package-rocm: bootstrap-core ## Install package in editable mode with ROCm PyTorch
 	@echo "🔧 Installing ami-agents with ROCm PyTorch..."
-	uv sync --extra torch-rocm --extra dev
+	.boot-linux/bin/uv sync --extra torch-rocm --extra dev
 	@echo "✅ Package 'ami-agents' installed with ROCm PyTorch and dev dependencies"
 
 .PHONY: install-package-intel-xpu
-install-package-intel-xpu: ## Install package in editable mode with Intel XPU PyTorch
+install-package-intel-xpu: bootstrap-core ## Install package in editable mode with Intel XPU PyTorch
 	@echo "🔧 Installing ami-agents with Intel XPU PyTorch..."
-	uv sync --extra torch-intel-xpu --extra dev
+	.boot-linux/bin/uv sync --extra torch-intel-xpu --extra dev
 	@echo "✅ Package 'ami-agents' installed with Intel XPU PyTorch and dev dependencies"
 
 .PHONY: install-package-mps
-install-package-mps: ## Install package in editable mode with MPS PyTorch
+install-package-mps: bootstrap-core ## Install package in editable mode with MPS PyTorch
 	@echo "🔧 Installing ami-agents with MPS PyTorch..."
-	uv sync --extra torch-mps --extra dev
+	.boot-linux/bin/uv sync --extra torch-mps --extra dev
 	@echo "✅ Package 'ami-agents' installed with MPS PyTorch and dev dependencies"
 
 .PHONY: setup-config
@@ -238,14 +246,14 @@ dev: install install-hooks ## Install for development with code quality tools an
 .PHONY: install-hooks
 install-hooks: ## Install pre-commit and pre-push hooks
 	@echo "🔗 Installing pre-commit hooks..."
-	uv run pre-commit install
-	uv run pre-commit install --hook-type pre-push
-	@# Inject auto-staging before pre-commit's stash mechanism (prevents rollback conflicts)
-	@if [ -f .git/hooks/pre-commit ] && ! grep -q 'git add -A' .git/hooks/pre-commit; then \
-		sed -i '/^if \[ -x "\$$INSTALL_PYTHON" \]/i # Auto-stage all files before pre-commit stashes\ngit add -A\n' .git/hooks/pre-commit; \
-		echo "✅ Injected auto-staging into .git/hooks/pre-commit"; \
+	.boot-linux/bin/uv run pre-commit install
+	.boot-linux/bin/uv run pre-commit install --hook-type pre-push
+	@# Inject auto-LFS tracking and auto-staging before pre-commit's stash mechanism
+	@if [ -f .git/hooks/pre-commit ] && ! grep -q 'Auto-track' .git/hooks/pre-commit; then \
+		sed -i '/^if \[ -x "\$$INSTALL_PYTHON" \]/i # Auto-track large (>10MB) and binary files with LFS\nTRACK_FILES=""\nfor f in $$(git diff --cached --name-only 2>/dev/null); do\n  if [ -f "$$f" ]; then\n    # Track if >10MB OR binary (null byte in first 8000 bytes per git algorithm)\n    if [ "$$(stat -c%s "$$f" 2>/dev/null || echo 0)" -gt 10485760 ] || \\\n       head -c 8000 "$$f" 2>/dev/null | grep -q $$'"'"'\\x00'"'"'; then\n      .boot-linux/bin/git-lfs track "$$f" 2>/dev/null || true\n      TRACK_FILES="$$TRACK_FILES $$f"\n    fi\n  fi\ndone\nif [ -n "$$TRACK_FILES" ]; then\n  git add .gitattributes $$TRACK_FILES 2>/dev/null || true\nfi\n\n# Auto-stage all files before pre-commit stashes\ngit add -A\n' .git/hooks/pre-commit; \
+		echo "✅ Injected auto-LFS tracking and auto-staging into .git/hooks/pre-commit"; \
 	fi
-	@echo "✅ Pre-commit and pre-push hooks installed (with auto-staging)"
+	@echo "✅ Pre-commit and pre-push hooks installed (with auto-LFS and auto-staging)"
 
 .PHONY: install-safety-scripts
 install-safety-scripts: ## Install git and podman safety scripts
@@ -276,18 +284,18 @@ check: lint type-check test ## Run all checks (lint, type-check, test)
 .PHONY: pre-commit
 pre-commit: ## Run pre-commit hooks on all files
 	@echo "🔍 Running pre-commit hooks on all files..."
-	uv run pre-commit run --all-files
+	.boot-linux/bin/uv run pre-commit run --all-files
 
 .PHONY: dead-code
 dead-code: ## Run AST-based dead code analysis
-	uv run python ami/scripts/ci/check_dead_code.py
+	.boot-linux/bin/uv run python ami/scripts/ci/check_dead_code.py
 
 .PHONY: update
 update: ## Update dependencies
 	@echo "🔄 Updating dependencies..."
-	uv update
+	.boot-linux/bin/uv update
 
 .PHONY: uninstall
 uninstall: ## Uninstall ami-agents
 	@echo "🗑️  Uninstalling ami-agents..."
-	uv pip uninstall ami-agents -y
+	.boot-linux/bin/uv pip uninstall ami-agents -y

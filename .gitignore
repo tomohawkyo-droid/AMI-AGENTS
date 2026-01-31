@@ -135,8 +135,8 @@ token.pickle
 user_app_token.pickle
 
 
-# Bootstrapped node environment
-.boot-linux/node-env
+# Bootstrapped tools directory (like .venv, local only)
+.boot-linux/
 
 # Forecasting directory
 learning/forecasting/

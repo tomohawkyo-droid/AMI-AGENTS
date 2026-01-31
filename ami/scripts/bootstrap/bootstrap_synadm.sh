@@ -10,17 +10,19 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # Use BOOT_LINUX_DIR env var if set, otherwise default
 BOOT_LINUX_DIR="${BOOT_LINUX_DIR:-${PROJECT_ROOT}/.boot-linux}"
-PYTHON_CMD="$BOOT_LINUX_DIR/bin/python"
+UV_CMD="$BOOT_LINUX_DIR/bin/uv"
+PYTHON_ENV="$BOOT_LINUX_DIR/python-env"
+PYTHON_CMD="$PYTHON_ENV/bin/python"
 
 echo "Bootstrapping synadm..."
 
-if [ ! -f "$PYTHON_CMD" ]; then
-    echo "Error: .boot-linux python not found at $PYTHON_CMD"
+if [ ! -f "$UV_CMD" ]; then
+    echo "Error: uv not found at $UV_CMD"
     exit 1
 fi
 
-# Install synadm using pip (in boot-linux venv)
-"$PYTHON_CMD" -m pip install synadm
+# Install synadm using uv pip into the boot-linux python env
+"$UV_CMD" pip install --python "$PYTHON_ENV" synadm
 
 # Create a simple wrapper in bin/ if it didn't get one
 if [ ! -f "$BOOT_LINUX_DIR/bin/synadm" ]; then
