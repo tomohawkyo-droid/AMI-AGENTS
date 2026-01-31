@@ -57,6 +57,43 @@ esac
 
 log_info "Bootstrapping wkhtmltopdf ${WKHTMLTOPDF_VERSION} for ${ARCH}"
 
+# Required system dependencies for wkhtmltopdf (Qt/X11 libraries)
+WKHTMLTOPDF_DEPS=(
+    "libxrender1"
+    "libfontconfig1"
+    "libx11-6"
+    "libxext6"
+    "libxtst6"
+    "fontconfig"
+    "xfonts-base"
+    "xfonts-75dpi"
+    "libjpeg-turbo8"
+)
+
+# Check for missing dependencies
+log_info "Checking system dependencies..."
+MISSING_DEPS=()
+for dep in "${WKHTMLTOPDF_DEPS[@]}"; do
+    if ! dpkg -s "$dep" &>/dev/null; then
+        MISSING_DEPS+=("$dep")
+    fi
+done
+
+if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
+    log_error "Missing ${#MISSING_DEPS[@]} required dependencies:"
+    for dep in "${MISSING_DEPS[@]}"; do
+        echo "  - $dep"
+    done
+    echo ""
+    log_error "Run this command to install them:"
+    echo ""
+    echo "  sudo apt-get update && sudo apt-get install -y ${MISSING_DEPS[*]}"
+    echo ""
+    exit 1
+fi
+
+log_info "All dependencies present"
+
 # Create wkhtmltopdf directory structure
 mkdir -p "${WKHTMLTOPDF_DIR}"/bin
 mkdir -p "${VENV_DIR}/bin"
@@ -110,13 +147,19 @@ rm -f "${WKHTMLTOPDF_DIR}"/debian-binary
 
 # Verify installation
 log_info "Verifying wkhtmltopdf installation"
-if "${VENV_DIR}/bin/wkhtmltopdf" --version; then
-    log_info "wkhtmltopdf installed successfully:"
-    "${VENV_DIR}/bin/wkhtmltopdf" --version
-else
-    log_error "wkhtmltopdf installation verification failed"
+
+if [[ ! -x "${VENV_DIR}/bin/wkhtmltopdf" ]]; then
+    log_error "wkhtmltopdf binary not found or not executable"
     exit 1
 fi
+
+if ! "${VENV_DIR}/bin/wkhtmltopdf" --version &>/dev/null; then
+    log_error "wkhtmltopdf binary failed to execute"
+    exit 1
+fi
+
+log_info "wkhtmltopdf installed and verified:"
+"${VENV_DIR}/bin/wkhtmltopdf" --version
 
 log_info "wkhtmltopdf bootstrap complete!"
 log_info "Installed components:"
