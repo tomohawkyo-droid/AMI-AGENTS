@@ -57,43 +57,6 @@ esac
 
 log_info "Bootstrapping wkhtmltopdf ${WKHTMLTOPDF_VERSION} for ${ARCH}"
 
-# Required system dependencies for wkhtmltopdf (Qt/X11 libraries)
-WKHTMLTOPDF_DEPS=(
-    "libxrender1"
-    "libfontconfig1"
-    "libx11-6"
-    "libxext6"
-    "libxtst6"
-    "fontconfig"
-    "xfonts-base"
-    "xfonts-75dpi"
-    "libjpeg-turbo8"
-)
-
-# Check for missing dependencies
-log_info "Checking system dependencies..."
-MISSING_DEPS=()
-for dep in "${WKHTMLTOPDF_DEPS[@]}"; do
-    if ! dpkg -s "$dep" &>/dev/null; then
-        MISSING_DEPS+=("$dep")
-    fi
-done
-
-if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
-    log_error "Missing ${#MISSING_DEPS[@]} required dependencies:"
-    for dep in "${MISSING_DEPS[@]}"; do
-        echo "  - $dep"
-    done
-    echo ""
-    log_error "Run this command to install them:"
-    echo ""
-    echo "  sudo apt-get update && sudo apt-get install -y ${MISSING_DEPS[*]}"
-    echo ""
-    exit 1
-fi
-
-log_info "All dependencies present"
-
 # Create wkhtmltopdf directory structure
 mkdir -p "${WKHTMLTOPDF_DIR}"/bin
 mkdir -p "${VENV_DIR}/bin"
@@ -126,18 +89,35 @@ if [[ -f "${WKHTMLTOPDF_DIR}/usr/local/bin/wkhtmltopdf" ]]; then
     rm -rf "${WKHTMLTOPDF_DIR}/usr"
 fi
 
-# Create symlink in venv/bin
-log_info "Creating symlink in ${VENV_DIR}/bin"
-if [[ -f "${WKHTMLTOPDF_DIR}/bin/wkhtmltopdf" ]]; then
-    ln -sf "${WKHTMLTOPDF_DIR}/bin/wkhtmltopdf" "${VENV_DIR}/bin/wkhtmltopdf"
-elif [[ -f "${WKHTMLTOPDF_DIR}/wkhtmltopdf" ]]; then
-    ln -sf "${WKHTMLTOPDF_DIR}/wkhtmltopdf" "${VENV_DIR}/bin/wkhtmltopdf"
-else
+if [[ ! -f "${WKHTMLTOPDF_DIR}/bin/wkhtmltopdf" ]]; then
     log_error "wkhtmltopdf binary not found in expected location"
-    log_info "Available files in ${WKHTMLTOPDF_DIR}:"
     ls -la "${WKHTMLTOPDF_DIR}" 2>&1 || true
     exit 1
 fi
+
+# Download and bundle libjpeg (avoids system package dependency issues)
+log_info "Downloading libjpeg62-turbo..."
+LIBJPEG_URL="http://ftp.us.debian.org/debian/pool/main/libj/libjpeg-turbo/libjpeg62-turbo_2.1.5-4_${WKHTMLTOPDF_ARCH}.deb"
+curl -fL -o "${WKHTMLTOPDF_DIR}/libjpeg.deb" "${LIBJPEG_URL}"
+cd "${WKHTMLTOPDF_DIR}"
+ar x libjpeg.deb
+tar -xf data.tar.* -C "${WKHTMLTOPDF_DIR}"
+mkdir -p "${WKHTMLTOPDF_DIR}/lib"
+mv "${WKHTMLTOPDF_DIR}"/usr/lib/*/libjpeg* "${WKHTMLTOPDF_DIR}/lib/" 2>/dev/null || true
+rm -f libjpeg.deb data.tar.* control.tar.* debian-binary
+rm -rf "${WKHTMLTOPDF_DIR}/usr"
+log_info "libjpeg bundled in ${WKHTMLTOPDF_DIR}/lib"
+
+# Create wrapper script that sets LD_LIBRARY_PATH
+log_info "Creating wrapper in ${VENV_DIR}/bin"
+cat > "${VENV_DIR}/bin/wkhtmltopdf" <<'WRAPPER'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WKHTML_DIR="$(dirname "$SCRIPT_DIR")/wkhtmltopdf"
+export LD_LIBRARY_PATH="${WKHTML_DIR}/lib:${LD_LIBRARY_PATH:-}"
+exec "${WKHTML_DIR}/bin/wkhtmltopdf" "$@"
+WRAPPER
+chmod +x "${VENV_DIR}/bin/wkhtmltopdf"
 
 # Clean up
 rm -f "${WKHTMLTOPDF_DIR}/wkhtmltox.deb"
