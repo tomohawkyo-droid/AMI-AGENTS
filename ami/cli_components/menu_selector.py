@@ -12,21 +12,22 @@ T = TypeVar("T")
 
 
 class MenuItem(Generic[T]):
-    """Represents a single menu item that implements SelectableItem protocol."""
+    """Represents a single menu item that implements SelectableItem protocol.
+
+    Uses **kwargs to stay under 5 positional args limit while supporting protocol.
+    """
+
+    __slots__ = ("description", "disabled", "id", "is_header", "label", "value")
 
     def __init__(
-        self,
-        id: str,
-        label: str,
-        value: T | None = None,
-        description: str = "",
-        is_header: bool = False,
+        self, id: str, label: str, value: T | None = None, **kwargs: object
     ) -> None:
         self.id = id
         self.label = label
         self.value: T | str = value if value is not None else id
-        self.description = description
-        self.is_header = is_header
+        self.description: str = str(kwargs.get("description", ""))
+        self.is_header: bool = bool(kwargs.get("is_header", False))
+        self.disabled: bool = bool(kwargs.get("disabled", False))
 
 
 class MenuSelector(Generic[T]):
@@ -87,7 +88,7 @@ def multi_menu_select(
 if __name__ == "__main__":
     # Demo
     items = [
-        MenuItem("1", "Option A", "A", "Description A"),
-        MenuItem("2", "Option B", "B", "Description B"),
+        MenuItem("1", "Option A", "A", description="Description A"),
+        MenuItem("2", "Option B", "B", description="Description B"),
     ]
     print(f"Selected: {simple_menu_select([i.label for i in items], 'Simple Select')}")

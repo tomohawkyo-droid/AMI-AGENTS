@@ -95,10 +95,16 @@ if [[ ! -f "${WKHTMLTOPDF_DIR}/bin/wkhtmltopdf" ]]; then
     exit 1
 fi
 
-# Download and bundle libjpeg (avoids system package dependency issues)
-log_info "Downloading libjpeg62-turbo..."
-LIBJPEG_URL="http://ftp.us.debian.org/debian/pool/main/libj/libjpeg-turbo/libjpeg62-turbo_2.1.5-4_${WKHTMLTOPDF_ARCH}.deb"
-curl -fL -o "${WKHTMLTOPDF_DIR}/libjpeg.deb" "${LIBJPEG_URL}"
+# Download and bundle libjpeg8 (wkhtmltopdf needs libjpeg.so.8, not .so.62)
+log_info "Downloading libjpeg8..."
+# Use Ubuntu jammy package since that's what wkhtmltopdf was built against
+LIBJPEG_URL="http://archive.ubuntu.com/ubuntu/pool/main/libj/libjpeg-turbo/libjpeg-turbo8_2.1.2-0ubuntu1_${WKHTMLTOPDF_ARCH}.deb"
+curl -fL -o "${WKHTMLTOPDF_DIR}/libjpeg.deb" "${LIBJPEG_URL}" || {
+    # Fallback to Debian's libjpeg8 if Ubuntu fails
+    log_warn "Ubuntu package failed, trying Debian..."
+    LIBJPEG_URL="http://ftp.us.debian.org/debian/pool/main/libj/libjpeg8/libjpeg8_8d1-3_${WKHTMLTOPDF_ARCH}.deb"
+    curl -fL -o "${WKHTMLTOPDF_DIR}/libjpeg.deb" "${LIBJPEG_URL}"
+}
 cd "${WKHTMLTOPDF_DIR}"
 ar x libjpeg.deb
 tar -xf data.tar.* -C "${WKHTMLTOPDF_DIR}"
@@ -106,7 +112,7 @@ mkdir -p "${WKHTMLTOPDF_DIR}/lib"
 mv "${WKHTMLTOPDF_DIR}"/usr/lib/*/libjpeg* "${WKHTMLTOPDF_DIR}/lib/" 2>/dev/null || true
 rm -f libjpeg.deb data.tar.* control.tar.* debian-binary
 rm -rf "${WKHTMLTOPDF_DIR}/usr"
-log_info "libjpeg bundled in ${WKHTMLTOPDF_DIR}/lib"
+log_info "libjpeg8 bundled in ${WKHTMLTOPDF_DIR}/lib"
 
 # Create wrapper script that sets LD_LIBRARY_PATH
 log_info "Creating wrapper in ${VENV_DIR}/bin"
@@ -133,8 +139,12 @@ if [[ ! -x "${VENV_DIR}/bin/wkhtmltopdf" ]]; then
     exit 1
 fi
 
-if ! "${VENV_DIR}/bin/wkhtmltopdf" --version &>/dev/null; then
+if ! "${VENV_DIR}/bin/wkhtmltopdf" --version 2>&1; then
     log_error "wkhtmltopdf binary failed to execute"
+    log_error "Checking for missing libraries..."
+    ldd "${WKHTMLTOPDF_DIR}/bin/wkhtmltopdf" 2>&1 | grep -i "not found" || true
+    log_error "Bundled libs:"
+    ls -la "${WKHTMLTOPDF_DIR}/lib/" 2>&1 || true
     exit 1
 fi
 

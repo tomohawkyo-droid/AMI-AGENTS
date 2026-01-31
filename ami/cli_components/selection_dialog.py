@@ -18,6 +18,7 @@ class SelectableItem(Protocol):
     description: str
     is_header: bool
     value: str | object
+    disabled: bool  # If True, item is greyed out and permanently selected
 
 
 class SelectableItemDict(TypedDict, total=False):
@@ -28,6 +29,7 @@ class SelectableItemDict(TypedDict, total=False):
     description: str
     is_header: bool
     value: str | object
+    disabled: bool  # If True, item is greyed out and permanently selected
 
 
 # Type alias for selectable items union (without str for internal use)
@@ -137,10 +139,16 @@ class SelectionDialog:
             self.group_ranges.append(GroupRange(header_idx, group_start, end_idx))
 
     def _initialize_preselected(self) -> None:
-        """Initialize selected set with preselected item IDs."""
-        if not self._preselected_ids:
-            return
+        """Initialize selected set with preselected and disabled items."""
         for idx, item in enumerate(self.items):
+            # Disabled items are always selected
+            if self._is_disabled(item):
+                self.selected.add(idx)
+                continue
+
+            # Check preselected IDs
+            if not self._preselected_ids:
+                continue
             item_id: str | None = None
             if isinstance(item, SelectableItem):
                 item_id = item.id
@@ -162,6 +170,16 @@ class SelectionDialog:
             if item.get("is_header", False):
                 return True
         return False
+
+    def _is_disabled(self, item: SelectableItem | SelectableItemDict) -> bool:
+        """Check if an item is disabled (locked/permanently selected)."""
+        if isinstance(item, dict):
+            return item.get("disabled", False)
+        # SelectableItem protocol - access attribute directly
+        try:
+            return bool(item.disabled)
+        except AttributeError:
+            return False
 
     def _get_group_items(self, header_idx: int) -> list[int]:
         """Get indices of items in a group (excluding header)."""
@@ -198,19 +216,27 @@ class SelectionDialog:
         """Toggle selection of current item or group."""
         current_item = self.items[self.cursor]
 
+        # Disabled items cannot be toggled
+        if self._is_disabled(current_item):
+            return
+
         if self._is_header(current_item):
-            # Toggle all items in this group
+            # Toggle all non-disabled items in this group
             group_items = self._get_group_items(self.cursor)
-            if group_items:
-                # Check if all are selected
-                all_selected = all(i in self.selected for i in group_items)
+            # Filter out disabled items
+            toggleable = [
+                i for i in group_items if not self._is_disabled(self.items[i])
+            ]
+            if toggleable:
+                # Check if all toggleable are selected
+                all_selected = all(i in self.selected for i in toggleable)
                 if all_selected:
-                    # Deselect all
-                    for i in group_items:
+                    # Deselect all toggleable
+                    for i in toggleable:
                         self.selected.discard(i)
                 else:
-                    # Select all
-                    for i in group_items:
+                    # Select all toggleable
+                    for i in toggleable:
                         self.selected.add(i)
         # Toggle single item
         elif self.cursor in self.selected:
@@ -294,8 +320,13 @@ class SelectionDialog:
             )
         return FormattedPrefix("  ", "  ")
 
-    def _build_checkbox_prefix(self, real_idx: int) -> FormattedPrefix:
+    def _build_checkbox_prefix(
+        self, real_idx: int, is_disabled: bool = False
+    ) -> FormattedPrefix:
         """Build checkbox prefix for multi-select. Returns (formatted, visible)."""
+        if is_disabled:
+            # Disabled items show locked checkbox
+            return FormattedPrefix("\033[2m[✓]\033[0m ", "[✓] ")
         if real_idx in self.selected:
             return FormattedPrefix(f"{Colors.GREEN}[x]{Colors.RESET} ", "[x] ")
         return FormattedPrefix("[ ] ", "[ ] ")
@@ -339,13 +370,14 @@ class SelectionDialog:
         """Render a regular (non-header) item."""
         prefix = INDENT_CHILD
         prefix_visible = INDENT_CHILD
+        is_disabled = self._is_disabled(item)
 
         cursor_result = self._build_cursor_prefix(is_cursor)
         prefix += cursor_result.formatted
         prefix_visible += cursor_result.visible
 
         if self.multi:
-            chk_result = self._build_checkbox_prefix(real_idx)
+            chk_result = self._build_checkbox_prefix(real_idx, is_disabled)
             prefix += chk_result.formatted
             prefix_visible += chk_result.visible
 
@@ -353,7 +385,12 @@ class SelectionDialog:
         desc_text = self._get_item_description(item)
         available_width = self.width - 4 - len(prefix_visible)
 
-        return self._format_item_line(prefix, label, desc_text, available_width)
+        line = self._format_item_line(prefix, label, desc_text, available_width)
+
+        # Wrap entire line in dim styling if disabled
+        if is_disabled:
+            return f"\033[2m{line}\033[0m"
+        return line
 
     def _format_item_line(
         self, prefix: str, label: str, desc_text: str, available_width: int

@@ -225,13 +225,12 @@ def build_menu_items(
     MenuItemClass = _menu.MenuItem
 
     for group_name in _bootstrap_components.GROUPS:
-        # Skip Core Dependencies - installed automatically by bootstrap-core
-        if group_name == "Core Dependencies":
-            continue
-
         components = components_by_group.get(group_name, [])
         if not components:
             continue
+
+        # Core Dependencies are mandatory (disabled = locked)
+        is_core = group_name == "Core Dependencies"
 
         # Count installed in group
         installed_count = sum(
@@ -243,11 +242,12 @@ def build_menu_items(
             ).installed
         )
 
-        # Add group header
+        # Add group header with (required) suffix for core deps
+        header_label = f"{group_name} (required)" if is_core else group_name
         menu_items.append(
             MenuItemClass(
                 id=f"_header_{group_name}",
-                label=group_name,
+                label=header_label,
                 value=None,
                 description=f"{installed_count}/{len(components)} installed",
             )
@@ -267,6 +267,7 @@ def build_menu_items(
                     label=format_component_label(comp, status),
                     value=comp,
                     description=format_component_description(comp, status),
+                    disabled=is_core,  # Core deps are locked
                 )
             )
 
