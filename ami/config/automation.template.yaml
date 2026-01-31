@@ -44,19 +44,19 @@ agent:
 
   # Claude Code CLI settings
   claude:
-    command: "claude"
+    command: "{root}/.venv/node_modules/.bin/claude"
     model_default: "claude-sonnet-4-5"
     model_audit: "claude-sonnet-4-5"
 
   # Gemini CLI settings
   gemini:
-    command: "gemini"
+    command: "{root}/.venv/node_modules/.bin/gemini"
     model_default: "gemini-3-pro"
     model_audit: "gemini-3-flash"
 
   # Qwen CLI settings
   qwen:
-    command: "qwen"
+    command: "{root}/.venv/node_modules/.bin/qwen"
     model_default: "qwen-coder"
     model_audit: "qwen-coder"
 
