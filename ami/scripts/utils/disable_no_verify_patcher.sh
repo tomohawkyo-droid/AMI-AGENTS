@@ -16,14 +16,20 @@ echo "--- Installing Git Safety Wrapper ---"
 # Create bin directory if needed
 mkdir -p "${BIN_DIR}"
 
-# Find the real git binary
-REAL_GIT="/usr/bin/git"
+# Use bootstrapped git (built from source in .boot-linux/git)
+REAL_GIT="${BOOT_LINUX_DIR}/git/bin/git"
 if [ ! -x "$REAL_GIT" ]; then
-    REAL_GIT=$(command -v git 2>/dev/null || true)
-    if [ -z "$REAL_GIT" ] || [ ! -x "$REAL_GIT" ]; then
-        echo "ERROR: Cannot find git binary"
-        exit 1
+    # Fallback to system git if bootstrapped git not yet installed
+    REAL_GIT="/usr/bin/git"
+    if [ ! -x "$REAL_GIT" ]; then
+        REAL_GIT=$(command -v git 2>/dev/null || true)
+        if [ -z "$REAL_GIT" ] || [ ! -x "$REAL_GIT" ]; then
+            echo "ERROR: Cannot find git binary"
+            exit 1
+        fi
     fi
+    echo "⚠️  Using system git: $REAL_GIT (bootstrapped git not found)"
+    echo "   Run 'make bootstrap-core' to install bootstrapped git"
 fi
 
 # Create the wrapper script

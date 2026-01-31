@@ -176,6 +176,17 @@ CORE_DEPS = [
         version_cmd=[".boot-linux/bin/git-lfs", "--version"],
         version_pattern=r"git-lfs/(\d+\.\d+\.\d+)",
     ),
+    Component(
+        name="git",
+        label="Git",
+        description="Version control",
+        type=ComponentType.SCRIPT,
+        group="Core Dependencies",
+        script="bootstrap_git.sh",
+        detect_path=".boot-linux/git/bin/git",
+        version_cmd=[".boot-linux/git/bin/git", "--version"],
+        version_pattern=r"git version (\d+\.\d+\.\d+)",
+    ),
 ]
 
 
@@ -259,17 +270,6 @@ CONTAINERS = [
 
 # Development Tools
 DEV_TOOLS = [
-    Component(
-        name="git",
-        label="Git",
-        description="Version control",
-        type=ComponentType.SCRIPT,
-        group="Development Tools",
-        script="bootstrap_git.sh",
-        detect_path=".boot-linux/git/bin/git",
-        version_cmd=[".boot-linux/git/bin/git", "--version"],
-        version_pattern=r"git version (\d+\.\d+\.\d+)",
-    ),
     Component(
         name="go",
         label="Go",

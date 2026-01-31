@@ -11,7 +11,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # Use environment variables if set, otherwise default
 BOOT_LINUX_DIR="${BOOT_LINUX_DIR:-${PROJECT_ROOT}/.boot-linux}"
-VENV_DIR="${VENV_DIR:-${PROJECT_ROOT}/.venv}"
+BIN_DIR="${BOOT_LINUX_DIR}/bin"
 OPENSSH_DIR="${BOOT_LINUX_DIR}/openssh"
 SSH_PORT="${SSH_PORT:-2222}"
 
@@ -153,12 +153,12 @@ log_info "✓ Created ${OPENSSH_DIR}/etc/sshd_config"
 
 # Create startup script
 log_info "Creating startup script..."
-mkdir -p "${VENV_DIR}/bin"
-cat > "${VENV_DIR}/bin/sshd-venv" <<EOFSCRIPT
+mkdir -p "${BIN_DIR}"
+cat > "${BIN_DIR}/sshd-venv" <<EOFSCRIPT
 #!/usr/bin/env bash
 set -euo pipefail
 
-# OpenSSH is installed in .boot-linux, but this script is in .venv/bin for convenience
+# OpenSSH startup script in .boot-linux/bin
 OPENSSH_DIR="${OPENSSH_DIR}"
 SSHD_BIN="\${OPENSSH_DIR}/sbin/sshd"
 SSHD_CONFIG="\${OPENSSH_DIR}/etc/sshd_config"
@@ -213,14 +213,14 @@ case "\${1:-}" in
 esac
 EOFSCRIPT
 
-chmod +x "${VENV_DIR}/bin/sshd-venv"
-log_info "✓ Created ${VENV_DIR}/bin/sshd-venv"
+chmod +x "${BIN_DIR}/sshd-venv"
+log_info "✓ Created ${BIN_DIR}/sshd-venv"
 
 # Create symbolic links for consistency
-ln -sf "${OPENSSH_DIR}/sbin/sshd" "${VENV_DIR}/bin/sshd"
-ln -sf "${OPENSSH_DIR}/bin/ssh" "${VENV_DIR}/bin/ssh"
-ln -sf "${OPENSSH_DIR}/bin/ssh-keygen" "${VENV_DIR}/bin/ssh-keygen"
-ln -sf "${OPENSSH_DIR}/bin/scp" "${VENV_DIR}/bin/scp"
+ln -sf "${OPENSSH_DIR}/sbin/sshd" "${BIN_DIR}/sshd"
+ln -sf "${OPENSSH_DIR}/bin/ssh" "${BIN_DIR}/ssh"
+ln -sf "${OPENSSH_DIR}/bin/ssh-keygen" "${BIN_DIR}/ssh-keygen"
+ln -sf "${OPENSSH_DIR}/bin/scp" "${BIN_DIR}/scp"
 
 # Clean up
 rm -f "${OPENSSH_DIR}"/*.deb

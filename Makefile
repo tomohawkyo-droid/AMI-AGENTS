@@ -49,10 +49,11 @@ install-bootstrap-ci: ## Non-interactive bootstrap using defaults file
 	@.venv/bin/python ami/scripts/bootstrap_installer.py --defaults ami/config/install-defaults.yaml
 
 .PHONY: bootstrap-core
-bootstrap-core: ## Bootstrap core tools (uv, python, git-lfs/xet) into .boot-linux
+bootstrap-core: ## Bootstrap core tools (uv, python, git, git-lfs/xet) into .boot-linux
 	@echo "🔧 Bootstrapping core tools..."
 	@bash ami/scripts/bootstrap/bootstrap_uv.sh
 	@bash ami/scripts/bootstrap/bootstrap_python.sh
+	@bash ami/scripts/bootstrap/bootstrap_git.sh
 	@bash ami/scripts/bootstrap/bootstrap_git_xet.sh
 	@echo "✅ Core bootstrap complete"
 
