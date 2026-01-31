@@ -91,20 +91,28 @@ install_git_xet() {
         arm64) XET_ARCH="aarch64" ;;
     esac
 
-    XET_URL="https://github.com/huggingface/xet-tools/releases/latest/download/git-xet-${XET_ARCH}-unknown-linux-musl.tar.gz"
+    # Get latest git-xet version (separate from hf_xet releases)
+    XET_VERSION=$(curl -sS https://api.github.com/repos/huggingface/xet-core/releases | grep -o '"tag_name": "git-xet-v[^"]*"' | head -1 | sed 's/"tag_name": "git-xet-v\([^"]*\)"/\1/')
+
+    if [ -z "$XET_VERSION" ]; then
+        XET_VERSION="0.2.0"  # Fallback
+    fi
+
+    XET_URL="https://github.com/huggingface/xet-core/releases/download/git-xet-v${XET_VERSION}/git-xet-linux-${XET_ARCH}.zip"
 
     TEMP_DIR=$(mktemp -d)
     cd "$TEMP_DIR"
 
-    log_info "Downloading git-xet..."
-    curl -LsSf "$XET_URL" -o git-xet.tar.gz
-    tar -xzf git-xet.tar.gz
+    log_info "Downloading git-xet v${XET_VERSION}..."
+    curl -LsSf "$XET_URL" -o git-xet.zip
+    unzip -q git-xet.zip
 
     # Find and install binary
     if [ -f "git-xet" ]; then
         cp "git-xet" "${BIN_DIR}/git-xet"
     else
         log_error "Could not find git-xet binary"
+        ls -la
         cd - > /dev/null
         rm -rf "$TEMP_DIR"
         return 1
