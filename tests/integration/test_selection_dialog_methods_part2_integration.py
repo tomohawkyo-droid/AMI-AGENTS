@@ -51,8 +51,16 @@ def _mi(
     value=None,
     description="",
     is_header=False,
+    disabled=False,
 ):
-    return MenuItem(item_id, label, value, description, is_header)
+    return MenuItem(
+        item_id,
+        label,
+        value,
+        description=description,
+        is_header=is_header,
+        disabled=disabled,
+    )
 
 
 # 10. Item access
@@ -243,18 +251,20 @@ class TestRendering:
 
 class TestMenuItem:
     def test_basic(self):
-        m = MenuItem("id1", "L", "v", "d")
+        m = MenuItem("id1", "L", "v", description="d")
         assert (
             m.id,
             m.label,
             m.value,
             m.description,
             m.is_header,
+            m.disabled,
         ) == (
             "id1",
             "L",
             "v",
             "d",
+            False,
             False,
         )
 

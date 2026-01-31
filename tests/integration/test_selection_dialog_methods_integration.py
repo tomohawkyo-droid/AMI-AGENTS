@@ -31,8 +31,15 @@ def _dlg(items, **kw):
     return SelectionDialog(items, SelectionDialogConfig(**kw))
 
 
-def _mi(item_id, label, value=None, description="", is_header=False):
-    return MenuItem(item_id, label, value, description, is_header)
+def _mi(item_id, label, value=None, description="", is_header=False, disabled=False):
+    return MenuItem(
+        item_id,
+        label,
+        value,
+        description=description,
+        is_header=is_header,
+        disabled=disabled,
+    )
 
 
 # 1. SelectionDialogConfig ────────────────────────────────────────────────

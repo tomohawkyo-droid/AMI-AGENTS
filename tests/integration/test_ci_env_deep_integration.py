@@ -332,6 +332,7 @@ class TestSelectionDialogGetItemLabel:
             description = ""
             is_header = False
             value = "v"
+            disabled = False
 
         assert dlg._get_item_label(_Item()) == "Object Label"
 
