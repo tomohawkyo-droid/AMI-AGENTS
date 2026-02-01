@@ -20,11 +20,11 @@ if [[ "$#" -gt 0 && ("$1" == "-h" || "$1" == "--help") ]]; then
     echo ""
     echo "Usage: ami-run [subcommand] [args...]"
     echo ""
-    echo "Subcommands: python, uv, podman, node, npm, npx, tests, ansible, status"
+    echo "Subcommands: python, uv, node, npm, npx, cargo, rustc, go"
     exit 0
 fi
 
-KNOWN_CMDS="python uv podman docker node npm npx java wrap bash sh tests ansible ansible-playbook ansible-galaxy status systemd"
+KNOWN_CMDS="python uv podman docker node npm npx java wrap bash sh tests ansible ansible-playbook ansible-galaxy status systemd cargo rustc go"
 if [[ $# -gt 0 ]] && [[ " $KNOWN_CMDS " == *" $1 "* ]]; then
     SUBCOMMAND="$1"
     shift
@@ -99,5 +99,14 @@ case "$SUBCOMMAND" in
         nohup "$0" "${CMD[@]}" > "$R_DIR/std.log" 2>&1 &
         echo $! > "$PID_F"
         echo "Started $SVC_ID (PID: $!)"
+        ;;
+    cargo)
+        exec "$BOOT_DIR/rust/bin/cargo" "${ARGS[@]}"
+        ;;
+    rustc)
+        exec "$BOOT_DIR/rust/bin/rustc" "${ARGS[@]}"
+        ;;
+    go)
+        exec "$BOOT_DIR/go/bin/go" "${ARGS[@]}"
         ;;
 esac
