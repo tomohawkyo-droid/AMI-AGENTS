@@ -204,7 +204,7 @@ def check_filename(
 
 
 # Cache for pre-compiled directory rules (keyed by directory name)
-_dir_rules_cache: dict = {}
+_dir_rules_cache: dict[str, list[PatternRule]] = {}
 
 
 def get_dir_rules(filepath: str, dir_rules_compiled: object) -> list[PatternRule]:
@@ -223,7 +223,7 @@ def get_dir_rules(filepath: str, dir_rules_compiled: object) -> list[PatternRule
 
 def compile_dir_rules(
     dir_rules_config: object,
-) -> dict:
+) -> dict[str, list[PatternRule]]:
     """Pre-compile all directory rules."""
     if not isinstance(dir_rules_config, dict):
         return {}
@@ -239,7 +239,7 @@ def print_errors(errors: list[BannedPatternError]) -> None:
     print(f"\n\033[91mFAILED: {len(errors)} banned pattern(s) found:\033[0m\n")
 
     # Group by file
-    by_file: dict = {}
+    by_file: dict[str, list[BannedPatternError]] = {}
     for err in errors:
         key = str(err["file"])
         if key not in by_file:

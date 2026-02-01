@@ -181,6 +181,20 @@ class VersionUpdate(NamedTuple):
     new: str
 
 
+class VersionEntry(NamedTuple):
+    """Package name paired with version string."""
+
+    package: str
+    version: str
+
+
+class UpdateEntry(NamedTuple):
+    """Package name paired with version update info."""
+
+    package: str
+    update: VersionUpdate
+
+
 class ContainerStatusDisplay(NamedTuple):
     """Display info for container status."""
 
@@ -234,8 +248,8 @@ class DependencyCheckResult(NamedTuple):
 class PackageUpdateCheck(NamedTuple):
     """Result from checking for package updates."""
 
-    latest_versions: object  # name to version
-    updates_needed: object  # name to VersionUpdate
+    latest_versions: list[VersionEntry]
+    updates_needed: list[UpdateEntry]
 
 
 class NamedComponentStatus(NamedTuple):

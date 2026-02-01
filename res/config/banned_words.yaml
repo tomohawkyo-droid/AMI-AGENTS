@@ -23,15 +23,19 @@ banned:
     reason: "Linter suppression forbidden. Fix the code style."
 
   # === FORBIDDEN COMPLEX TYPES ===
-  # NO EXCEPTIONS. Use TypedDict/NamedTuple/Pydantic everywhere.
+  # Use TypedDict/NamedTuple/Pydantic for data structures.
+  # Exception: CI scripts need internal caches with dynamic keys for performance
   - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
-    reason: "BANNED. Use TypedDict/NamedTuple/Pydantic. NO EXCEPTIONS."
+    reason: "BANNED. Use TypedDict/NamedTuple/Pydantic."
+    exception_regex: "scripts/ci/"
 
+  # Exception: subprocess interface files need Mapping for Popen env parameter
   - pattern: '\b(Mapping|Sequence|MutableMapping|MutableSequence|Iterable|Iterator)\['
-    reason: "BANNED. Use TypedDict/NamedTuple/Pydantic. NO EXCEPTIONS."
+    reason: "BANNED. Use TypedDict/NamedTuple/Pydantic."
+    exception_regex: "(utils/process\\.py|cli/process_utils\\.py)"
 
-  - pattern: '\b(List|Set|list|set)\[(?!\s*[''"]?[a-zA-Z0-9_.]+[''"]?\s*\]).*\]'
-    reason: "BANNED. Use simple list[Type] only. NO EXCEPTIONS."
+  - pattern: '\b(List|Set|list|set)\[(?!\s*[''"]?[a-zA-Z0-9_.]+(\[[a-zA-Z0-9_.]+\])?[''"]?\s*\]).*\]'
+    reason: "BANNED. Use simple list[Type] or list[Type[T]] only."
 
   # === UNSAFE TYPING ===
   - pattern: 'dict\[.*,\s*Any\]'

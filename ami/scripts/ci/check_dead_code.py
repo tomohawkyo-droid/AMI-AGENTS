@@ -153,7 +153,7 @@ def print_report(dead_items: list[DeadCodeItem]) -> None:
     """Print a coloured report grouped by dead-code kind."""
     print(f"\n{RED}Dead Code Analysis Results{RESET}\n")
 
-    by_kind: dict = {}
+    by_kind: dict[str, list[DeadCodeItem]] = {}
     for item in dead_items:
         kind = item.definition.kind
         if kind not in by_kind:
@@ -282,7 +282,7 @@ def print_dry_run_report(
     """Print a line-count report for dead code removal."""
     print(f"\n{BOLD}Dry Run: Lines removable by deleting dead code{RESET}\n")
 
-    by_kind: dict = {}
+    by_kind: dict[str, list[DeadCodeEntry]] = {}
     prod_total = 0
 
     for item in dead_items:

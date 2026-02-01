@@ -220,7 +220,8 @@ def _process_service(
             f"Profiles: {', '.join(profiles) if profiles else 'default'}"
         )
         for c in containers:
-            c_config_files = c.labels.get("com.docker.compose.project.config_files", "")
+            config_key = "com.docker.compose.project.config_files"
+            c_config_files = str(c.labels.get(config_key, ""))
             if svc.compose_file in c_config_files:
                 child_items.append(c)
                 processed_containers.add(c.name)

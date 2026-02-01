@@ -29,23 +29,10 @@ def _parse(source: str) -> ast.Module:
     return ast.parse(textwrap.dedent(source))
 
 
-def _make_def(
-    name: str = "foo",
-    kind: str = "function",
-    file: str = "a.py",
-    line: int = 1,
-    is_dunder: bool = False,
-    is_exported: bool = False,
-) -> Definition:
+def _make_def(name: str = "foo", kind: str = "function", **kwargs) -> Definition:
     """Create a Definition for testing."""
-    return Definition(
-        name=name,
-        kind=kind,
-        file=file,
-        line=line,
-        is_dunder=is_dunder,
-        is_exported=is_exported,
-    )
+    defaults = {"file": "a.py", "line": 1, "is_dunder": False, "is_exported": False}
+    return Definition(name=name, kind=kind, **{**defaults, **kwargs})
 
 
 # ---------------------------------------------------------------------------

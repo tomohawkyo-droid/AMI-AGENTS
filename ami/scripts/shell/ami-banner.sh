@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # AMI Orchestrator Banner - Dynamically Generated from Extensions
 #
-# This banner parses extension metadata from ami/scripts/extensions/*.sh
-# Each extension defines: @name, @description, @category, @binary, @features
+# Reads extension metadata from ami/config/extensions.yaml (single source of truth)
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -73,24 +72,25 @@ _get_version() {
     echo "$output" | grep -oP '\d+\.\d+\.\d+' | head -1
 }
 
-# Parse metadata from extension file
-# Returns: name|description|category|binary|features|hidden
-_parse_extension_metadata() {
-    local file="$1"
-    local name="" desc="" category="" binary="" features="" hidden=""
+# Parse extensions.yaml and output as pipe-delimited lines
+# Output format: name|description|category|binary|features|hidden
+_parse_extensions_yaml() {
+    local yaml_file="$AMI_ROOT/ami/config/extensions.yaml"
+    [[ -f "$yaml_file" ]] || return 1
 
-    while IFS= read -r line; do
-        case "$line" in
-            "# @name: "*)        name="${line#\# @name: }" ;;
-            "# @description: "*) desc="${line#\# @description: }" ;;
-            "# @category: "*)    category="${line#\# @category: }" ;;
-            "# @binary: "*)      binary="${line#\# @binary: }" ;;
-            "# @features: "*)    features="${line#\# @features: }" ;;
-            "# @hidden: "*)      hidden="${line#\# @hidden: }" ;;
-        esac
-    done < "$file"
-
-    echo "$name|$desc|$category|$binary|$features|$hidden"
+    python3 -c "
+import yaml
+with open('$yaml_file') as f:
+    data = yaml.safe_load(f)
+for ext in data.get('extensions', []):
+    name = ext.get('name', '')
+    desc = ext.get('description', '')
+    cat = ext.get('category', '')
+    binary = ext.get('binary', '')
+    features = ext.get('features', '')
+    hidden = ext.get('hidden', '')
+    print(f'{name}|{desc}|{cat}|{binary}|{features}|{hidden}')
+" 2>/dev/null
 }
 
 # Print a component line with healthcheck
@@ -131,27 +131,18 @@ _print_component() {
     return 0
 }
 
-# Load extension metadata for banner display
+# Load extension metadata for banner display from extensions.yaml
 _load_extension_metadata() {
-    local ext_dir="$AMI_ROOT/ami/scripts/extensions"
-
     declare -gA EXT_DATA
     declare -ga EXT_CORE=()
     declare -ga EXT_ENTERPRISE=()
     declare -ga EXT_DEV=()
     declare -ga EXT_AGENTS=()
 
-    for ext_file in "$ext_dir"/*.sh; do
-        [[ -f "$ext_file" ]] || continue
-
-        local metadata
-        metadata=$(_parse_extension_metadata "$ext_file")
-
-        local name desc category binary features hidden
-        IFS='|' read -r name desc category binary features hidden <<< "$metadata"
-
+    while IFS='|' read -r name desc category binary features hidden; do
         [[ -z "$name" ]] && continue
         [[ "$hidden" == "true" ]] && continue
+        [[ "$hidden" == "True" ]] && continue
 
         EXT_DATA["${name}_desc"]="$desc"
         EXT_DATA["${name}_binary"]="$binary"
@@ -163,7 +154,7 @@ _load_extension_metadata() {
             dev)        EXT_DEV+=("$name") ;;
             agents)     EXT_AGENTS+=("$name") ;;
         esac
-    done
+    done < <(_parse_extensions_yaml)
 }
 
 # Display a category section

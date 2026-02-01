@@ -5,8 +5,9 @@ import select
 import subprocess
 import sys
 import time
+from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
@@ -46,7 +47,13 @@ def start_streaming_process(
     """
     resolved_config: Config = config if config is not None else get_config()
     env_result = get_unprivileged_env(resolved_config)
-    env = cast(dict, env_result) if env_result is not None else os.environ.copy()
+    # Build env dict from ProcessEnvironment or os.environ
+    if env_result is not None:
+        env: Mapping[str, str] = {
+            k: v for k, v in env_result.items() if isinstance(v, str)
+        }
+    else:
+        env = os.environ.copy()
 
     stdin_pipe = subprocess.PIPE if stdin_data is not None else None
 

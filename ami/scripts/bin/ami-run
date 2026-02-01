@@ -101,9 +101,13 @@ case "$SUBCOMMAND" in
         echo "Started $SVC_ID (PID: $!)"
         ;;
     cargo)
+        export RUSTUP_HOME="$BOOT_DIR/rust"
+        export CARGO_HOME="$BOOT_DIR/rust"
         exec "$BOOT_DIR/rust/bin/cargo" "${ARGS[@]}"
         ;;
     rustc)
+        export RUSTUP_HOME="$BOOT_DIR/rust"
+        export CARGO_HOME="$BOOT_DIR/rust"
         exec "$BOOT_DIR/rust/bin/rustc" "${ARGS[@]}"
         ;;
     go)

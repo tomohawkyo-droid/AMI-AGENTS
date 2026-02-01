@@ -7,6 +7,9 @@ Browse, search, replay, and resume transcript sessions.
 import argparse
 import sys
 
+from ami.cli.agent_logging import TranscriptEntry
+from ami.cli.transcript_context import TranscriptContextBuilder
+from ami.cli.transcript_search import TranscriptSearcher
 from ami.cli.transcript_store import TranscriptStore
 
 # Display formatting constants
@@ -65,8 +68,6 @@ Examples:
 
 def _format_entry_line(entry: object) -> str:
     """Format a transcript entry for display."""
-    from ami.cli.agent_logging import TranscriptEntry
-
     if not isinstance(entry, TranscriptEntry):
         return str(entry)
 
@@ -149,8 +150,6 @@ def cmd_show(args: argparse.Namespace) -> int:
 
 def cmd_search(args: argparse.Namespace) -> int:
     """Search transcripts."""
-    from ami.cli.transcript_search import TranscriptSearcher
-
     store = TranscriptStore()
     searcher = TranscriptSearcher(store)
 
@@ -182,8 +181,6 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 def cmd_replay(args: argparse.Namespace) -> int:
     """Replay a full session."""
-    from ami.cli.transcript_context import TranscriptContextBuilder
-
     store = TranscriptStore()
     session_id = _resolve_session_id(store, args.session_id)
     if not session_id:

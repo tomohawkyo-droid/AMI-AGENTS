@@ -11,7 +11,12 @@ import sys
 from pathlib import Path
 
 from ami.cli_components.confirmation_dialog import confirm
-from ami.types.results import PackageUpdateCheck, VersionUpdate
+from ami.types.results import (
+    PackageUpdateCheck,
+    UpdateEntry,
+    VersionEntry,
+    VersionUpdate,
+)
 
 
 def get_latest_npm_version(package_name: str) -> str | None:
@@ -144,10 +149,10 @@ def _check_package_updates(
     """Check for available package updates.
 
     Returns:
-        PackageUpdateCheck(latest_versions, updates_needed) mappings.
+        PackageUpdateCheck with lists of version entries.
     """
-    latest_versions: dict = {}
-    updates_needed: dict = {}
+    latest_versions: list[VersionEntry] = []
+    updates_needed: list[UpdateEntry] = []
 
     if not isinstance(current_versions, dict):
         return PackageUpdateCheck(latest_versions, updates_needed)
@@ -159,28 +164,27 @@ def _check_package_updates(
             print(f"Could not fetch latest version for {package}")
             continue
 
-        latest_versions[package] = latest_version
+        latest_versions.append(VersionEntry(package, latest_version))
         current_clean = str(current).lstrip("^~")
         latest_clean = latest_version.lstrip("^~")
 
         if current_clean != latest_clean:
-            updates_needed[package] = VersionUpdate(str(current), latest_version)
+            update = VersionUpdate(str(current), latest_version)
+            updates_needed.append(UpdateEntry(package, update))
         else:
             print(f"{package}: already at latest available version")
 
     return PackageUpdateCheck(latest_versions, updates_needed)
 
 
-def _apply_updates(package_json_path: Path, updates_needed: object) -> int:
+def _apply_updates(package_json_path: Path, updates_needed: list[UpdateEntry]) -> int:
     """Apply package updates if confirmed.
 
     Returns:
         Exit code (0 for success, 1 for failure).
     """
-    if not isinstance(updates_needed, dict):
-        return 1
-    # Convert VersionUpdate to new version strings for the update
-    updates_dict = {pkg: update.new for pkg, update in updates_needed.items()}
+    # Convert UpdateEntry list to dict for update function
+    updates_dict = {entry.package: entry.update.new for entry in updates_needed}
 
     # Ask for confirmation unless --force is provided
     if "--force" not in sys.argv and not confirm(

@@ -4,6 +4,8 @@ Selection dialog for CLI menu selection with hierarchical group support.
 
 from typing import Protocol, TypedDict, cast, runtime_checkable
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from ami.cli_components.text_input_utils import Colors, read_key_sequence
 from ami.cli_components.tui import TUI, BoxStyle
 from ami.types.results import FormattedPrefix, GroupRange, KeyHandleResult
@@ -51,22 +53,17 @@ ENTER = "ENTER"
 ESC = "ESC"
 
 
-class SelectionDialogConfig:
+class SelectionDialogConfig(BaseModel):
     """Configuration for SelectionDialog to reduce argument count."""
 
-    def __init__(
-        self,
-        title: str = "Select",
-        width: int = DEFAULT_DIALOG_WIDTH,
-        multi: bool = False,
-        max_height: int = DEFAULT_MAX_HEIGHT,
-        preselected: set[str] | None = None,
-    ):
-        self.title = title
-        self.width = width
-        self.multi = multi
-        self.max_height = max_height
-        self.preselected: set[str] = preselected or set()
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    title: str = "Select"
+    width: int = DEFAULT_DIALOG_WIDTH
+    multi: bool = False
+    max_height: int = DEFAULT_MAX_HEIGHT
+    preselected: set[str] = Field(default_factory=set)
+    skippable_ids: set[str] = Field(default_factory=set)
 
 
 class SelectionDialog:
@@ -93,9 +90,13 @@ class SelectionDialog:
         self.cursor = 0
         self.scroll_offset = 0
         self.max_height = config.max_height
+        self._skippable_ids = config.skippable_ids
 
         self.selected: set[int] = set()
+        self.skipped: set[int] = set()
+        self.skippable: set[int] = set()
         self._initialize_preselected()
+        self._initialize_skippable()
 
     def clear(self) -> None:
         """Clear the dialog from screen."""
@@ -156,6 +157,23 @@ class SelectionDialog:
                 item_id = item.get("id")
             if item_id and item_id in self._preselected_ids:
                 self.selected.add(idx)
+
+    def _initialize_skippable(self) -> None:
+        """Initialize skippable set from config and set skipped state."""
+        if not self._skippable_ids:
+            return
+        for idx, item in enumerate(self.items):
+            item_id: str | None = None
+            if isinstance(item, SelectableItem):
+                item_id = item.id
+            elif isinstance(item, dict):
+                item_id = item.get("id")
+            if item_id and item_id in self._skippable_ids:
+                self.skippable.add(idx)
+                # Skippable items start in skipped state (not selected)
+                self.skipped.add(idx)
+                # Remove from selected if it was preselected
+                self.selected.discard(idx)
 
     def _is_header(self, item: SelectableItem | SelectableItemDict) -> bool:
         """Check if an item is a group header."""
@@ -221,25 +239,43 @@ class SelectionDialog:
             return
 
         if self._is_header(current_item):
-            # Toggle all non-disabled items in this group
-            group_items = self._get_group_items(self.cursor)
-            # Filter out disabled items
-            toggleable = [
-                i for i in group_items if not self._is_disabled(self.items[i])
-            ]
-            if toggleable:
-                # Check if all toggleable are selected
-                all_selected = all(i in self.selected for i in toggleable)
-                if all_selected:
-                    # Deselect all toggleable
-                    for i in toggleable:
-                        self.selected.discard(i)
-                else:
-                    # Select all toggleable
-                    for i in toggleable:
-                        self.selected.add(i)
-        # Toggle single item
-        elif self.cursor in self.selected:
+            self._toggle_group_selection()
+        elif self.cursor in self.skippable:
+            self._toggle_skippable_item()
+        else:
+            self._toggle_normal_item()
+
+    def _toggle_group_selection(self) -> None:
+        """Toggle all non-disabled items in the current group."""
+        group_items = self._get_group_items(self.cursor)
+        toggleable = [i for i in group_items if not self._is_disabled(self.items[i])]
+        if not toggleable:
+            return
+        all_selected = all(i in self.selected for i in toggleable)
+        if all_selected:
+            # Deselect all (skippable go to skipped state)
+            for i in toggleable:
+                self.selected.discard(i)
+                if i in self.skippable:
+                    self.skipped.add(i)
+        else:
+            # Select all
+            for i in toggleable:
+                self.selected.add(i)
+                self.skipped.discard(i)
+
+    def _toggle_skippable_item(self) -> None:
+        """Toggle skippable item between skipped and selected (no unselect)."""
+        if self.cursor in self.skipped:
+            self.skipped.remove(self.cursor)
+            self.selected.add(self.cursor)
+        else:
+            self.selected.discard(self.cursor)
+            self.skipped.add(self.cursor)
+
+    def _toggle_normal_item(self) -> None:
+        """Toggle normal two-state item."""
+        if self.cursor in self.selected:
             self.selected.remove(self.cursor)
         else:
             self.selected.add(self.cursor)
@@ -340,6 +376,10 @@ class SelectionDialog:
             return FormattedPrefix(f"{Colors.YELLOW}[◧]{Colors.RESET} ", "[◧] ")
         return FormattedPrefix(f"{Colors.CYAN}[□]{Colors.RESET} ", "[□] ")
 
+    def _build_skip_checkbox_prefix(self) -> FormattedPrefix:
+        """Build skip checkbox prefix for skipped items. Returns [■] in cyan."""
+        return FormattedPrefix(f"{Colors.CYAN}[■]{Colors.RESET} ", "[■] ")
+
     def _truncate_text(self, text: str, max_width: int) -> str:
         """Truncate text to fit within max_width."""
         if len(text) <= max_width:
@@ -377,12 +417,21 @@ class SelectionDialog:
         prefix_visible += cursor_result.visible
 
         if self.multi:
-            chk_result = self._build_checkbox_prefix(real_idx, is_disabled)
+            # Tri-state: skipped shows [■], selected shows [x], unselected shows [ ]
+            if real_idx in self.skipped:
+                chk_result = self._build_skip_checkbox_prefix()
+            else:
+                chk_result = self._build_checkbox_prefix(real_idx, is_disabled)
             prefix += chk_result.formatted
             prefix_visible += chk_result.visible
 
         label = self._get_item_label(item)
         desc_text = self._get_item_description(item)
+
+        # Add "(Reinstall)" suffix for skippable items that are selected
+        if real_idx in self.skippable and real_idx in self.selected:
+            desc_text = f"{desc_text} (Reinstall)" if desc_text else "(Reinstall)"
+
         available_width = self.width - 4 - len(prefix_visible)
 
         line = self._format_item_line(prefix, label, desc_text, available_width)

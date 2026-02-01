@@ -45,22 +45,8 @@ def _dlg(items, **kw):
     return SelectionDialog(items, SelectionDialogConfig(**kw))
 
 
-def _mi(
-    item_id,
-    label,
-    value=None,
-    description="",
-    is_header=False,
-    disabled=False,
-):
-    return MenuItem(
-        item_id,
-        label,
-        value,
-        description=description,
-        is_header=is_header,
-        disabled=disabled,
-    )
+def _mi(item_id, label, value=None, **kwargs):
+    return MenuItem(item_id, label, value, **kwargs)
 
 
 # 10. Item access

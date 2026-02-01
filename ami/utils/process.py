@@ -8,9 +8,10 @@ import os
 import selectors
 import subprocess
 import time
+from collections.abc import Mapping
 from io import TextIOWrapper
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import TypedDict
 
 from ami.types.common import ProcessEnvironment
 from ami.types.results import SelectorEvent
@@ -46,7 +47,9 @@ def _drain_pipes(
 ) -> None:
     """Drain remaining data from all registered pipes."""
     for key in list(sel.get_map().values()):
-        fileobj = cast(TextIOWrapper, key.fileobj)
+        fileobj = key.fileobj
+        if not isinstance(fileobj, TextIOWrapper):
+            continue
         remaining = fileobj.read()
         if remaining:
             key.data.append(remaining)
@@ -100,13 +103,12 @@ class ProcessExecutor:
 
         run_env = os.environ.copy()
         if env:
-            # ProcessEnvironment is a TypedDict subset of env vars
-            run_env.update(cast(dict, env))
+            for key, value in env.items():
+                if isinstance(value, str):
+                    run_env[key] = value
 
         try:
-            return self._execute_command(
-                command, cwd, cast(ProcessEnvironment, run_env), timeout
-            )
+            return self._execute_command(command, cwd, run_env, timeout)
         except Exception as e:
             return _create_result("", f"Execution failed: {e!s}", 1)
 
@@ -114,14 +116,14 @@ class ProcessExecutor:
         self,
         command: str | list[str],
         cwd: Path,
-        run_env: ProcessEnvironment,
+        run_env: Mapping[str, str],
         timeout: int | None,
     ) -> ProcessResult:
         """Execute command and collect output."""
         process = subprocess.Popen(
             command,
             cwd=str(cwd),
-            env=cast(dict, run_env),
+            env=run_env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=isinstance(command, str),

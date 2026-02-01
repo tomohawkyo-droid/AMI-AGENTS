@@ -278,9 +278,9 @@ class CrossReferenceGraph:
     """Aggregates module analysis results and resolves cross-references."""
 
     def __init__(self) -> None:
-        self.modules: dict = {}
-        self._refs_by_name: dict = {}
-        self._import_sources: dict = {}
+        self.modules: dict[str, ModuleInfo] = {}
+        self._refs_by_name: dict[str, set[str]] = {}
+        self._import_sources: dict[str, set[str]] = {}
 
     def add(self, info: ModuleInfo) -> None:
         """Add a module's analysis results to the graph."""

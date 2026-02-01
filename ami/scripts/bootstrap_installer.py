@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, cast
@@ -63,6 +64,7 @@ class MenuBuildResult(NamedTuple):
 
     menu_items: object  # list of MenuItem with Component or None values
     preselected_ids: set[str]
+    skippable_ids: set[str]  # IDs of installed components (can skip reinstall)
 
 
 class InstallationResult(NamedTuple):
@@ -82,8 +84,6 @@ _BOX_WIDTH = 64
 
 def _visible_width(s: str) -> int:
     """Calculate visible width excluding ANSI escape codes."""
-    import re
-
     ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
     return len(ansi_escape.sub("", s))
 
@@ -179,14 +179,13 @@ def scan_components() -> list[NamedComponentStatus]:
     """
     print(f"\n{CYAN}Scanning installed components...{RESET}")
 
-    components_by_group = _bootstrap_components.get_components_by_group()
+    groups = _bootstrap_components.get_components_by_group()
     statuses: list[NamedComponentStatus] = []
 
-    total = sum(len(comps) for comps in components_by_group.values())
+    total = sum(len(g.components) for g in groups)
 
-    for group_name in _bootstrap_components.GROUPS:
-        components = components_by_group.get(group_name, [])
-        for comp in components:
+    for group in groups:
+        for comp in group.components:
             # Show scanning progress
             sys.stdout.write(f"\r  Checking {comp.label}...{' ' * 20}")
             sys.stdout.flush()
@@ -217,25 +216,25 @@ def build_menu_items(
     """Build menu items with status information.
 
     Returns:
-        MenuBuildResult with menu_items and preselected_ids
+        MenuBuildResult with menu_items, preselected_ids, and skippable_ids
     """
-    components_by_group = _bootstrap_components.get_components_by_group()
+    groups = _bootstrap_components.get_components_by_group()
     menu_items: list[DialogItem] = []
     preselected: set[str] = set()
+    skippable: set[str] = set()  # IDs of installed components
     MenuItemClass = _menu.MenuItem
 
-    for group_name in _bootstrap_components.GROUPS:
-        components = components_by_group.get(group_name, [])
-        if not components:
+    for group in groups:
+        if not group.components:
             continue
 
         # Core Dependencies are mandatory (disabled = locked)
-        is_core = group_name == "Core Dependencies"
+        is_core = group.group == "Core Dependencies"
 
         # Count installed in group
         installed_count = sum(
             1
-            for c in components
+            for c in group.components
             if (
                 _find_status_by_name(statuses, c.name)
                 or NamedComponentStatus(c.name, False, None, None)
@@ -243,23 +242,23 @@ def build_menu_items(
         )
 
         # Add group header with (required) suffix for core deps
-        header_label = f"{group_name} (required)" if is_core else group_name
+        header_label = f"{group.group} (required)" if is_core else group.group
         menu_items.append(
             MenuItemClass(
-                id=f"_header_{group_name}",
+                id=f"_header_{group.group}",
                 label=header_label,
                 value=None,
-                description=f"{installed_count}/{len(components)} installed",
+                description=f"{installed_count}/{len(group.components)} installed",
             )
         )
 
         # Add components in this group
-        for comp in components:
+        for comp in group.components:
             status = _find_status_by_name(statuses, comp.name)
 
-            # Pre-select installed components
+            # Track installed components as skippable (can toggle skip/reinstall)
             if status and status.installed:
-                preselected.add(comp.name)
+                skippable.add(comp.name)
 
             menu_items.append(
                 MenuItemClass(
@@ -271,18 +270,16 @@ def build_menu_items(
                 )
             )
 
-    return MenuBuildResult(menu_items=menu_items, preselected_ids=preselected)
+    return MenuBuildResult(
+        menu_items=menu_items, preselected_ids=preselected, skippable_ids=skippable
+    )
 
 
-def _extract_components(selected: list[MenuItem]) -> list[Component]:
+def _extract_components(selected: list[MenuItem[Component]]) -> list[Component]:
     """Extract component values from selected menu items."""
     # MenuItem.value is T | str (uses id if value was None)
-    # We know our values are Component instances, so filter and cast
-    return [
-        cast("Component", item.value)
-        for item in selected
-        if not isinstance(item.value, str)
-    ]
+    # We know our values are Component instances, so filter non-strings
+    return [item.value for item in selected if not isinstance(item.value, str)]
 
 
 def _show_selection_summary(
@@ -419,6 +416,7 @@ def main() -> int:
     menu_build_result = build_menu_items(statuses)
     menu_items = menu_build_result.menu_items
     preselected = menu_build_result.preselected_ids
+    skippable = menu_build_result.skippable_ids
 
     # MenuItem implements SelectableItem protocol structurally
     dialog_items = cast(list[DialogItem], menu_items)
@@ -426,11 +424,12 @@ def main() -> int:
         dialog_items,
         title="Select Components",
         preselected=preselected,
+        skippable_ids=skippable,
         max_height=20,
     )
 
     # Cast back to MenuItem since we know what we passed in
-    selected = cast(list["MenuItem"], raw_selected)
+    selected = cast(list["MenuItem[Component]"], raw_selected)
     selected = [s for s in selected if s.value is not None]
 
     if not selected:

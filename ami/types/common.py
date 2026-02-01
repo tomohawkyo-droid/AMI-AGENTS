@@ -161,6 +161,11 @@ class ContainerLabels(TypedDict, total=False):
     compose_config: str
 
 
+def empty_labels() -> ContainerLabels:
+    """Factory for empty ContainerLabels."""
+    return ContainerLabels()
+
+
 # === Installation Results ===
 class InstallationResult(TypedDict):
     """Result of component installation."""

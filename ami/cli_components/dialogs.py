@@ -230,6 +230,7 @@ def multiselect(
     items: list[DialogItem],
     title: str = "Select Options",
     preselected: set[str] | None = None,
+    skippable_ids: set[str] | None = None,
     max_height: int = 15,
 ) -> list[SelectableUnion]:
     """Select multiple items. Returns list of items or empty list if cancelled.
@@ -238,12 +239,14 @@ def multiselect(
         items: List of items to select from
         title: Dialog title
         preselected: Set of item IDs to pre-select
+        skippable_ids: Set of item IDs that can be skipped (installed components)
         max_height: Maximum visible items before scrolling
     """
     config = SelectionDialogConfig(
         title=title,
         multi=True,
         preselected=preselected or set(),
+        skippable_ids=skippable_ids or set(),
         max_height=max_height,
     )
     result = SelectionDialog(items, config).run()

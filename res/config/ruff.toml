@@ -8,8 +8,6 @@ select = [
 ]
 # NO IGNORES ALLOWED. FIX THE CODE.
 
-[lint.per-file-ignores]
-# Test helper functions commonly need more than 5 arguments for factory patterns
-"tests/**" = ["PLR0913"]
+# NO PER-FILE IGNORES. FIX THE CODE.
 
 

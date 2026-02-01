@@ -24,11 +24,17 @@ if [ ! -d "$BOOT_DIR" ]; then
     exit 1
 fi
 
-# Check if already installed
+# Check if already installed AND working (toolchain must be configured)
 if [ -x "$RUST_HOME/bin/rustc" ] && [ -x "$RUST_HOME/bin/cargo" ]; then
-    EXISTING_VER=$("$RUST_HOME/bin/rustc" --version)
-    log_info "Rust is already installed: $EXISTING_VER"
-    exit 0
+    export RUSTUP_HOME="$RUST_HOME"
+    export CARGO_HOME="$RUST_HOME"
+    if EXISTING_VER=$("$RUST_HOME/bin/rustc" --version 2>/dev/null); then
+        log_info "Rust is already installed: $EXISTING_VER"
+        exit 0
+    else
+        log_info "Rust binaries exist but toolchain is broken, reinstalling..."
+        rm -rf "$RUST_HOME"
+    fi
 fi
 
 log_info "Bootstrapping Rust toolchain..."

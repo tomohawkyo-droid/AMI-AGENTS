@@ -45,6 +45,13 @@ class ComponentStatus(BaseModel):
     path: str | None = None
 
 
+class GroupComponents(BaseModel):
+    """Components organized under a group name."""
+
+    group: str
+    components: list["Component"] = []
+
+
 class Component(BaseModel):
     """A bootstrap component with detection capabilities."""
 
@@ -289,7 +296,7 @@ DEV_TOOLS = [
         group="Development Tools",
         script="bootstrap_rust.sh",
         detect_path=".boot-linux/rust/bin/cargo",
-        version_cmd=[".boot-linux/rust/bin/rustc", "--version"],
+        version_cmd=["ami/scripts/bin/ami-run", "rustc", "--version"],
         version_pattern=r"rustc (\d+\.\d+\.\d+)",
     ),
     Component(
@@ -478,16 +485,16 @@ GROUPS = [
 ]
 
 
-def get_components_by_group() -> dict:
+def get_components_by_group() -> list[GroupComponents]:
     """Get components organized by group.
 
-    Returns a dict mapping group name to list of Component.
+    Returns list of GroupComponents, one per group.
     """
-    result: dict = {g: [] for g in GROUPS}
+    groups_map = {g: GroupComponents(group=g, components=[]) for g in GROUPS}
     for comp in ALL_COMPONENTS:
-        if comp.group in result:
-            result[comp.group].append(comp)
-    return result
+        if comp.group in groups_map:
+            groups_map[comp.group].components.append(comp)
+    return list(groups_map.values())
 
 
 def get_component_by_name(name: str) -> Component | None:

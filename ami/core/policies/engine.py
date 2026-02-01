@@ -4,7 +4,7 @@ Centralizes the loading and management of YAML-based policies and patterns.
 """
 
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import NamedTuple, TypedDict
 
 import yaml
 
@@ -29,6 +29,13 @@ class BashPattern(TypedDict):
 ManifestData = object  # YAML parsed data, structure validated at runtime
 
 
+class BashCacheEntry(NamedTuple):
+    """Cached bash patterns for a policy name."""
+
+    name: str
+    patterns: list[BashPattern]
+
+
 class PolicyEngine:
     """Manages system-wide policies and pattern validation rules."""
 
@@ -38,7 +45,7 @@ class PolicyEngine:
         self.manifest_path = self.root / "ami/config/policies/manifest.yaml"
         self._manifest = self._load_manifest()
         # Instance-level caches to avoid lru_cache on methods
-        self._bash_cache: dict = {}
+        self._bash_cache: list[BashCacheEntry] = []
         self._python_cache: list[PythonPattern] | None = None
         self._sensitive_cache: list[BashPattern] | None = None
         self._communication_cache: list[BashPattern] | None = None
@@ -74,20 +81,28 @@ class PolicyEngine:
         # If we exhausted keys and ended with a string, return path; else None
         return self.root / current if isinstance(current, str) else None
 
+    def _get_cached_bash(self, name: str) -> list[BashPattern] | None:
+        """Look up cached bash patterns by name."""
+        for entry in self._bash_cache:
+            if entry.name == name:
+                return entry.patterns
+        return None
+
     def load_bash_patterns(self, name: str = "default") -> list[BashPattern]:
         """Load Bash command validation patterns."""
-        if name in self._bash_cache:
-            return cast(list[BashPattern], self._bash_cache[name])
+        cached = self._get_cached_bash(name)
+        if cached is not None:
+            return cached
 
         path = self._get_policy_path("bash", name)
         if not path or not path.exists():
-            self._bash_cache[name] = []
+            self._bash_cache.append(BashCacheEntry(name, []))
             return []
 
         with path.open() as f:
             data = yaml.safe_load(f)
         patterns = data.get("deny_patterns", []) if isinstance(data, dict) else []
-        self._bash_cache[name] = patterns
+        self._bash_cache.append(BashCacheEntry(name, patterns))
         return patterns
 
     def load_python_patterns(self) -> list[PythonPattern]:
