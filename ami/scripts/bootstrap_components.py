@@ -282,6 +282,17 @@ DEV_TOOLS = [
         version_pattern=r"go(\d+\.\d+\.\d+)",
     ),
     Component(
+        name="rust",
+        label="Rust",
+        description="Rust language & Cargo",
+        type=ComponentType.SCRIPT,
+        group="Development Tools",
+        script="bootstrap_rust.sh",
+        detect_path=".boot-linux/rust/bin/cargo",
+        version_cmd=[".boot-linux/rust/bin/rustc", "--version"],
+        version_pattern=r"rustc (\d+\.\d+\.\d+)",
+    ),
+    Component(
         name="sd",
         label="sd",
         description="sed alternative",

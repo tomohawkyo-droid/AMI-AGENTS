@@ -41,14 +41,10 @@ cat > "${BIN_DIR}/git" <<WRAPPER_EOF
 set -euo pipefail
 
 REAL_GIT="${REAL_GIT}"
-ARGS="\$*"
 
 block() {
     echo "❌ BLOCKED: \$1"
     echo "This command is forbidden to prevent data loss."
-    echo ""
-    echo "If you REALLY need to run this command, use the real git directly:"
-    echo "  \$REAL_GIT \$ARGS"
     exit 1
 }
 
@@ -115,13 +111,5 @@ else
     echo "   Ensure .boot-linux/bin is in PATH before /usr/bin"
 fi
 
-echo ""
-echo -e "\033[1;33m[WARN]\033[0m SAFETY GUARD ACTIVE - The following commands are BLOCKED:"
-echo -e "\033[1;33m[WARN]\033[0m   - git reset/checkout/clean/restore/rm/rebase/gc/prune"
-echo -e "\033[1;33m[WARN]\033[0m   - git stash drop/clear"
-echo -e "\033[1;33m[WARN]\033[0m   - git branch -D"
-echo -e "\033[1;33m[WARN]\033[0m   - git push --force / --force-with-lease"
-echo -e "\033[1;33m[WARN]\033[0m   - --hard, --no-verify flags"
-echo -e "\033[1;33m[WARN]\033[0m   Use ${REAL_GIT} to bypass (at your own risk)"
 echo ""
 echo "🎉 Git safety guard installed."
