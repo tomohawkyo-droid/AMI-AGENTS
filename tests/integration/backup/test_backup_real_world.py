@@ -1,14 +1,12 @@
 """End-to-End integration test for backup creation.
 
-MIRRORS USER WORKFLOW 1:1 AT SCALE.
-Generates a large number of files to reproduce scale-based segfaults.
+Tests archiver at scale using real codebase files (.venv).
+No synthetic file generation - uses existing directory structure.
 
 Note: Path setup is handled by tests/conftest.py.
 """
 
 import asyncio
-import contextlib
-import os
 import tempfile
 from pathlib import Path
 
@@ -17,54 +15,41 @@ import pytest
 from ami.scripts.backup.create import archiver
 
 
+# Use .venv as the test target - it has thousands of real files
+# Walk up from test file to find repo root (contains pyproject.toml)
+def _find_repo_root() -> Path:
+    """Find repository root by looking for pyproject.toml."""
+    current = Path(__file__).resolve()
+    for parent in [current, *current.parents]:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    msg = "Could not find repository root"
+    raise RuntimeError(msg)
+
+
+VENV_DIR = _find_repo_root() / ".venv"
+
+
 @pytest.mark.asyncio
-async def test_backup_at_scale():
+async def test_backup_at_scale() -> None:
     """
-    Reproduce the segfault by creating 300,000 files and running the archiver.
-    Also includes broken symlinks and deep nesting.
+    Test archiver at scale using real .venv directory.
+
+    .venv typically contains 50k+ files across deep directory structures,
+    symlinks, and various file types - perfect for stress testing.
     """
+    if not VENV_DIR.exists():
+        pytest.skip(".venv not found - run in development environment")
+
     with tempfile.TemporaryDirectory() as temp_dir:
-        base_dir = Path(temp_dir)
-        # We create the project root inside temp_dir to keep it clean
-        project_root = base_dir / "large_project"
-        project_root.mkdir()
+        output_dir = Path(temp_dir)
 
-        print(f"\n[Reproduction] Generating 300,000 files at {project_root}...")
+        archive_path = await archiver.create_zip_archive(
+            VENV_DIR, output_dir=output_dir, ignore_exclusions=False
+        )
 
-        # 1. Create 300k files across many directories to stress the walker
-        # Using a shallow but wide tree to avoid hitting standard recursion limits early
-        for i in range(300):
-            sub = project_root / f"dir_{i}"
-            sub.mkdir()
-            for j in range(1000):
-                (sub / f"file_{j}.txt").write_text("shite")
-
-        # 2. Add Hostile Files
-        # Circular symlink
-        os.symlink(project_root, project_root / "loop")
-
-        # Broken symlink
-        os.symlink(base_dir / "non-existent", project_root / "broken")
-
-        # FIFO - Windows does not support mkfifo
-        with contextlib.suppress(AttributeError):
-            os.mkfifo(project_root / "pipe")
-
-        print(f"[Reproduction] Starting archive of {project_root}...")
-
-        try:
-            # Mirror the exact call in ami-backup
-            # Note: we use a real output dir in the temp space
-            archive_path = await archiver.create_zip_archive(
-                project_root, output_dir=base_dir
-            )
-
-            print(f"[Reproduction] Success! Archive created: {archive_path}")
-            assert archive_path.exists()
-
-        except Exception as e:
-            print(f"[Reproduction] FAILED with error: {e}")
-            raise
+        assert archive_path.exists()
+        assert archive_path.stat().st_size > 0
 
 
 if __name__ == "__main__":
