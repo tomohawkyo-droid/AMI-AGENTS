@@ -77,17 +77,16 @@ class TestPodmanContainer:
 
     def test_with_labels(self) -> None:
         """Test PodmanContainer with labels."""
-        labels = {"app": "web", "env": "prod"}
+        labels = {"compose_project": "myapp", "compose_service": "web"}
         container = PodmanContainer(
             id="abc",
             name="test",
             labels=labels,
         )
-        # Labels are stored as object, cast for dict access in test
         stored_labels = container.labels
         assert isinstance(stored_labels, dict)
-        assert stored_labels["app"] == "web"
-        assert stored_labels["env"] == "prod"
+        assert stored_labels["compose_project"] == "myapp"
+        assert stored_labels["compose_service"] == "web"
 
 
 class TestSystemdService:

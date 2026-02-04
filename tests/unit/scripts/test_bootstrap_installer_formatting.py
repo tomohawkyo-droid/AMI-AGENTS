@@ -4,7 +4,12 @@ from typing import cast
 from unittest.mock import MagicMock, patch
 
 from ami.cli_components.selection_dialog import SelectableItem
-from ami.scripts.bootstrap_components import Component, ComponentStatus, ComponentType
+from ami.scripts.bootstrap_components import (
+    Component,
+    ComponentStatus,
+    ComponentType,
+    GroupComponents,
+)
 from ami.scripts.bootstrap_installer import (
     DIM,
     GREEN,
@@ -167,17 +172,26 @@ class TestScanComponents:
     @patch("ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", ["Test"])
     def test_scans_all_components(self, mock_get_groups, capsys) -> None:
         """Test scans all components and returns status list."""
-        comp = MagicMock()
-        comp.name = "test"
-        comp.label = "Test"
-        comp.get_status.return_value = ComponentStatus(installed=True, version="1.0")
-        mock_get_groups.return_value = {"Test": [comp]}
+        comp = Component(
+            name="test",
+            label="Test",
+            description="Test component",
+            type=ComponentType.NPM,
+            group="Test",
+        )
+        mock_get_groups.return_value = [
+            GroupComponents(group="Test", components=[comp])
+        ]
+        with patch.object(
+            Component,
+            "get_status",
+            return_value=ComponentStatus(installed=True, version="1.0"),
+        ):
+            statuses = scan_components()
 
-        statuses = scan_components()
-
-        test_status = next((s for s in statuses if s.name == "test"), None)
-        assert test_status is not None
-        assert test_status.installed is True
+            test_status = next((s for s in statuses if s.name == "test"), None)
+            assert test_status is not None
+            assert test_status.installed is True
 
     @patch(
         "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
@@ -185,7 +199,7 @@ class TestScanComponents:
     @patch("ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", [])
     def test_handles_empty_groups(self, mock_get_groups, capsys) -> None:
         """Test handles empty groups."""
-        mock_get_groups.return_value = {}
+        mock_get_groups.return_value = []
 
         statuses = scan_components()
 
@@ -210,7 +224,9 @@ class TestBuildMenuItems:
             type=ComponentType.NPM,
             group="TestGroup",
         )
-        mock_get_groups.return_value = {"TestGroup": [comp]}
+        mock_get_groups.return_value = [
+            GroupComponents(group="TestGroup", components=[comp])
+        ]
         statuses = [
             NamedComponentStatus(name="test", installed=False, version=None, path=None)
         ]
@@ -231,8 +247,8 @@ class TestBuildMenuItems:
     @patch(
         "ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", ["TestGroup"]
     )
-    def test_preselects_installed_components(self, mock_get_groups) -> None:
-        """Test preselects installed components."""
+    def test_installed_components_in_skippable(self, mock_get_groups) -> None:
+        """Test installed components are in skippable_ids."""
         comp = Component(
             name="test",
             label="Test",
@@ -240,14 +256,16 @@ class TestBuildMenuItems:
             type=ComponentType.NPM,
             group="TestGroup",
         )
-        mock_get_groups.return_value = {"TestGroup": [comp]}
+        mock_get_groups.return_value = [
+            GroupComponents(group="TestGroup", components=[comp])
+        ]
         statuses = [
             NamedComponentStatus(name="test", installed=True, version="1.0", path=None)
         ]
 
         result = build_menu_items(statuses)
 
-        assert "test" in result.preselected_ids
+        assert "test" in result.skippable_ids
 
     @patch(
         "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
@@ -255,7 +273,7 @@ class TestBuildMenuItems:
     @patch("ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", ["Empty"])
     def test_skips_empty_groups(self, mock_get_groups) -> None:
         """Test skips empty groups."""
-        mock_get_groups.return_value = {"Empty": []}
+        mock_get_groups.return_value = [GroupComponents(group="Empty", components=[])]
 
         result = build_menu_items([])
         items = cast(list[SelectableItem], result.menu_items)

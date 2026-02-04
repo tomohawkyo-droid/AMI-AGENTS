@@ -303,19 +303,21 @@ class TestNpmHelpers:
 class TestGetComponentsByGroup:
     """Tests for get_components_by_group function."""
 
-    def test_returns_dict_with_all_groups(self) -> None:
-        """Test returns dict with all groups."""
+    def test_returns_list_with_all_groups(self) -> None:
+        """Test returns list with all groups."""
         result = get_components_by_group()
+        group_names = {gc.group for gc in result}
 
         for group in GROUPS:
-            assert group in result
+            assert group in group_names
 
     def test_components_in_correct_groups(self) -> None:
         """Test components are in their correct groups."""
         result = get_components_by_group()
+        by_group = {gc.group: gc.components for gc in result}
 
-        assert any(c.name == "claude" for c in result["AI Coding Assistants"])
-        assert any(c.name == "podman" for c in result["Containers & Orchestration"])
+        assert any(c.name == "claude" for c in by_group["AI Coding Assistants"])
+        assert any(c.name == "podman" for c in by_group["Containers & Orchestration"])
 
 
 class TestGetComponentByName:

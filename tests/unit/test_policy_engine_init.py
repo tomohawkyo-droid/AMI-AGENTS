@@ -149,7 +149,11 @@ class TestPolicyEngineLoadBashPatterns:
         # First call
         engine.load_bash_patterns("default")
         # Add to cache manually to verify caching
-        engine._bash_cache["custom"] = [{"pattern": "test", "reason": "Test"}]
+        from ami.core.policies.engine import BashCacheEntry
+
+        engine._bash_cache.append(
+            BashCacheEntry("custom", [{"pattern": "test", "reason": "Test"}])
+        )
 
         # Should return cached value
         patterns = engine.load_bash_patterns("custom")

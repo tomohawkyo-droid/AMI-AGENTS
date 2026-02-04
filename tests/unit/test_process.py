@@ -193,7 +193,7 @@ class TestDrainPipes:
 
         # Create mock selector and key
         mock_sel = MagicMock()
-        mock_file = MagicMock()
+        mock_file = MagicMock(spec=TextIOWrapper)
         mock_file.read.return_value = "remaining data"
 
         mock_key = MagicMock()

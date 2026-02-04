@@ -119,7 +119,7 @@ class TestMain:
         """Test exits when user cancels confirmation."""
         mock_stdin.isatty.return_value = True
         mock_scan.return_value = {}
-        mock_build.return_value = MenuBuildResult([], set())
+        mock_build.return_value = MenuBuildResult([], set(), set())
 
         # Create mock selected items with actual component values
         comp = Component(
@@ -155,7 +155,7 @@ class TestMain:
         """Test exits when user selects nothing."""
         mock_stdin.isatty.return_value = True
         mock_scan.return_value = {}
-        mock_build.return_value = MenuBuildResult([], set())
+        mock_build.return_value = MenuBuildResult([], set(), set())
         mock_multi.return_value = []
 
         result = main()
@@ -179,7 +179,7 @@ class TestMain:
         """Test runs installation when user confirms."""
         mock_stdin.isatty.return_value = True
         mock_scan.return_value = {}
-        mock_build.return_value = MenuBuildResult([], set())
+        mock_build.return_value = MenuBuildResult([], set(), set())
 
         comp = Component(
             name="test",

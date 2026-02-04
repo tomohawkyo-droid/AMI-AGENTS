@@ -216,7 +216,11 @@ class TestCreateArchive:
 
             mock_proc = MagicMock()
             mock_proc.returncode = 2  # TAR_FATAL_ERROR
-            mock_proc.communicate = AsyncMock(return_value=(b"", b"tar error"))
+            mock_proc.stdout = MagicMock()
+            mock_proc.stdout.read = AsyncMock(side_effect=[b"", b""])
+            mock_proc.stderr = MagicMock()
+            mock_proc.stderr.read = AsyncMock(return_value=b"tar error")
+            mock_proc.wait = AsyncMock()
 
             with patch(
                 "asyncio.create_subprocess_exec",
@@ -237,14 +241,18 @@ class TestCreateArchive:
 
             mock_proc = MagicMock()
             mock_proc.returncode = 0
-            mock_proc.communicate = AsyncMock(return_value=(b"tar data", b""))
+            mock_proc.stdout = MagicMock()
+            mock_proc.stdout.read = AsyncMock(side_effect=[b"tar data", b""])
+            mock_proc.stderr = MagicMock()
+            mock_proc.stderr.read = AsyncMock(return_value=b"")
+            mock_proc.wait = AsyncMock()
 
             with (
                 patch(
                     "asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)
                 ),
                 patch(
-                    "zstandard.ZstdCompressor.compress",
+                    "zstandard.ZstdCompressor.stream_writer",
                     side_effect=Exception("Compression error"),
                 ),
                 pytest.raises(ArchiveError) as exc_info,

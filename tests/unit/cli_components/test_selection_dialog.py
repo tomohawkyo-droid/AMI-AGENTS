@@ -78,9 +78,9 @@ class TestSelectionDialogConfig:
         assert config.max_height == EXPECTED_CUSTOM_MAX_HEIGHT
         assert config.preselected == preselected
 
-    def test_none_preselected_becomes_empty_set(self):
-        """Test None preselected becomes empty set."""
-        config = SelectionDialogConfig(preselected=None)
+    def test_omitted_preselected_becomes_empty_set(self):
+        """Test omitted preselected becomes empty set."""
+        config = SelectionDialogConfig()
         assert config.preselected == set()
 
 
