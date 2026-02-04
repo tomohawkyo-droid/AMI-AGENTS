@@ -65,6 +65,21 @@ def _should_exclude_path(
     return False
 
 
+async def _stream_to_zstd(proc: asyncio.subprocess.Process, archive_path: Path) -> None:
+    """Stream subprocess stdout to zstd compressed file."""
+    if proc.stdout is None:
+        msg = "Process has no stdout"
+        raise ArchiveError(msg)
+
+    cctx = zstd.ZstdCompressor(level=3)
+    with open(archive_path, "wb") as fout, cctx.stream_writer(fout) as compressor:
+        while True:
+            chunk = await proc.stdout.read(65536)  # 64KB chunks
+            if not chunk:
+                break
+            compressor.write(chunk)
+
+
 async def create_archive(
     root_dir: Path,
     output_filename: str | None = None,
@@ -124,23 +139,24 @@ async def create_archive(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        tar_data, stderr = await proc.communicate()
     except FileNotFoundError:
         msg = "tar command not found"
         raise ArchiveError(msg) from None
 
-    # tar exit codes: 0=success, 1=some files differ (warnings), 2=fatal error
-    # With --ignore-failed-read, permission errors become warnings (exit 1)
-    if proc.returncode == TAR_FATAL_ERROR:
-        msg = f"tar failed: {stderr.decode()}"
-        raise ArchiveError(msg)
-
+    # Stream tar output directly to zstd file - never load full tar into RAM
     try:
-        cctx = zstd.ZstdCompressor(level=3)
-        compressed = cctx.compress(tar_data)
-        archive_path.write_bytes(compressed)
+        await _stream_to_zstd(proc, archive_path)
     except Exception as e:
         msg = f"Archive creation failed: {e}"
         raise ArchiveError(msg) from e
+
+    stderr_data = await proc.stderr.read() if proc.stderr else b""
+    await proc.wait()
+
+    # tar exit codes: 0=success, 1=some files differ (warnings), 2=fatal error
+    # With --ignore-failed-read, permission errors become warnings (exit 1)
+    if proc.returncode == TAR_FATAL_ERROR:
+        msg = f"tar failed: {stderr_data.decode()}"
+        raise ArchiveError(msg)
 
     return archive_path

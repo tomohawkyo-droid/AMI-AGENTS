@@ -89,6 +89,16 @@ setup_node_env() {
     # Update PATH to prioritize the local node environment for subsequent commands
     export PATH="$venv_dir/bin:$PATH"
 
+    # Create symlinks in .boot-linux/bin/
+    local bin_dir="$PWD/.boot-linux/bin"
+    mkdir -p "$bin_dir"
+
+    ln -sf "../node-env/bin/node" "$bin_dir/node"
+    ln -sf "../node-env/bin/npm" "$bin_dir/npm"
+    ln -sf "../node-env/bin/npx" "$bin_dir/npx"
+
+    log_info "✓ Node.js symlinks created in $bin_dir"
+
     return 0
 }
 

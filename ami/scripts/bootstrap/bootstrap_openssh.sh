@@ -221,6 +221,7 @@ ln -sf "${OPENSSH_DIR}/sbin/sshd" "${BIN_DIR}/sshd"
 ln -sf "${OPENSSH_DIR}/bin/ssh" "${BIN_DIR}/ssh"
 ln -sf "${OPENSSH_DIR}/bin/ssh-keygen" "${BIN_DIR}/ssh-keygen"
 ln -sf "${OPENSSH_DIR}/bin/scp" "${BIN_DIR}/scp"
+ln -sf "${OPENSSH_DIR}/bin/sftp" "${BIN_DIR}/sftp"
 
 # Clean up
 rm -f "${OPENSSH_DIR}"/*.deb

@@ -142,8 +142,11 @@ fi
 
 log_info "Found binaries in: ${BINARY_DIR}"
 
-# Create symlinks for essential PDF generation tools
-for binary in pdflatex xelatex lualatex latex kpsewhich mktexlsr; do
+# Create symlinks for essential PDF generation and TeX tools
+for binary in pdflatex xelatex lualatex latex kpsewhich mktexlsr \
+              bibtex dvips makeindex tex luatex luahbtex \
+              afm2tfm dvipdft gftodvi gftopk gftype mf mf-nowin mft \
+              mkindex mkocp mkofm pktogf pktype teckit_compile xdvi xdvipdfmx xetex; do
     if [[ -f "${BINARY_DIR}/${binary}" ]]; then
         ln -sf "${BINARY_DIR}/${binary}" "${VENV_DIR}/bin/${binary}"
         log_info "Created symlink for ${binary}"

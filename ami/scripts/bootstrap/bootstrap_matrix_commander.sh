@@ -23,4 +23,10 @@ fi
 # Install matrix-commander using uv pip into the boot-linux python env
 "$UV_CMD" pip install --python "$PYTHON_ENV" matrix-commander
 
+# Create symlink in .boot-linux/bin/
+BIN_DIR="$BOOT_LINUX_DIR/bin"
+mkdir -p "$BIN_DIR"
+ln -sf "../python-env/bin/matrix-commander" "$BIN_DIR/matrix-commander"
+
+echo "✓ Symlink created at $BIN_DIR/matrix-commander"
 echo "matrix-commander installed in .boot-linux"

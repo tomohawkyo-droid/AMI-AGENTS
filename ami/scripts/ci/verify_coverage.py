@@ -41,8 +41,6 @@ def run_coverage(
     cmd = [
         "uv",
         "run",
-        "--extra",
-        "torch-cpu",
         "pytest",
         test_path,
         f"--cov={source_path}",

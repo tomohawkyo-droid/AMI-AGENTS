@@ -85,3 +85,18 @@ fi
 log_success "Rust installed to $RUST_HOME"
 "$RUST_HOME/bin/rustc" --version
 "$RUST_HOME/bin/cargo" --version
+
+# Create symlinks in .boot-linux/bin/
+BIN_DIR="${BOOT_DIR}/bin"
+mkdir -p "${BIN_DIR}"
+
+ln -sf "../rust/bin/rustup" "${BIN_DIR}/rustup"
+ln -sf "../rust/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo" "${BIN_DIR}/cargo"
+ln -sf "../rust/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc" "${BIN_DIR}/rustc"
+ln -sf "../rust/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustfmt" "${BIN_DIR}/rustfmt"
+ln -sf "../rust/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo-clippy" "${BIN_DIR}/cargo-clippy"
+ln -sf "../rust/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo-fmt" "${BIN_DIR}/cargo-fmt"
+ln -sf "../rust/toolchains/stable-x86_64-unknown-linux-gnu/bin/clippy-driver" "${BIN_DIR}/clippy-driver"
+ln -sf "../rust/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustdoc" "${BIN_DIR}/rustdoc"
+
+log_success "Rust symlinks created in ${BIN_DIR}"

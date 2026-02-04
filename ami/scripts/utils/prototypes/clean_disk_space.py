@@ -7,6 +7,8 @@ Safety Guarantee: NEVER deletes resources labeled or named 'checkpoint'.
 
 import argparse
 import json
+import os
+import shutil
 import subprocess
 from typing import Any, cast
 
@@ -45,6 +47,26 @@ class DiskCleaner:
         except json.JSONDecodeError:
             # Fallback for weird Podman versions handling empty lists
             return []
+
+    def clean_uv_cache(self) -> None:
+        """Cleans 'uv' package cache (~24GB potential)."""
+        print("\n--- Analyzing UV Cache ---")
+        if shutil.which("uv"):
+            # uv cache prune doesn't have a dry-run flag that outputs size easily,
+            # so we just check existence and run if forced.
+            cache_dir = os.path.expanduser("~/.cache/uv")
+            if os.path.exists(cache_dir):
+                size_output = run_cmd(["du", "-sh", cache_dir])
+                print(f"Found uv cache: {size_output}")
+                if not self.dry_run:
+                    print("[DELETE] Cleaning uv cache...")
+                    subprocess.run(["uv", "cache", "clean"], check=False)
+                else:
+                    print("[PLAN] Would run 'uv cache clean'")
+            else:
+                print("No uv cache directory found.")
+        else:
+            print("uv tool not found. Skipping.")
 
     def clean_containers(self) -> None:
         """Removes stopped/exited/created containers."""
@@ -86,28 +108,72 @@ class DiskCleaner:
             if not self.dry_run:
                 subprocess.run(["podman", "rm", "-f", c_id], check=False)
 
-    def clean_images(self) -> None:
-        """Removes dangling (<none>) images."""
-        print("\n--- Analyzing Images ---")
-        cmd = ["podman", "images", "--filter", "dangling=true", "--format", "json"]
-        images = self.get_json_items(cmd)
+    @staticmethod
+    def _get_image_tag_str(img: object) -> str:
+        """Extract a display string from image repo tags."""
+        img_any = cast(Any, img)
+        repo_tags = img_any.get("RepoTags", [])
+        if not repo_tags:
+            return "<none>"
+        if isinstance(repo_tags, list):
+            return ", ".join(repo_tags)
+        return str(repo_tags)
 
-        if not images:
-            print("No dangling images found.")
+    @staticmethod
+    def _is_protected_image(tag_str: str, keywords: list[str]) -> bool:
+        """Check if image matches any protected keyword."""
+        tag_lower = tag_str.lower()
+        for kw in keywords:
+            if kw in tag_lower:
+                print(f"[SKIP] Image '{tag_str}' matches protected keyword: '{kw}'")
+                return True
+        return False
+
+    def clean_images(self) -> None:
+        """Removes all unused images (not just dangling)."""
+        print("\n--- Analyzing Images ---")
+
+        # 1. Get IDs of images used by ANY container (running or stopped)
+        used_images_cmd = [
+            "podman",
+            "ps",
+            "-a",
+            "--format",
+            "{{.ImageID}}",
+            "--no-trunc",
+        ]
+        used_images_output = run_cmd(used_images_cmd)
+        used_image_ids = (
+            set(used_images_output.splitlines()) if used_images_output else set()
+        )
+
+        # 2. Get all images
+        cmd = ["podman", "images", "--format", "json"]
+        all_images = self.get_json_items(cmd)
+
+        if not all_images:
+            print("No images found.")
             return
 
-        for img_obj in images:
+        protected_keywords = ["checkpoint", "base-os", "postgres"]
+
+        for img_obj in all_images:
             if not isinstance(img_obj, dict):
                 continue
             img = cast(Any, img_obj)
-            img_id = str(img.get("Id", img.get("ID", "")))
+            img_id_full = str(img.get("Id", img.get("ID", "")))
+            tag_str = self._get_image_tag_str(img)
 
-            # Safety Check: If it has tags (unlikely for dangling=true) check them
-            # But primarily check ID
+            if img_id_full in used_image_ids:
+                continue
 
-            print(f"[DELETE] Dangling Image {img_id[:12]}")
+            if self._is_protected_image(tag_str, protected_keywords):
+                continue
+
+            img_id_short = img_id_full[:12]
+            print(f"[DELETE] Unused Image {tag_str} ({img_id_short})")
             if not self.dry_run:
-                subprocess.run(["podman", "rmi", "-f", img_id], check=False)
+                subprocess.run(["podman", "rmi", "-f", img_id_full], check=False)
 
     def clean_volumes(self) -> None:
         """Removes unused volumes (dangling), PROTECTING checkpoints and databases."""
@@ -158,6 +224,7 @@ class DiskCleaner:
                 subprocess.run(["podman", "volume", "rm", "-f", name], check=False)
 
     def run(self) -> None:
+        self.clean_uv_cache()
         self.clean_containers()
         self.clean_images()
         self.clean_volumes()

@@ -154,6 +154,19 @@ exec "${WKHTML_DIR}/bin/wkhtmltopdf" "$@"
 WRAPPER
 chmod +x "${VENV_DIR}/bin/wkhtmltopdf"
 
+# Create wrapper for wkhtmltoimage
+if [[ -f "${WKHTMLTOPDF_DIR}/bin/wkhtmltoimage" ]]; then
+    cat > "${VENV_DIR}/bin/wkhtmltoimage" <<'WRAPPER'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WKHTML_DIR="$(dirname "$SCRIPT_DIR")/wkhtmltopdf"
+export LD_LIBRARY_PATH="${WKHTML_DIR}/lib:${LD_LIBRARY_PATH:-}"
+exec "${WKHTML_DIR}/bin/wkhtmltoimage" "$@"
+WRAPPER
+    chmod +x "${VENV_DIR}/bin/wkhtmltoimage"
+    log_info "Created wrapper for wkhtmltoimage"
+fi
+
 # Clean up
 rm -f "${WKHTMLTOPDF_DIR}/wkhtmltox.deb"
 rm -f "${WKHTMLTOPDF_DIR}"/*.tar.*

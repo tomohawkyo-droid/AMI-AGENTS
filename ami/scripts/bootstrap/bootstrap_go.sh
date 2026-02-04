@@ -76,3 +76,12 @@ cd - >/dev/null
 
 log_success "Go installed to $GO_DEST"
 "$GO_DEST/bin/go" version
+
+# Create symlinks in .boot-linux/bin/
+BIN_DIR="${BOOT_DIR}/bin"
+mkdir -p "${BIN_DIR}"
+
+ln -sf "../go/bin/go" "${BIN_DIR}/go"
+ln -sf "../go/bin/gofmt" "${BIN_DIR}/gofmt"
+
+log_success "Go symlinks created in ${BIN_DIR}"

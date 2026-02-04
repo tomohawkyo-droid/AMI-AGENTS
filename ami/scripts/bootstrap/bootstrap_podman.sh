@@ -229,6 +229,13 @@ for binary in conmon netavark aardvark-dns; do
     fi
 done
 
+# Link container runtime binaries
+for binary in crun fuse-overlayfs fusermount3 pasta runc; do
+    if [[ -f "${PODMAN_DIR}/usr/local/bin/${binary}" ]]; then
+        ln -sf "${PODMAN_DIR}/usr/local/bin/${binary}" "${VENV_DIR}/bin/${binary}"
+    fi
+done
+
 # Link real podman to podman-real
 log_info "Installing Podman with safety guard"
 if [[ -f "${PODMAN_DIR}/usr/local/bin/podman" ]]; then

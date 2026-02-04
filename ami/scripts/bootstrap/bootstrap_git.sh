@@ -102,4 +102,11 @@ log_info "  - Binary: ${GIT_DIR}/bin/git"
 log_info "  - Git core: ${GIT_DIR}/libexec/git-core/"
 log_info ""
 log_info "Git is now available in .boot-linux"
-log_info "Symlink will be created at .boot-linux/bin/git"
+
+# Create symlink in .boot-linux/bin/
+BIN_DIR="${BOOT_DIR}/bin"
+mkdir -p "${BIN_DIR}"
+
+ln -sf "../git/bin/git" "${BIN_DIR}/git"
+
+log_info "✓ Symlink created at ${BIN_DIR}/git"
