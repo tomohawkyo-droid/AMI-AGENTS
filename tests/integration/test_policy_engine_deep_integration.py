@@ -232,7 +232,7 @@ class TestNonexistentManifest:
         engine.root = tmp_path
         engine.manifest_path = tmp_path / "nonexistent.yaml"
         engine._manifest = engine._load_manifest()
-        engine._bash_cache = {}
+        engine._bash_cache = []
         engine._python_cache = None
         engine._sensitive_cache = None
         engine._communication_cache = None

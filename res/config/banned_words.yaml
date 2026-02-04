@@ -25,9 +25,10 @@ banned:
   # === FORBIDDEN COMPLEX TYPES ===
   # Use TypedDict/NamedTuple/Pydantic for data structures.
   # Exception: CI scripts need internal caches with dynamic keys for performance
+  # Exception: types/common.py ContainerLabels needs dict[str, str] for arbitrary Docker labels
   - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
     reason: "BANNED. Use TypedDict/NamedTuple/Pydantic."
-    exception_regex: "scripts/ci/"
+    exception_regex: "(scripts/ci/|types/common\\.py)"
 
   # Exception: subprocess interface files need Mapping for Popen env parameter
   - pattern: '\b(Mapping|Sequence|MutableMapping|MutableSequence|Iterable|Iterator)\['

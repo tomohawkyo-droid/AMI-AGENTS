@@ -151,19 +151,14 @@ class DriveListResponse(TypedDict, total=False):
     nextPageToken: str
 
 
-# === Container Labels ===
-class ContainerLabels(TypedDict, total=False):
-    """Common container labels."""
-
-    PODMAN_SYSTEMD_UNIT: str
-    compose_project: str
-    compose_service: str
-    compose_config: str
+# Container labels are arbitrary key-value pairs from Docker/Podman,
+# so dict[str, str] is the correct type (not TypedDict).
+ContainerLabels = dict[str, str]
 
 
 def empty_labels() -> ContainerLabels:
     """Factory for empty ContainerLabels."""
-    return ContainerLabels()
+    return {}
 
 
 # === Installation Results ===

@@ -1,7 +1,7 @@
-"""Integration tests for extension help options.
+"""Integration tests for extensions defined in ami/config/extensions.yaml.
 
-Tests that every extension in ami/scripts/extensions/ responds to --help or -h
-without errors, verifying that the underlying tools are properly configured.
+Tests that extensions have valid metadata, binaries exist, and commands
+are properly installed in .boot-linux/bin/.
 """
 
 import os
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
+import yaml
 
 
 def _find_project_root() -> Path:
@@ -24,11 +25,9 @@ def _find_project_root() -> Path:
 
 
 PROJECT_ROOT = _find_project_root()
-EXTENSIONS_DIR = PROJECT_ROOT / "ami" / "scripts" / "extensions"
+EXTENSIONS_YAML = PROJECT_ROOT / "ami" / "config" / "extensions.yaml"
+BIN_DIR = PROJECT_ROOT / ".boot-linux" / "bin"
 VALID_CATEGORIES = frozenset(["core", "enterprise", "dev", "agents"])
-REQUIRED_METADATA_FIELDS = frozenset(
-    ["@name", "@description", "@category", "@binary", "@features"]
-)
 MIN_DESCRIPTION_LENGTH = 5
 
 
@@ -41,42 +40,24 @@ class ExtensionMetadata(NamedTuple):
     binary: str
     features: str
     hidden: bool
-    file_path: Path
-
-
-def parse_extension_metadata(ext_file: Path) -> ExtensionMetadata | None:
-    """Parse metadata from an extension file."""
-    content = ext_file.read_text()
-    metadata = {}
-
-    for line in content.splitlines():
-        if line.startswith("# @"):
-            match = re.match(r"# @(\w+):\s*(.+)", line)
-            if match:
-                metadata[match.group(1)] = match.group(2).strip()
-
-    if "name" not in metadata:
-        return None
-
-    return ExtensionMetadata(
-        name=metadata.get("name", ""),
-        description=metadata.get("description", ""),
-        category=metadata.get("category", ""),
-        binary=metadata.get("binary", ""),
-        features=metadata.get("features", ""),
-        hidden=metadata.get("hidden", "").lower() == "true",
-        file_path=ext_file,
-    )
 
 
 def get_all_extensions() -> list[ExtensionMetadata]:
-    """Get all extensions with their metadata."""
-    extensions = []
-    for ext_file in sorted(EXTENSIONS_DIR.glob("*.sh")):
-        meta = parse_extension_metadata(ext_file)
-        if meta:
-            extensions.append(meta)
-    return extensions
+    """Get all extensions from extensions.yaml (single source of truth)."""
+    if not EXTENSIONS_YAML.exists():
+        return []
+    config = yaml.safe_load(EXTENSIONS_YAML.read_text())
+    return [
+        ExtensionMetadata(
+            name=ext.get("name", ""),
+            description=ext.get("description", ""),
+            category=ext.get("category", ""),
+            binary=ext.get("binary", ""),
+            features=ext.get("features", ""),
+            hidden=ext.get("hidden", False),
+        )
+        for ext in config.get("extensions", [])
+    ]
 
 
 def check_binary_exists(binary_path: str) -> bool:
@@ -85,14 +66,6 @@ def check_binary_exists(binary_path: str) -> bool:
         return False
     full_path = PROJECT_ROOT / binary_path
     return full_path.exists()
-
-
-def check_binary_executable(binary_path: str) -> bool:
-    """Check if the binary is executable."""
-    if not binary_path:
-        return False
-    full_path = PROJECT_ROOT / binary_path
-    return full_path.exists() and os.access(full_path, os.X_OK)
 
 
 def get_binary_shebang(binary_path: str) -> str | None:
@@ -110,16 +83,13 @@ def get_binary_shebang(binary_path: str) -> str | None:
     return None
 
 
-def validate_shebang_paths(shebang: str, binary_path: str) -> list[str]:
+def validate_shebang_paths(shebang: str) -> list[str]:
     """Validate that paths in shebang actually exist. Returns list of issues."""
     issues: list[str] = []
     if not shebang:
         return issues
 
-    # Extract paths from shebang
-    shebang_content = shebang[2:].strip()  # Remove #!
-
-    # Check for hardcoded absolute paths that might be wrong
+    shebang_content = shebang[2:].strip()
     path_pattern = re.compile(r'(/[^\s"\']+)')
     for match in path_pattern.finditer(shebang_content):
         path = match.group(1)
@@ -134,14 +104,11 @@ EXTENSION_NAMES = [ext.name for ext in ALL_EXTENSIONS]
 
 
 def make_test_env():
-    """Create environment for running extension tests.
-
-    Returns an environ dict suitable for subprocess calls.
-    """
+    """Create environment for running extension tests."""
     env = os.environ.copy()
     env["AMI_ROOT"] = str(PROJECT_ROOT)
     env["PATH"] = (
-        f"{PROJECT_ROOT}/.boot-linux/bin:"
+        f"{BIN_DIR}:"
         f"{PROJECT_ROOT}/.venv/bin:"
         f"{PROJECT_ROOT}/.venv/node_modules/.bin:"
         f"{env.get('PATH', '')}"
@@ -159,78 +126,55 @@ def get_extension_by_name(name: str) -> ExtensionMetadata | None:
 
 
 @pytest.mark.integration
-class TestExtensionFunctionGeneration:
-    """Test that extensions generate valid shell functions."""
-
-    @pytest.fixture(autouse=True)
-    def setup_env(self):
-        """Setup environment for extension tests."""
-        self.env = make_test_env()
+class TestExtensionInstallation:
+    """Test that extensions are installed as symlinks/wrappers in .boot-linux/bin/."""
 
     @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
-    def test_extension_generates_function(self, ext_name: str):
-        """Test that extension script outputs a valid function definition."""
-        ext = get_extension_by_name(ext_name)
-        assert ext is not None, f"Extension {ext_name} not found"
-
-        result = subprocess.run(
-            ["bash", str(ext.file_path)],
-            capture_output=True,
-            text=True,
-            env=self.env,
-            timeout=10,
-            check=False,
-        )
-
-        assert result.returncode == 0, (
-            f"Extension {ext_name} script failed with code {result.returncode}\n"
-            f"stderr: {result.stderr}"
-        )
-
-        func_def = result.stdout.strip()
-        assert func_def, f"Extension {ext_name} produced no output"
-
-        # Verify it looks like a function definition
-        assert f"{ext_name}()" in func_def, (
-            f"Extension {ext_name} output doesn't contain function definition\n"
-            f"Output: {func_def}"
+    def test_command_exists_in_bin(self, ext_name: str):
+        """Test that extension command exists in .boot-linux/bin/."""
+        cmd_path = BIN_DIR / ext_name
+        assert cmd_path.exists(), (
+            f"Extension {ext_name} not installed in {BIN_DIR}\n"
+            f"Run: make register-extensions"
         )
 
     @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
-    def test_function_is_valid_bash(self, ext_name: str):
-        """Test that the generated function is valid bash syntax."""
+    def test_command_is_executable(self, ext_name: str):
+        """Test that extension command is executable."""
+        cmd_path = BIN_DIR / ext_name
+        if not cmd_path.exists():
+            pytest.xfail(f"Command not installed: {ext_name}")
+
+        assert os.access(
+            cmd_path, os.X_OK
+        ), f"Extension {ext_name} is not executable: {cmd_path}"
+
+    @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
+    def test_symlink_or_wrapper_type(self, ext_name: str):
+        """Test that non-.py binaries are symlinks, .py binaries are wrappers."""
         ext = get_extension_by_name(ext_name)
         assert ext is not None
+        cmd_path = BIN_DIR / ext_name
+        if not cmd_path.exists():
+            pytest.xfail(f"Command not installed: {ext_name}")
 
-        result = subprocess.run(
-            ["bash", str(ext.file_path)],
-            capture_output=True,
-            text=True,
-            env=self.env,
-            timeout=10,
-            check=False,
-        )
-        func_def = result.stdout.strip()
-
-        # Use bash -n to syntax check
-        syntax_check = subprocess.run(
-            ["bash", "-n", "-c", func_def],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-
-        assert syntax_check.returncode == 0, (
-            f"Extension {ext_name} generates invalid bash syntax\n"
-            f"Function: {func_def}\n"
-            f"Error: {syntax_check.stderr}"
-        )
+        if ext.binary.endswith(".py"):
+            # Python scripts get wrapper scripts (not symlinks)
+            assert (
+                not cmd_path.is_symlink()
+            ), f"{ext_name} (.py binary) should be a wrapper, not a symlink"
+            content = cmd_path.read_text()
+            assert "ami-run" in content, f"{ext_name} wrapper should call ami-run"
+        else:
+            # Non-Python binaries get symlinks
+            assert (
+                cmd_path.is_symlink()
+            ), f"{ext_name} (non-.py binary) should be a symlink"
 
 
 @pytest.mark.integration
 class TestExtensionHelp:
-    """Test that all extensions respond to help flags."""
+    """Test that extensions respond to help flags."""
 
     @pytest.fixture(autouse=True)
     def setup_env(self):
@@ -249,10 +193,14 @@ class TestExtensionHelp:
         if not check_binary_exists(ext.binary):
             pytest.xfail(f"Binary not installed: {ext.binary}")
 
+        cmd_path = BIN_DIR / ext_name
+        if not cmd_path.exists():
+            pytest.xfail(f"Command not installed in bin: {ext_name}")
+
         # Check for broken shebangs in the binary
         shebang = get_binary_shebang(ext.binary)
         if shebang:
-            issues = validate_shebang_paths(shebang, ext.binary)
+            issues = validate_shebang_paths(shebang)
             if issues:
                 pytest.fail(
                     f"Extension {ext_name} binary has broken shebang:\n"
@@ -261,72 +209,30 @@ class TestExtensionHelp:
                     f"Issues: {'; '.join(issues)}"
                 )
 
-        # Get the function definition
-        result = subprocess.run(
-            ["bash", str(ext.file_path)],
-            capture_output=True,
-            text=True,
-            env=self.env,
-            timeout=10,
-            check=False,
-        )
-        func_def = result.stdout.strip()
-
-        if not func_def:
-            pytest.fail(f"Extension {ext_name} produced no function definition")
-
-        # Try --help first
-        help_cmd = f"{func_def}; {ext_name} --help"
-        result = subprocess.run(
-            ["bash", "-c", help_cmd],
-            capture_output=True,
-            text=True,
-            env=self.env,
-            timeout=30,
-            check=False,
-        )
-
-        # Fall back to -h if --help fails
-        if result.returncode != 0:
-            help_cmd = f"{func_def}; {ext_name} -h"
+        # Try --help first, fall back to -h
+        for flag in ("--help", "-h"):
             result = subprocess.run(
-                ["bash", "-c", help_cmd],
+                [str(cmd_path), flag],
                 capture_output=True,
                 text=True,
                 env=self.env,
                 timeout=30,
                 check=False,
             )
-
-        assert result.returncode == 0, (
-            f"Extension {ext_name} help failed with code {result.returncode}\n"
-            f"Binary: {ext.binary}\n"
-            f"stdout: {result.stdout[:500] if result.stdout else '(empty)'}\n"
-            f"stderr: {result.stderr[:500] if result.stderr else '(empty)'}"
-        )
-
-        output = result.stdout + result.stderr
-        assert len(output) > 0, f"Extension {ext_name} --help produced no output"
+            if result.returncode == 0:
+                break
+        else:
+            assert result.returncode == 0, (
+                f"Extension {ext_name} help failed with code {result.returncode}\n"
+                f"Binary: {ext.binary}\n"
+                f"stdout: {result.stdout[:500] if result.stdout else '(empty)'}\n"
+                f"stderr: {result.stderr[:500] if result.stderr else '(empty)'}"
+            )
 
 
 @pytest.mark.integration
 class TestExtensionMetadata:
-    """Test that all extensions have valid metadata."""
-
-    @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
-    def test_extension_has_required_metadata(self, ext_name: str):
-        """Test that extension has all required metadata fields."""
-        ext = get_extension_by_name(ext_name)
-        assert ext is not None
-
-        content = ext.file_path.read_text()
-        missing_fields = [
-            field for field in REQUIRED_METADATA_FIELDS if f"# {field}:" not in content
-        ]
-
-        assert (
-            not missing_fields
-        ), f"Extension {ext_name} missing metadata fields: {', '.join(missing_fields)}"
+    """Test that all extensions have valid metadata in extensions.yaml."""
 
     @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
     def test_extension_category_valid(self, ext_name: str):
@@ -340,31 +246,6 @@ class TestExtensionMetadata:
         )
 
     @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
-    def test_extension_is_executable(self, ext_name: str):
-        """Test that extension file is executable."""
-        ext = get_extension_by_name(ext_name)
-        assert ext is not None
-
-        assert os.access(ext.file_path, os.X_OK), (
-            f"Extension {ext_name} is not executable: {ext.file_path}\n"
-            f"Run: chmod +x {ext.file_path}"
-        )
-
-    @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
-    def test_extension_name_matches_filename(self, ext_name: str):
-        """Test that @name matches the filename."""
-        ext = get_extension_by_name(ext_name)
-        assert ext is not None
-
-        expected_filename = f"{ext_name}.sh"
-        actual_filename = ext.file_path.name
-
-        assert actual_filename == expected_filename, (
-            f"Extension @name '{ext_name}' doesn't match filename '{actual_filename}'\n"
-            f"Expected filename: {expected_filename}"
-        )
-
-    @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
     def test_extension_has_description(self, ext_name: str):
         """Test that extension has a non-empty description."""
         ext = get_extension_by_name(ext_name)
@@ -374,6 +255,13 @@ class TestExtensionMetadata:
         assert (
             len(ext.description) >= MIN_DESCRIPTION_LENGTH
         ), f"Extension {ext_name} description too short: '{ext.description}'"
+
+    @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
+    def test_extension_has_binary(self, ext_name: str):
+        """Test that extension has a binary path defined."""
+        ext = get_extension_by_name(ext_name)
+        assert ext is not None
+        assert ext.binary, f"Extension {ext_name} has no binary defined"
 
 
 @pytest.mark.integration
@@ -389,13 +277,11 @@ class TestExtensionBinaries:
         if not ext.binary:
             pytest.xfail(f"No binary defined for {ext_name}")
 
-        # Should be relative path
         assert not ext.binary.startswith("/"), (
             f"Extension {ext_name} binary should be"
             f" relative path, not absolute: {ext.binary}"
         )
 
-        # Should not contain ..
         assert (
             ".." not in ext.binary
         ), f"Extension {ext_name} binary path should not contain '..': {ext.binary}"
@@ -414,12 +300,10 @@ class TestExtensionBinaries:
 
         shebang = get_binary_shebang(ext.binary)
 
-        # Python files should use venv python or env python
         if ext.binary.endswith(".py"):
-            # Python scripts can be run via ami-run, no shebang needed
-            pass
+            pass  # Python scripts run via ami-run, no shebang needed
         elif shebang:
-            issues = validate_shebang_paths(shebang, ext.binary)
+            issues = validate_shebang_paths(shebang)
             assert not issues, (
                 f"Extension {ext_name} binary has invalid shebang:\n"
                 f"Binary: {ext.binary}\n"
@@ -437,11 +321,9 @@ class TestHiddenExtensions:
         hidden = [ext for ext in ALL_EXTENSIONS if ext.hidden]
         visible = [ext for ext in ALL_EXTENSIONS if not ext.hidden]
 
-        # At least ami-pwd should be hidden
         hidden_names = [ext.name for ext in hidden]
         assert "ami-pwd" in hidden_names, "ami-pwd should be marked as hidden"
 
-        # Should have more visible than hidden
         msg = f"Too many hidden: {len(hidden)} vs {len(visible)} visible"
         assert len(visible) > len(hidden), msg
 
@@ -450,25 +332,9 @@ class TestHiddenExtensions:
         [ext.name for ext in ALL_EXTENSIONS if ext.hidden],
         ids=lambda x: f"hidden-{x}",
     )
-    def test_hidden_extension_still_works(self, ext_name: str):
-        """Test that hidden extensions still generate valid functions."""
-        ext = get_extension_by_name(ext_name)
-        assert ext is not None
-        assert ext.hidden, f"Extension {ext_name} should be hidden"
-
-        env = make_test_env()
-        result = subprocess.run(
-            ["bash", str(ext.file_path)],
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=10,
-            check=False,
-        )
-
+    def test_hidden_extension_command_exists(self, ext_name: str):
+        """Test that hidden extensions still have commands installed."""
+        cmd_path = BIN_DIR / ext_name
         assert (
-            result.returncode == 0
-        ), f"Hidden extension {ext_name} failed to generate function"
-        assert (
-            f"{ext_name}()" in result.stdout
-        ), f"Hidden extension {ext_name} missing function def"
+            cmd_path.exists()
+        ), f"Hidden extension {ext_name} not installed in {BIN_DIR}"

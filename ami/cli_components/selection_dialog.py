@@ -4,7 +4,7 @@ Selection dialog for CLI menu selection with hierarchical group support.
 
 from typing import Protocol, TypedDict, cast, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ami.cli_components.text_input_utils import Colors, read_key_sequence
 from ami.cli_components.tui import TUI, BoxStyle
@@ -64,6 +64,11 @@ class SelectionDialogConfig(BaseModel):
     max_height: int = DEFAULT_MAX_HEIGHT
     preselected: set[str] = Field(default_factory=set)
     skippable_ids: set[str] = Field(default_factory=set)
+
+    @field_validator("preselected", "skippable_ids", mode="before")
+    @classmethod
+    def _none_to_set(cls, v: set[str] | None) -> set[str]:
+        return set() if v is None else v
 
 
 class SelectionDialog:
