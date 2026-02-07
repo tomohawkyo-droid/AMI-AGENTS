@@ -112,6 +112,17 @@ Updated the patcher to explicitly check for and `rm` the symlink before writing 
 
 ---
 
+## 10. Shell Setup Comment Parsing Bug
+**File:** `ami/scripts/shell/shell-setup`
+**The Failure:**
+The `_verify_extensions` function used `grep "name:"` to parse `extensions.yaml`. This incorrectly matched the comment line `#   - name: Command name (what you type in shell)`, causing the shell to complain about a missing command named "Command name (what you type in shell)".
+**The Consequence:**
+Confusing error messages during shell startup and installation.
+**The Fix:**
+Updated the grep pipeline to exclude comments (`grep -v "^#"`) before extracting names.
+
+---
+
 **IMMEDIATE ACTION REQUIRED:**
 1.  **NEUTRALIZE** the OpenVPN overwrite trap. (DONE)
 2.  **EXTERNALIZE** `ami_mail.py` infrastructure config. (DONE)
@@ -121,3 +132,4 @@ Updated the patcher to explicitly check for and `rm` the symlink before writing 
 6.  **REFACTOR** the Makefile to eliminate target explosion. (DONE)
 7.  **UNIFY** Root Detection logic. (DONE)
 8.  **FIX** Git Wrapper Recursion. (DONE)
+9.  **FIX** Shell Setup Comment Parsing. (DONE)

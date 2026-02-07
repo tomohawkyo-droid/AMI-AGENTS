@@ -101,7 +101,7 @@ _verify_extensions() {
             echo "  ⚠ Missing: $name" >&2
             missing=$((missing + 1))
         fi
-    done < <(grep "name:" "$config" | sed 's/.*name: *//')
+    done < <(grep -v "^#" "$config" | grep "name:" | sed 's/.*name: *//')
 
     if [[ $missing -gt 0 ]]; then
         echo "  Run 'make register-extensions' to install missing commands" >&2
