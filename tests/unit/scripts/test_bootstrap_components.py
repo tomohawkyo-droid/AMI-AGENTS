@@ -18,8 +18,6 @@ from ami.scripts.bootstrap_components import (
     Component,
     ComponentStatus,
     ComponentType,
-    _npm_detect_path,
-    _npm_version_cmd,
     get_component_by_name,
     get_components_by_group,
 )
@@ -29,10 +27,6 @@ EXPECTED_GROUP_COUNT = 8
 
 class TestComponentType:
     """Tests for ComponentType enum."""
-
-    def test_npm_value(self) -> None:
-        """Test NPM enum value."""
-        assert ComponentType.NPM.value == "npm"
 
     def test_script_value(self) -> None:
         """Test SCRIPT enum value."""
@@ -281,23 +275,6 @@ class TestExtractVersion:
         version = comp._extract_version("no version here")
 
         assert version is None
-
-
-class TestNpmHelpers:
-    """Tests for npm helper functions."""
-
-    def test_npm_detect_path(self) -> None:
-        """Test _npm_detect_path generates correct path."""
-        path = _npm_detect_path("@anthropic-ai/claude-code")
-
-        assert path == ".venv/node_modules/@anthropic-ai/claude-code"
-
-    def test_npm_version_cmd(self) -> None:
-        """Test _npm_version_cmd generates correct command."""
-        cmd = _npm_version_cmd("my-package")
-
-        assert cmd[0] == "node"
-        assert "my-package/package.json" in cmd[2]
 
 
 class TestGetComponentsByGroup:

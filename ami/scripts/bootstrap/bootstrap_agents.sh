@@ -23,3 +23,19 @@ fi
 # Use the function from node.sh to install agents
 # This ensures we use scripts/package.json as the single source of truth
 install_node_agents
+
+# Display installed versions
+if [ -f "${PROJECT_ROOT}/scripts/package.json" ]; then
+    echo ""
+    echo "Installed Agent Versions:"
+    # Use python to parse json for reliability (jq might not be available)
+    "${PROJECT_ROOT}/.boot-linux/bin/python" -c "
+import json
+with open('${PROJECT_ROOT}/scripts/package.json') as f:
+    data = json.load(f)
+    deps = data.get('dependencies', {})
+    print(f\"  - Claude: {deps.get('@anthropic-ai/claude-code', 'unknown')}\")
+    print(f\"  - Gemini: {deps.get('@google/gemini-cli', 'unknown')}\")
+    print(f\"  - Qwen:   {deps.get('@qwen-code/qwen-code', 'unknown')}\")
+"
+fi

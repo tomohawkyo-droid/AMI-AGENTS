@@ -190,24 +190,7 @@ install-hooks: ## Install pre-commit and pre-push hooks
 	.boot-linux/bin/uv run pre-commit install --hook-type pre-push
 	@# Inject auto-LFS tracking and auto-staging before pre-commit's stash mechanism
 	@if [ -f .git/hooks/pre-commit ] && ! grep -q 'Auto-track' .git/hooks/pre-commit; then \
-		sed -i '/^if \[ -x "$$INSTALL_PYTHON" \]/i # Auto-track large (>10MB) and binary files with LFS\nTRACK_FILES=""
-for f in $$(git diff --cached --name-only 2>/dev/null); do
-  if [ -f "$$f" ]; then
-    # Track if >10MB OR binary (null byte in first 8000 bytes per git algorithm)
-    if [ "$$$(stat -c%s "$$f" 2>/dev/null || echo 0)" -gt 10485760 ] || \
-       head -c 8000 "$$f" 2>/dev/null | grep -q $$'"'\x00'"''; then
-      .boot-linux/bin/git-lfs track "$$f" 2>/dev/null || true
-      TRACK_FILES="$$TRACK_FILES $$f"
-    fi
-  fi
-done
-if [ -n "$$TRACK_FILES" ]; then
-  git add .gitattributes $$TRACK_FILES 2>/dev/null || true
-fi
-
-# Auto-stage all files before pre-commit stashes
-git add -A
-' .git/hooks/pre-commit; \
+		sed -i '/^if \[ -x "$$INSTALL_PYTHON" \]/i # Auto-track large (>10MB) and binary files with LFS\nTRACK_FILES=""\nfor f in $$(git diff --cached --name-only 2>/dev/null); do\n  if [ -f "$$f" ]; then\n    # Track if >10MB OR binary (null byte in first 8000 bytes per git algorithm)\n    if [ "$$(stat -c%s "$$f" 2>/dev/null || echo 0)" -gt 10485760 ] || \\\n       head -c 8000 "$$f" 2>/dev/null | grep -q $$'"'"'\\x00'"'"'; then\n      .boot-linux/bin/git-lfs track "$$f" 2>/dev/null || true\n      TRACK_FILES="$$TRACK_FILES $$f"\n    fi\n  fi\ndone\nif [ -n "$$TRACK_FILES" ]; then\n  git add .gitattributes $$TRACK_FILES 2>/dev/null || true\nfi\n\n# Auto-stage all files before pre-commit stashes\ngit add -A\n' .git/hooks/pre-commit; \
 		echo "✅ Injected auto-LFS tracking and auto-staging into .git/hooks/pre-commit"; \
 	fi
 	@echo "✅ Pre-commit and pre-push hooks installed (with auto-LFS and auto-staging)"
