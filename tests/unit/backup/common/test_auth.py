@@ -167,7 +167,13 @@ class TestOAuthCredentialsProvider:
 
         mock_creds.refresh.assert_called_once()
 
-    def test_raises_error_when_no_credentials_json(self, tmp_path: Path) -> None:
+    @patch(
+        "ami.scripts.backup.common.paths.get_project_root",
+        side_effect=RuntimeError,
+    )
+    def test_raises_error_when_no_credentials_json(
+        self, mock_root, tmp_path: Path
+    ) -> None:
         """Test raises error when credentials.json not found."""
         config = MagicMock(spec=BackupConfig)
         config.root_dir = tmp_path
@@ -179,10 +185,14 @@ class TestOAuthCredentialsProvider:
 
         assert "credentials.json not found" in str(exc_info.value)
 
+    @patch(
+        "ami.scripts.backup.common.paths.get_project_root",
+        side_effect=RuntimeError,
+    )
     @patch("ami.scripts.backup.common.auth.pickle.dump")
     @patch("ami.scripts.backup.common.auth.InstalledAppFlow.from_client_secrets_file")
     def test_runs_oauth_flow_when_no_token(
-        self, mock_flow, mock_pickle_dump, tmp_path: Path
+        self, mock_flow, mock_pickle_dump, mock_root, tmp_path: Path
     ) -> None:
         """Test runs OAuth flow when no token exists."""
         config = MagicMock(spec=BackupConfig)

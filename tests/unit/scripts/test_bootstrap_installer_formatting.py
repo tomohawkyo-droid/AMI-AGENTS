@@ -90,7 +90,7 @@ class TestFormatComponentLabel:
             name="test",
             label="Test",
             description="Test desc",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         status = NamedComponentStatus(
@@ -109,7 +109,7 @@ class TestFormatComponentLabel:
             name="test",
             label="Test",
             description="Test desc",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         status = NamedComponentStatus(
@@ -130,7 +130,7 @@ class TestFormatComponentDescription:
             name="test",
             label="Test",
             description="Test desc",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         status = NamedComponentStatus(
@@ -149,7 +149,7 @@ class TestFormatComponentDescription:
             name="test",
             label="Test",
             description="Test desc",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         status = NamedComponentStatus(
@@ -176,7 +176,7 @@ class TestScanComponents:
             name="test",
             label="Test",
             description="Test component",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         mock_get_groups.return_value = [
@@ -221,7 +221,7 @@ class TestBuildMenuItems:
             name="test",
             label="Test",
             description="Test desc",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="TestGroup",
         )
         mock_get_groups.return_value = [
@@ -253,7 +253,7 @@ class TestBuildMenuItems:
             name="test",
             label="Test",
             description="Test desc",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="TestGroup",
         )
         mock_get_groups.return_value = [
@@ -290,7 +290,7 @@ class TestExtractComponents:
             name="test",
             label="Test",
             description="Test",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         # Mock MenuItem
@@ -310,7 +310,7 @@ class TestExtractComponents:
             name="test",
             label="Test",
             description="Test",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         item2 = MagicMock()
@@ -331,7 +331,7 @@ class TestShowSelectionSummary:
             name="test",
             label="Test",
             description="Test",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         statuses = [
@@ -350,7 +350,7 @@ class TestShowSelectionSummary:
             name="test",
             label="Test",
             description="Test",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
         )
         statuses = [

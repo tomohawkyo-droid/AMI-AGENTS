@@ -39,6 +39,18 @@ class TestBackupRestoreConfigInit:
 class TestBackupRestoreConfigLoad:
     """Tests for BackupRestoreConfig.load method."""
 
+    @pytest.fixture(autouse=True)
+    def _isolate_project_root(self, monkeypatch):
+        """Prevent get_project_root from finding the real project root."""
+
+        def _raise_runtime_error():
+            raise RuntimeError
+
+        monkeypatch.setattr(
+            "ami.scripts.backup.common.paths.get_project_root",
+            _raise_runtime_error,
+        )
+
     def test_raises_error_when_env_missing(self, tmp_path: Path) -> None:
         """Test raises error when .env file missing."""
         with pytest.raises(BackupConfigError, match=r"\.env file not found"):
@@ -172,6 +184,18 @@ class TestBackupRestoreConfigLoad:
 
 class TestLoadRestoreConfig:
     """Tests for _load_restore_config method."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_project_root(self, monkeypatch):
+        """Prevent get_project_root from finding the real project root."""
+
+        def _raise_runtime_error():
+            raise RuntimeError
+
+        monkeypatch.setattr(
+            "ami.scripts.backup.common.paths.get_project_root",
+            _raise_runtime_error,
+        )
 
     @patch.dict(os.environ, {"GDRIVE_AUTH_METHOD": "oauth"}, clear=True)
     @patch("ami.scripts.backup.core.config.load_dotenv")

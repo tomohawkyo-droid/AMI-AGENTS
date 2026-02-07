@@ -5,8 +5,7 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
+from ami.core.env import _ProjectRootCache
 from ami.scripts.backup.common import paths
 
 
@@ -15,11 +14,15 @@ class TestPaths:
 
     def test_get_project_root(self):
         """Test finding project root via environment variable."""
-        # Test with environment variable (cleanest approach)
         test_root = "/fake/project/root"
-        with patch.dict(os.environ, {"AMI_PROJECT_ROOT": test_root}):
-            root = paths.get_project_root()
-            assert str(root) == test_root
+        original_cache = _ProjectRootCache._value
+        _ProjectRootCache._value = None
+        try:
+            with patch.dict(os.environ, {"AMI_PROJECT_ROOT": test_root}):
+                root = paths.get_project_root()
+                assert str(root) == test_root
+        finally:
+            _ProjectRootCache._value = original_cache
 
     def test_get_project_root_from_file(self):
         """Test finding project root from file location works in real environment."""
@@ -81,124 +84,3 @@ class TestPaths:
             mock_which.return_value = None
             result = paths.find_gcloud()
             assert result is None
-
-
-class TestIsProjectRootMarker:
-    """Tests for _is_project_root_marker function."""
-
-    def test_base_and_scripts_markers(self, tmp_path: Path):
-        """Test returns True when base and scripts dirs exist."""
-        (tmp_path / "base").mkdir()
-        (tmp_path / "scripts").mkdir()
-
-        result = paths._is_project_root_marker(tmp_path)
-
-        assert result is True
-
-    def test_pyproject_marker(self, tmp_path: Path):
-        """Test returns True when pyproject.toml exists."""
-        (tmp_path / "pyproject.toml").touch()
-
-        result = paths._is_project_root_marker(tmp_path)
-
-        assert result is True
-
-    def test_no_markers(self, tmp_path: Path):
-        """Test returns False when no markers exist."""
-        result = paths._is_project_root_marker(tmp_path)
-
-        assert result is False
-
-
-class TestFindRootFromPath:
-    """Tests for _find_root_from_path function."""
-
-    def test_finds_root_in_parent(self, tmp_path: Path):
-        """Test finds root when marker is in parent directory."""
-        (tmp_path / "pyproject.toml").touch()
-        child = tmp_path / "subdir" / "nested"
-        child.mkdir(parents=True)
-
-        result = paths._find_root_from_path(child)
-
-        assert result == tmp_path
-
-    def test_returns_none_when_no_root(self, tmp_path: Path):
-        """Test returns None when no root markers found."""
-        # tmp_path has no markers and walking up won't find any
-        # We need to test this with an isolated path
-        result = paths._find_root_from_path(Path("/"))
-
-        assert result is None
-
-
-class TestGetProjectRootEdgeCases:
-    """Tests for edge cases in get_project_root function."""
-
-    @patch("ami.scripts.backup.common.paths._find_root_from_path")
-    def test_falls_back_to_cwd(self, mock_find_root, tmp_path: Path):
-        """Test falls back to CWD when file location fails."""
-        # Remove env var if set
-        env_backup = os.environ.pop("AMI_PROJECT_ROOT", None)
-
-        # Create marker in tmp_path
-        (tmp_path / "pyproject.toml").touch()
-
-        # First call (from __file__) fails, second (from cwd) succeeds
-        mock_find_root.side_effect = [None, tmp_path]
-
-        try:
-            with patch.object(Path, "cwd", return_value=tmp_path):
-                result = paths.get_project_root()
-                # Should return tmp_path from the CWD fallback
-                assert result == tmp_path
-        finally:
-            if env_backup:
-                os.environ["AMI_PROJECT_ROOT"] = env_backup
-
-    @patch("ami.scripts.backup.common.paths._find_root_from_path")
-    def test_raises_when_not_found(self, mock_find_root):
-        """Test raises RuntimeError when root not found anywhere."""
-        env_backup = os.environ.pop("AMI_PROJECT_ROOT", None)
-
-        # Both attempts return None
-        mock_find_root.return_value = None
-
-        try:
-            with pytest.raises(RuntimeError) as exc_info:
-                paths.get_project_root()
-
-            assert "project root not found" in str(exc_info.value)
-        finally:
-            if env_backup:
-                os.environ["AMI_PROJECT_ROOT"] = env_backup
-
-    @patch("ami.scripts.backup.common.paths._find_root_from_path")
-    def test_handles_exception_from_file_path(self, mock_find_root):
-        """Test handles exception when finding root from __file__."""
-        env_backup = os.environ.pop("AMI_PROJECT_ROOT", None)
-
-        # First call raises, second returns valid path
-        mock_find_root.side_effect = [Exception("Path error"), Path("/valid/root")]
-
-        try:
-            result = paths.get_project_root()
-            assert result == Path("/valid/root")
-        finally:
-            if env_backup:
-                os.environ["AMI_PROJECT_ROOT"] = env_backup
-
-    @patch("ami.scripts.backup.common.paths._find_root_from_path")
-    def test_handles_exception_from_cwd(self, mock_find_root):
-        """Test handles exception when finding root from CWD."""
-        env_backup = os.environ.pop("AMI_PROJECT_ROOT", None)
-
-        # Both calls raise exceptions
-        mock_find_root.side_effect = [Exception("First error"), Exception("CWD error")]
-
-        try:
-            with pytest.raises(RuntimeError):
-                paths.get_project_root()
-        finally:
-            if env_backup:
-                os.environ["AMI_PROJECT_ROOT"] = env_backup

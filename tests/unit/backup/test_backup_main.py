@@ -3,8 +3,23 @@
 import os
 from unittest.mock import patch
 
+import pytest
+
 from ami.scripts.backup.create.main import main as backup_main
 from ami.scripts.backup.restore.main import main as restore_main
+
+
+@pytest.fixture(autouse=True)
+def _isolate_project_root(monkeypatch):
+    """Prevent get_project_root from finding the real project root."""
+
+    def _raise_runtime_error():
+        raise RuntimeError
+
+    monkeypatch.setattr(
+        "ami.scripts.backup.common.paths.get_project_root",
+        _raise_runtime_error,
+    )
 
 
 class TestBackupMain:

@@ -28,6 +28,18 @@ def clean_env(monkeypatch):
 class TestBackupConfig:
     """Test backup configuration loading."""
 
+    @pytest.fixture(autouse=True)
+    def _isolate_project_root(self, monkeypatch):
+        """Prevent get_project_root from finding the real project root."""
+
+        def _raise_runtime_error():
+            raise RuntimeError
+
+        monkeypatch.setattr(
+            "ami.scripts.backup.common.paths.get_project_root",
+            _raise_runtime_error,
+        )
+
     def test_load_missing_env_file_raises(self, tmp_path):
         """Test that missing .env file raises BackupConfigError."""
         with pytest.raises(BackupConfigError) as exc_info:

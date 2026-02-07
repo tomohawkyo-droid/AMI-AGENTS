@@ -23,7 +23,7 @@ class TestRunInstallation:
             name="test",
             label="Test",
             description="Test",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
             package="test-pkg",
         )
@@ -51,7 +51,7 @@ class TestRunInstallation:
             name="test",
             label="Test",
             description="Test",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
             package="test-pkg",
         )
@@ -126,7 +126,7 @@ class TestMain:
             name="test",
             label="Test",
             description="Test",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
             package="test-pkg",
         )
@@ -185,7 +185,7 @@ class TestMain:
             name="test",
             label="Test",
             description="Test",
-            type=ComponentType.NPM,
+            type=ComponentType.SCRIPT,
             group="Test",
             package="test-pkg",
         )

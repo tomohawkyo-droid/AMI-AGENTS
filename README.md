@@ -21,10 +21,12 @@ git clone <repo-url> && cd agents
 make install
 
 # Start interactive session (default)
-./ami-agent
+ami-agent
+# or simply
+@
 
-# Or use query mode for single commands
-./ami-agent --query "List all Python files in current directory"
+# Send a direct message
+@ "List all Python files in current directory"
 ```
 
 ---
@@ -37,8 +39,8 @@ make install
 | **Interactive TUI** | Full-featured text editor with streaming output |
 | **Security Guards** | Command validation, sensitive file protection, policy engine |
 | **Enterprise Backup** | Google Drive integration with Zstandard compression |
-| **Shell Extensions** | 15 discoverable `ami-*` commands with metadata |
-| **Bootstrap System** | Portable installation for 18+ development tools |
+| **Shell Extensions** | 16 discoverable `ami-*` commands with metadata |
+| **Bootstrap System** | Portable installation for 24+ development tools |
 | **Multi-Architecture** | CPU, CUDA, ROCm, Intel XPU, MPS acceleration |
 | **Session Management** | UUID-based conversation continuity |
 | **Audit Logging** | Full transcript trail for compliance |
@@ -66,9 +68,11 @@ agents/
 │   │   ├── guards.py           # Security validation
 │   │   └── policies/           # YAML-based policy engine
 │   └── scripts/                # Operational scripts
-│       ├── extensions/         # 15 shell extensions
-│       ├── bootstrap/          # 18 tool installers
-│       └── backup/             # Google Drive backup system
+│       ├── bin/                # Core extension binaries
+│       ├── bootstrap/          # Low-level tool bootstrappers
+│       ├── backup/             # Google Drive backup system
+│       ├── shell/              # Shell integration scripts
+│       └── utils/              # Security and system utilities
 ├── res/config/                 # Shared configurations
 ├── tests/                      # Unit, integration, e2e tests
 └── Makefile                    # Build targets
@@ -102,12 +106,11 @@ This will:
 
 | Hardware | Command | Notes |
 |----------|---------|-------|
+| CPU (Generic) | `make install-cpu` | Default for all platforms |
 | NVIDIA GPU | `make install-cuda` | CUDA 12.1+ required |
 | AMD GPU | `make install-rocm` | ROCm 6.4+ required |
-| Intel GPU | `make install-intel-xpu` | Intel XPU extensions |
 | Apple Silicon | `make install-mps` | Metal Performance Shaders |
-| CPU (Linux x86_64) | `make install-cpu-linux-x86_64` | Default for Linux |
-| CPU (macOS ARM64) | `make install-cpu-macos-arm64` | Apple Silicon |
+| Intel GPU | `make install-intel-xpu` | Intel XPU extensions |
 
 ### Development Setup
 
@@ -128,12 +131,15 @@ make install-node-agents   # Install Claude, Gemini, Qwen CLIs
 make install-bootstrap   # Interactive TUI to select tools
 ```
 
-Available bootstrap scripts (18 tools):
-- **Development**: git, go, kubernetes, ansible, podman
+Available bootstrap scripts (24 tools):
+- **Core Dependencies**: uv, python, git, git-xet (HuggingFace)
+- **AI Assistants**: claude-code, gemini-cli, qwen-code
+- **Development**: go, rust, sd, ansible
+- **Containers**: podman, kubernetes (kubectl, helm)
 - **Security**: openssl, openssh, openvpn, cloudflared
 - **Document**: pandoc, texlive, pdfjam, wkhtmltopdf
-- **Communication**: matrix-commander, synadm, gcloud
-- **Utilities**: adb, sd
+- **Communication**: matrix-commander, synadm
+- **Mobile**: adb
 
 ---
 
@@ -144,9 +150,9 @@ AMI Agent supports three operational modes:
 ### Interactive Editor Mode (Default)
 
 ```bash
-./ami-agent
-# or explicitly
-./ami-agent --interactive-editor
+ami-agent
+# or simply
+@
 ```
 
 Opens a full-featured text editor with the following controls:
@@ -164,10 +170,10 @@ The agent maintains session state across turns for multi-turn conversations.
 ### Query Mode
 
 ```bash
-./ami-agent --query "What is the current git branch?"
+@ "What is the current git branch?"
 ```
 
-- Single-shot execution
+- Single-shot execution via the `@` alias
 - Streaming output with timer
 - No session persistence
 - Ideal for scripting and automation
@@ -239,18 +245,19 @@ Extensions provide discoverable `ami-*` shell commands.
 
 | Command | Category | Description |
 |---------|----------|-------------|
-| `ami-agent` | Core | Main orchestration entry point |
-| `ami` | Core | Unified CLI |
-| `ami-run` | Core | Universal execution wrapper |
-| `ami-repo` | Core | Git repository management |
-| `ami-pwd` | Core | Project root finder |
-| `ami-mail` | Enterprise | SMTP/IMAP mail client |
-| `ami-chat` | Enterprise | Matrix chat (matrix-commander) |
-| `ami-admin` | Enterprise | Matrix admin (synadm) |
+| `ami-agent` | Core | AMI Orchestrator main entry point |
+| `ami` | Core | Unified CLI for services and system management |
+| `ami-run` | Core | Universal project execution wrapper |
+| `ami-repo` | Core | Git repository and server management |
+| `ami-pwd` | Core | AMI root directory finder |
+| `ami-transcripts` | Core | Transcript session management and search |
+| `ami-mail` | Enterprise | Enterprise mail operations CLI |
+| `ami-chat` | Enterprise | Matrix CLI chat (matrix-commander) |
+| `ami-admin` | Enterprise | Matrix Server Admin CLI (synadm) |
 | `ami-browser` | Enterprise | Browser automation (Playwright) |
 | `ami-backup` | Development | Backup to Google Drive |
 | `ami-restore` | Development | Restore from Google Drive |
-| `ami-check-storage` | Development | Storage validation |
+| `ami-check-storage` | Development | Storage validation and monitoring |
 | `ami-claude` | Agents | Claude Code AI assistant |
 | `ami-gemini` | Agents | Gemini CLI AI assistant |
 | `ami-qwen` | Agents | Qwen Code AI assistant |
@@ -284,23 +291,26 @@ Enterprise-grade backup with Google Drive integration.
 ### Setup Authentication
 
 ```bash
-ami-backup --setup   # Interactive OAuth flow
+ami-backup --setup-auth   # Interactive flow via gcloud
 ```
 
 ### Create Backup
 
 ```bash
-ami-backup                           # Default backup
+ami-backup                           # Default backup (cwd)
 ami-backup --keep-local              # Keep local archive
-ami-backup --source-dir /path/to/dir # Custom source
+ami-backup --name my-backup          # Custom filename
+ami-backup /path/to/data             # Backup specific directory
 ```
 
 ### Restore Backup
 
 ```bash
-ami-restore                # Interactive selector
-ami-restore --list         # List available backups
-ami-restore --file-id <id> # Restore specific backup
+ami-restore --interactive            # Interactive selector
+ami-restore --list-revisions         # List available backups
+ami-restore --file-id <id>           # Restore specific ID
+ami-restore --revision 1             # Go back 1 revision (~1)
+ami-restore --latest-local           # Restore from local storage
 ```
 
 ### Features
@@ -371,6 +381,16 @@ make type-check         # Run mypy
 make test               # Run pytest
 make check              # All checks (lint + type-check + test)
 make pre-commit         # Run all pre-commit hooks
+make dead-code          # Run AST-based dead code analysis
+```
+
+### Maintenance
+
+```bash
+make update             # Update all dependencies via uv
+make clean              # Remove build artifacts and __pycache__
+make uninstall          # Remove ami-agents from environment
+make uninstall-shell    # Remove AMI shell environment from ~/.bashrc
 ```
 
 ### Pre-commit Hooks
