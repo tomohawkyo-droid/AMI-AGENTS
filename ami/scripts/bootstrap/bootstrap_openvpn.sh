@@ -266,68 +266,18 @@ EOF_WRAPPER
 
 chmod +x "${WRAPPER_SCRIPT}"
 
-# Also create the Python wrapper
+# Verify Python wrapper exists
 PYTHON_WRAPPER="${PROJECT_ROOT}/ami/scripts/bin/run_openvpn_client.py"
-log_info "Creating Python wrapper for launcher integration: ${PYTHON_WRAPPER}"
-mkdir -p "$(dirname "$PYTHON_WRAPPER")"
+log_info "Verifying Python wrapper: ${PYTHON_WRAPPER}"
 
-cat > "${PYTHON_WRAPPER}" << 'EOF_PYTHON'
-#!/usr/bin/env bash
-""":'
-exec "$(dirname "$0")/../scripts/ami-run" "$0" "$@"
-"""
-from __future__ import annotations
-import argparse, asyncio, json, os, signal, subprocess, sys, time
-from pathlib import Path
-from typing import Optional
+if [[ ! -f "${PYTHON_WRAPPER}" ]]; then
+    log_error "Python wrapper not found at ${PYTHON_WRAPPER}"
+    log_error "This file should be part of the repository."
+    exit 1
+fi
 
-def check_openvpn_installed() -> bool:
-    try:
-        result = subprocess.run(['which', 'openvpn'], capture_output=True, text=True)
-        return result.returncode == 0
-    except Exception: return False
-
-def validate_ovpn_file(path: str) -> bool:
-    try:
-        ovpn_path = Path(path)
-        if not ovpn_path.exists(): return False
-        content = ovpn_path.read_text(encoding='utf-8')
-        return any(d in content.lower() for d in ['remote ', 'proto ', 'dev '])
-    except Exception: return False
-
-def run_openvpn_client(ovpn_file: str, auth_user_pass: Optional[str] = None, additional_args: Optional[list[str]] = None) -> subprocess.Popen:
-    cmd = ['openvpn', '--config', ovpn_file]
-    if auth_user_pass: cmd.extend(['--auth-user-pass', auth_user_pass])
-    if additional_args: cmd.extend(additional_args)
-    print(f"Starting OpenVPN client: {' '.join(cmd)}")
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, preexec_fn=os.setsid)
-
-def check_vpn_connection() -> bool:
-    try:
-        if subprocess.run(['pgrep', '-f', 'openvpn'], capture_output=True).returncode != 0: return False
-        return subprocess.run(['ip', 'addr', 'show', 'tun0'], capture_output=True).returncode == 0
-    except Exception: return False
-
-async def health_check() -> dict:
-    is_connected = check_vpn_connection()
-    return {'status': 'connected' if is_connected else 'disconnected', 'connected': is_connected}
-
-async def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--ovpn-file'); parser.add_argument('--auth-file'); parser.add_argument('--action', default='start')
-    parser.add_argument('--daemon', action='store_true')
-    args = parser.parse_args()
-    if args.action == 'health': print(json.dumps(await health_check())); return 0
-    if args.action == 'start':
-        ovpn = args.ovpn_file or os.environ.get('OPENVPN_CONFIG_FILE')
-        if not ovpn or not validate_ovpn_file(ovpn): return 1
-        process = run_openvpn_client(ovpn, args.auth_file)
-        if not args.daemon: 
-            while process.poll() is None: await asyncio.sleep(1)
-    return 0
-
-if __name__ == "__main__": asyncio.run(main())
-EOF_PYTHON
+chmod +x "${PYTHON_WRAPPER}"
+log_info "✓ Python wrapper verified"
 
 log_info "OpenVPN bootstrap complete!"
 

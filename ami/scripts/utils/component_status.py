@@ -7,9 +7,9 @@ Outputs component availability for shell script consumption.
 
 import re
 import subprocess
-from pathlib import Path
 from typing import NamedTuple
 
+from ami.core.env import PROJECT_ROOT
 from ami.types.results import BinaryCheckResult, ComponentStatusEntry
 
 
@@ -20,20 +20,6 @@ class ComponentDef(NamedTuple):
     check_type: str
     check_arg: str | None
     description: str
-
-
-# Find project root by looking for pyproject.toml or .git
-def _find_project_root() -> Path:
-    current = Path(__file__).resolve()
-    while current != current.parent:
-        if (current / "pyproject.toml").exists() or (current / ".git").exists():
-            return current
-        current = current.parent
-    msg = "Could not find project root"
-    raise RuntimeError(msg)
-
-
-PROJECT_ROOT = _find_project_root()
 
 
 def check_binary(path: str) -> BinaryCheckResult:

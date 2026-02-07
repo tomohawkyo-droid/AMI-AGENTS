@@ -32,6 +32,13 @@ if [ ! -x "$REAL_GIT" ]; then
     echo "   Run 'make bootstrap-core' to install bootstrapped git"
 fi
 
+# IMPORTANT: Check if the target is a symlink and remove it
+# This prevents overwriting the real binary if .boot-linux/bin/git points to it
+if [[ -L "${BIN_DIR}/git" ]]; then
+    echo "Removing existing git symlink..."
+    rm "${BIN_DIR}/git"
+fi
+
 # Create the wrapper script
 cat > "${BIN_DIR}/git" <<WRAPPER_EOF
 #!/usr/bin/env bash

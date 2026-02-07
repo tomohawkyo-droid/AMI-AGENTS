@@ -14,10 +14,20 @@ set -euo pipefail
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ami"
 ROOT_FILE="$CONFIG_DIR/root"
 
-# Default: agents directory (this script is at agents/ami/scripts/bin/ami-pwd)
-# Go 3 levels up: bin -> scripts -> ami -> agents
+# Default: agents directory
+# Walk up looking for markers
 get_default_root() {
-    cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd
+    local curr
+    curr="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    while [[ "$curr" != "/" ]]; do
+        if [[ -f "$curr/pyproject.toml" || -d "$curr/.git" ]]; then
+            echo "$curr"
+            return 0
+        fi
+        curr="$(dirname "$curr")"
+    done
+    # Final fallback
+    echo "$HOME/Projects/AMI-ORCHESTRATOR/agents"
 }
 
 # Get current root (from file, env, or default)

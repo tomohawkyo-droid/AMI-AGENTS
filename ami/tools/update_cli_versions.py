@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from ami.cli_components.confirmation_dialog import confirm
+from ami.core.env import PROJECT_ROOT
 from ami.types.results import (
     PackageUpdateCheck,
     UpdateEntry,
@@ -71,6 +72,7 @@ def get_current_versions(package_json_path: Path) -> object:
         "@anthropic-ai/claude-code": dependencies.get("@anthropic-ai/claude-code"),
         "@google/gemini-cli": dependencies.get("@google/gemini-cli"),
         "@qwen-code/qwen-code": dependencies.get("@qwen-code/qwen-code"),
+        "playwright": dependencies.get("playwright"),
     }
 
     # Filter out packages that aren't present
@@ -197,7 +199,7 @@ def _apply_updates(package_json_path: Path, updates_needed: list[UpdateEntry]) -
     success = update_package_json(package_json_path, updates_dict)
     if success:
         print("Successfully updated package.json")
-        print("Run 'make setup-all' to install the new versions in your environment.")
+        print("Run 'make install-node-agents' to install the new versions.")
         return 0
     print("Failed to update package.json")
     return 1
@@ -205,7 +207,7 @@ def _apply_updates(package_json_path: Path, updates_needed: list[UpdateEntry]) -
 
 def main() -> int:
     """Main function to update CLI versions."""
-    package_json_path = Path(__file__).parent / "package.json"
+    package_json_path = PROJECT_ROOT / "scripts/package.json"
 
     if not package_json_path.exists():
         print(f"Error: package.json not found at {package_json_path}")

@@ -15,10 +15,15 @@ import time
 from email.header import decode_header
 from email.message import EmailMessage
 
-# Default Local Relay Config (From recent audit)
-DEFAULT_SMTP_HOST = "192.168.50.66"
-DEFAULT_SMTP_PORT = 2526
-DEFAULT_FROM = "ami-cli@mx1.p9q3fjcwcla0.uk"
+# Default Local Relay Config (From env or alternative)
+
+DEFAULT_SMTP_HOST = os.getenv("AMI_SMTP_HOST", "127.0.0.1")
+
+DEFAULT_SMTP_PORT = int(
+    os.getenv("AMI_SMTP_PORT", "2525")
+)  # Default to 2525 (Mailpit/Dev)
+
+DEFAULT_FROM = os.getenv("AMI_MAIL_FROM", "ami-cli@localhost")
 
 
 def setup_argparse() -> argparse.ArgumentParser:

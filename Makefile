@@ -1,27 +1,33 @@
 # Makefile for AMI Agents
 
+# Default PyTorch version (cpu, cuda, rocm, mps, intel-xpu)
+TORCH_EXTRA ?= cpu
+
 # Default target
 .PHONY: help
 help: ## Show this help message
 	@echo "AMI Agents - Available targets:"
 	@echo ""
-	@echo "Vendor Architecture Targets:"
-	@echo "  install-cpu                    Install with CPU PyTorch (default)"
-	@echo "  install-cpu-linux-x86_64       Install with CPU PyTorch for Linux x86_64"
-	@echo "  install-cpu-macos-arm64        Install with CPU PyTorch for macOS ARM64 (Apple Silicon)"
-	@echo "  install-cpu-macos-x86_64       Install with CPU PyTorch for macOS x86_64 (Intel - deprecated)"
-	@echo "  install-cuda                   Install with CUDA PyTorch (NVIDIA)"
-	@echo "  install-mps                    Install with MPS PyTorch (Apple Silicon)"
-	@echo "  install-rocm                   Install with ROCm PyTorch (AMD)"
-	@echo "  install-intel-xpu              Install with Intel XPU PyTorch"
+	@echo "Installation Targets:"
+	@echo "  install                        Install with specified TORCH_EXTRA (default: cpu)"
+	@echo "                                 Example: make install TORCH_EXTRA=cuda"
 	@echo ""
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo "Convenience Targets:"
+	@echo "  install-cpu                    Alias for make install TORCH_EXTRA=cpu"
+	@echo "  install-cuda                   Alias for make install TORCH_EXTRA=cuda"
+	@echo "  install-rocm                   Alias for make install TORCH_EXTRA=rocm"
+	@echo "  install-mps                    Alias for make install TORCH_EXTRA=mps"
+	@echo "  install-intel-xpu              Alias for make install TORCH_EXTRA=intel-xpu"
+	@echo ""
+	@echo "Other Targets:"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %%-28s %%s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -v "Alias for"
 
-# Install targets
+# --- Main Installation Flow ---
+
 .PHONY: install
-install: ## Install AMI Agents in editable mode with all setup (CPU version)
-	@echo "🚀 Installing AMI Agents (CPU version)..."
-	$(MAKE) install-package
+install: ## Install AMI Agents in editable mode with all setup
+	@echo "🚀 Installing AMI Agents (torch-$(TORCH_EXTRA))..."
+	$(MAKE) sync-package
 	$(MAKE) setup-config
 	$(MAKE) register-extensions
 	$(MAKE) install-safety-scripts
@@ -32,13 +38,43 @@ install: ## Install AMI Agents in editable mode with all setup (CPU version)
 
 .PHONY: install-ci
 install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
-	@echo "🚀 Installing AMI Agents (CI mode)..."
-	$(MAKE) install-package
+	@echo "🚀 Installing AMI Agents (CI mode, torch-$(TORCH_EXTRA))..."
+	$(MAKE) sync-package
 	$(MAKE) setup-config
 	$(MAKE) register-extensions
 	$(MAKE) install-safety-scripts
 	$(MAKE) install-bootstrap-ci
 	@echo "✨ Installation complete (CI mode)!"
+
+.PHONY: sync-package
+sync-package: bootstrap-core ## Sync package dependencies via uv
+	@echo "🔧 Syncing ami-agents with torch-$(TORCH_EXTRA)..."
+	.boot-linux/bin/uv sync --extra torch-$(TORCH_EXTRA) --extra dev
+	@echo "✅ Package 'ami-agents' installed with torch-$(TORCH_EXTRA) and dev dependencies"
+
+# --- Convenience Aliases ---
+
+.PHONY: install-cpu
+install-cpu:
+	$(MAKE) install TORCH_EXTRA=cpu
+
+.PHONY: install-cuda
+install-cuda:
+	$(MAKE) install TORCH_EXTRA=cuda
+
+.PHONY: install-rocm
+install-rocm:
+	$(MAKE) install TORCH_EXTRA=rocm
+
+.PHONY: install-mps
+install-mps:
+	$(MAKE) install TORCH_EXTRA=mps
+
+.PHONY: install-intel-xpu
+install-intel-xpu:
+	$(MAKE) install TORCH_EXTRA=intel-xpu
+
+# --- Component Targets ---
 
 .PHONY: install-bootstrap
 install-bootstrap: ## Interactive TUI to select and install optional bootstrap components
@@ -70,110 +106,13 @@ uninstall-shell: ## Remove AMI shell environment from ~/.bashrc
 .PHONY: install-node-agents
 install-node-agents: ## Install Node.js CLI agents (claude, gemini, qwen)
 	@echo "📦 Installing Node.js CLI agents..."
-	@bash -c 'source ami/scripts/setup/node.sh && install_node_agents'
+	@bash ami/scripts/bootstrap/bootstrap_agents.sh
 	@echo "✅ Node.js CLI agents installed"
 
-.PHONY: install-cuda
-install-cuda: ## Install AMI Agents with CUDA support
-	@echo "🚀 Installing AMI Agents (CUDA version)..."
-	$(MAKE) install-package-cuda
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
-	@echo "✨ Installation complete with CUDA support. Run './ami-agent' to start."
-
-.PHONY: install-rocm
-install-rocm: ## Install AMI Agents with ROCm support (AMD)
-	@echo "🚀 Installing AMI Agents (ROCm version)..."
-	$(MAKE) install-package-rocm
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
-	@echo "✨ Installation complete with ROCm support. Run './ami-agent' to start."
-
-.PHONY: install-intel-xpu
-install-intel-xpu: ## Install AMI Agents with Intel XPU support
-	@echo "🚀 Installing AMI Agents (Intel XPU version)..."
-	$(MAKE) install-package-intel-xpu
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
-	@echo "✨ Installation complete with Intel XPU support. Run './ami-agent' to start."
-
-.PHONY: install-cpu
-install-cpu: install ## Install AMI Agents with CPU support (alias for install)
-
-.PHONY: install-cpu-linux-x86_64
-install-cpu-linux-x86_64: ## Install AMI Agents with CPU support for Linux x86_64
-	@echo "🚀 Installing AMI Agents (CPU Linux x86_64 version)..."
-	$(MAKE) install-package
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
-	@echo "✨ Installation complete with CPU Linux x86_64 support. Run './ami-agent' to start."
-
-.PHONY: install-cpu-macos-arm64
-install-cpu-macos-arm64: ## Install AMI Agents with CPU support for macOS ARM64 (Apple Silicon)
-	@echo "🚀 Installing AMI Agents (CPU macOS ARM64 version)..."
-	$(MAKE) install-package
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
-	@echo "✨ Installation complete with CPU macOS ARM64 support. Run './ami-agent' to start."
-
-.PHONY: install-cpu-macos-x86_64
-install-cpu-macos-x86_64: ## Install AMI Agents with CPU support for macOS x86_64 (Intel - deprecated after PyTorch 2.2.0)
-	@echo "🚀 Installing AMI Agents (CPU macOS x86_64 version)..."
-	$(MAKE) install-package
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
-	@echo "⚠️  Note: macOS x86_64 builds are deprecated after PyTorch 2.2.0"
-	@echo "✨ Installation complete with CPU macOS x86_64 support. Run './ami-agent' to start."
-
-.PHONY: install-mps
-install-mps: ## Install AMI Agents with MPS support (Apple Silicon)
-	@echo "🚀 Installing AMI Agents (MPS version)..."
-	$(MAKE) install-package-mps
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
-	@echo "✨ Installation complete with MPS support. Run './ami-agent' to start."
-
 .PHONY: sync
-sync: bootstrap-core ## Sync dependencies using uv
-	@echo "📦 Syncing dependencies..."
-	.boot-linux/bin/uv sync
+sync: sync-package ## Alias for sync-package
 
-.PHONY: install-package
-install-package: bootstrap-core ## Install package in editable mode with CPU PyTorch (default)
-	@echo "🔧 Installing ami-agents with CPU PyTorch..."
-	.boot-linux/bin/uv sync --extra torch-cpu --extra dev
-	@echo "✅ Package 'ami-agents' installed with CPU PyTorch and dev dependencies"
-
-.PHONY: install-package-cuda
-install-package-cuda: bootstrap-core ## Install package in editable mode with CUDA PyTorch
-	@echo "🔧 Installing ami-agents with CUDA PyTorch..."
-	.boot-linux/bin/uv sync --extra torch-cuda --extra dev
-	@echo "✅ Package 'ami-agents' installed with CUDA PyTorch and dev dependencies"
-
-.PHONY: install-package-rocm
-install-package-rocm: bootstrap-core ## Install package in editable mode with ROCm PyTorch
-	@echo "🔧 Installing ami-agents with ROCm PyTorch..."
-	.boot-linux/bin/uv sync --extra torch-rocm --extra dev
-	@echo "✅ Package 'ami-agents' installed with ROCm PyTorch and dev dependencies"
-
-.PHONY: install-package-intel-xpu
-install-package-intel-xpu: bootstrap-core ## Install package in editable mode with Intel XPU PyTorch
-	@echo "🔧 Installing ami-agents with Intel XPU PyTorch..."
-	.boot-linux/bin/uv sync --extra torch-intel-xpu --extra dev
-	@echo "✅ Package 'ami-agents' installed with Intel XPU PyTorch and dev dependencies"
-
-.PHONY: install-package-mps
-install-package-mps: bootstrap-core ## Install package in editable mode with MPS PyTorch
-	@echo "🔧 Installing ami-agents with MPS PyTorch..."
-	.boot-linux/bin/uv sync --extra torch-mps --extra dev
-	@echo "✅ Package 'ami-agents' installed with MPS PyTorch and dev dependencies"
+# --- Config & Utilities ---
 
 .PHONY: setup-config
 setup-config: setup-automation setup-extensions setup-linter-config ## Setup configuration files
@@ -251,7 +190,24 @@ install-hooks: ## Install pre-commit and pre-push hooks
 	.boot-linux/bin/uv run pre-commit install --hook-type pre-push
 	@# Inject auto-LFS tracking and auto-staging before pre-commit's stash mechanism
 	@if [ -f .git/hooks/pre-commit ] && ! grep -q 'Auto-track' .git/hooks/pre-commit; then \
-		sed -i '/^if \[ -x "\$$INSTALL_PYTHON" \]/i # Auto-track large (>10MB) and binary files with LFS\nTRACK_FILES=""\nfor f in $$(git diff --cached --name-only 2>/dev/null); do\n  if [ -f "$$f" ]; then\n    # Track if >10MB OR binary (null byte in first 8000 bytes per git algorithm)\n    if [ "$$(stat -c%s "$$f" 2>/dev/null || echo 0)" -gt 10485760 ] || \\\n       head -c 8000 "$$f" 2>/dev/null | grep -q $$'"'"'\\x00'"'"'; then\n      .boot-linux/bin/git-lfs track "$$f" 2>/dev/null || true\n      TRACK_FILES="$$TRACK_FILES $$f"\n    fi\n  fi\ndone\nif [ -n "$$TRACK_FILES" ]; then\n  git add .gitattributes $$TRACK_FILES 2>/dev/null || true\nfi\n\n# Auto-stage all files before pre-commit stashes\ngit add -A\n' .git/hooks/pre-commit; \
+		sed -i '/^if \[ -x "$$INSTALL_PYTHON" \]/i # Auto-track large (>10MB) and binary files with LFS\nTRACK_FILES=""
+for f in $$(git diff --cached --name-only 2>/dev/null); do
+  if [ -f "$$f" ]; then
+    # Track if >10MB OR binary (null byte in first 8000 bytes per git algorithm)
+    if [ "$$$(stat -c%s "$$f" 2>/dev/null || echo 0)" -gt 10485760 ] || \
+       head -c 8000 "$$f" 2>/dev/null | grep -q $$'"'\x00'"''; then
+      .boot-linux/bin/git-lfs track "$$f" 2>/dev/null || true
+      TRACK_FILES="$$TRACK_FILES $$f"
+    fi
+  fi
+done
+if [ -n "$$TRACK_FILES" ]; then
+  git add .gitattributes $$TRACK_FILES 2>/dev/null || true
+fi
+
+# Auto-stage all files before pre-commit stashes
+git add -A
+' .git/hooks/pre-commit; \
 		echo "✅ Injected auto-LFS tracking and auto-staging into .git/hooks/pre-commit"; \
 	fi
 	@echo "✅ Pre-commit and pre-push hooks installed (with auto-LFS and auto-staging)"
@@ -262,6 +218,8 @@ install-safety-scripts: ## Install git and podman safety scripts
 	@bash ami/scripts/utils/disable_no_verify_patcher.sh
 	@bash ami/scripts/utils/podman_safety_wrapper.sh
 	@echo "✅ Safety scripts installed"
+
+# --- Quality & Test ---
 
 .PHONY: test
 test: ## Run tests

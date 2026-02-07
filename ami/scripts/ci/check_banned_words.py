@@ -49,6 +49,7 @@ IGNORE_DIRS = {
     ".env",
     "site-packages",
     "vendor",
+    "ansible",
     ".tox",
     ".nox",
     "htmlcov",

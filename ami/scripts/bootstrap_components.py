@@ -10,29 +10,23 @@ Each component defines:
 import re
 import subprocess
 from enum import Enum
-from pathlib import Path
 
 from pydantic import BaseModel
 
+from ami.core.env import PROJECT_ROOT
 
-def _find_project_root() -> Path:
-    """Find project root by looking for pyproject.toml or .git marker."""
-    current = Path(__file__).resolve()
-    while current != current.parent:
-        if (current / "pyproject.toml").exists() or (current / ".git").exists():
-            return current
-        current = current.parent
-    msg = "Could not find project root"
-    raise RuntimeError(msg)
-
-
-PROJECT_ROOT = _find_project_root()
+__all__ = [
+    "PROJECT_ROOT",
+    "Component",
+    "ComponentType",
+    "get_component_by_name",
+    "get_components_by_group",
+]
 
 
 class ComponentType(Enum):
     """Type of component installation."""
 
-    NPM = "npm"
     SCRIPT = "script"
     UV = "uv"  # Python packages via uv
 
@@ -197,19 +191,21 @@ CORE_DEPS = [
 ]
 
 
-def _npm_detect_path(package_name: str) -> str:
-    """Get detection path for npm package."""
-    # npm packages are installed in .venv/node_modules
-    return f".venv/node_modules/{package_name}"
+def _get_package_version(package_name: str) -> str:
+    """Get package version from scripts/package.json."""
+    import json
 
+    pkg_json_path = PROJECT_ROOT / "scripts/package.json"
+    if not pkg_json_path.exists():
+        return "latest"
 
-def _npm_version_cmd(package_name: str) -> list[str]:
-    """Get version command for npm package."""
-    return [
-        "node",
-        "-e",
-        f"console.log(require('{package_name}/package.json').version)",
-    ]
+    try:
+        with open(pkg_json_path) as f:
+            data = json.load(f)
+            version = data.get("dependencies", {}).get(package_name, "latest")
+            return str(version)
+    except Exception:
+        return "latest"
 
 
 # AI Coding Assistants
@@ -218,10 +214,11 @@ AI_AGENTS = [
         name="claude",
         label="Claude Code",
         description="Anthropic AI assistant",
-        type=ComponentType.NPM,
+        type=ComponentType.SCRIPT,
         group="AI Coding Assistants",
-        package="@anthropic-ai/claude-code@2.1.19",
-        detect_path=_npm_detect_path("@anthropic-ai/claude-code"),
+        script="bootstrap_agents.sh",
+        package=f"@anthropic-ai/claude-code@{_get_package_version('@anthropic-ai/claude-code')}",
+        detect_path=".venv/node_modules/@anthropic-ai/claude-code",
         version_cmd=[".venv/node_modules/.bin/claude", "--version"],
         version_pattern=r"(\d+\.\d+\.\d+)",
     ),
@@ -229,10 +226,11 @@ AI_AGENTS = [
         name="gemini",
         label="Gemini CLI",
         description="Google AI assistant",
-        type=ComponentType.NPM,
+        type=ComponentType.SCRIPT,
         group="AI Coding Assistants",
-        package="@google/gemini-cli@0.23.0",
-        detect_path=_npm_detect_path("@google/gemini-cli"),
+        script="bootstrap_agents.sh",
+        package=f"@google/gemini-cli@{_get_package_version('@google/gemini-cli')}",
+        detect_path=".venv/node_modules/@google/gemini-cli",
         version_cmd=[".venv/node_modules/.bin/gemini", "--version"],
         version_pattern=r"(\d+\.\d+\.\d+)",
     ),
@@ -240,10 +238,11 @@ AI_AGENTS = [
         name="qwen",
         label="Qwen Code",
         description="Alibaba AI assistant",
-        type=ComponentType.NPM,
+        type=ComponentType.SCRIPT,
         group="AI Coding Assistants",
-        package="@qwen-code/qwen-code@0.6.2",
-        detect_path=_npm_detect_path("@qwen-code/qwen-code"),
+        script="bootstrap_agents.sh",
+        package=f"@qwen-code/qwen-code@{_get_package_version('@qwen-code/qwen-code')}",
+        detect_path=".venv/node_modules/@qwen-code/qwen-code",
         version_cmd=[".venv/node_modules/.bin/qwen", "--version"],
         version_pattern=r"(\d+\.\d+\.\d+)",
     ),

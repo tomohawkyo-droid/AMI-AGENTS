@@ -3,57 +3,12 @@ Path utilities for backup/restore operations.
 Centralizes logic for finding project root and tools.
 """
 
-import os
 import shutil
 import sys
-from pathlib import Path
 
+from ami.core.env import get_project_root
 
-def _is_project_root_marker(path: Path) -> bool:
-    """Check if a path contains project root markers."""
-    if (path / "base").exists() and (path / "scripts").exists():
-        return True
-    return (path / "pyproject.toml").exists()
-
-
-def _find_root_from_path(start: Path) -> Path | None:
-    """Walk up from a path looking for project root markers."""
-    current = start
-    while current != current.parent:
-        if _is_project_root_marker(current):
-            return current
-        current = current.parent
-    return None
-
-
-def get_project_root() -> Path:
-    """
-    Locate the project root directory.
-    Look for 'base' directory or pyproject.toml as markers.
-    """
-    # Check environment variable first
-    env_root = os.environ.get("AMI_PROJECT_ROOT")
-    if env_root:
-        return Path(env_root)
-
-    # Try to find from current file location by walking up
-    try:
-        result = _find_root_from_path(Path(__file__).resolve())
-        if result:
-            return result
-    except Exception:
-        pass
-
-    # Try to find from CWD
-    try:
-        result = _find_root_from_path(Path.cwd().resolve())
-        if result:
-            return result
-    except Exception:
-        pass
-
-    msg = "project root not found"
-    raise RuntimeError(msg)
+__all__ = ["get_project_root"]
 
 
 def setup_sys_path() -> None:

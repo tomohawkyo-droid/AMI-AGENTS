@@ -110,10 +110,25 @@ class BackupConfig:
     @classmethod
     def load(cls, root_dir: Path) -> "BackupConfig":
         """Load configuration from .env file."""
-        env_path = root_dir / ".env"
+        from ami.scripts.backup.common.paths import get_project_root
+
+        try:
+            # Always prioritize project root discovery
+            project_root = get_project_root()
+            env_path = project_root / ".env"
+        except RuntimeError:
+            project_root = root_dir
+            env_path = root_dir / ".env"
+
         if not env_path.exists():
-            msg = ".env file not found"
-            raise BackupConfigError(msg)
+            # Final alternative if root discovery didn't find a .env
+            env_path = root_dir / ".env"
+            if not env_path.exists():
+                msg = f".env file not found at {env_path}"
+                raise BackupConfigError(msg)
+        else:
+            # Use the directory where .env was actually found
+            root_dir = env_path.parent
 
         load_dotenv(env_path)
         config = cls(root_dir)

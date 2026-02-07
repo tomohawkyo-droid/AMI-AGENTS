@@ -18,7 +18,6 @@ class CategorizedComponents(NamedTuple):
     """Components separated by installation order."""
 
     core: list[Component]
-    npm: list[Component]
     other: list[Component]
 
 
@@ -35,71 +34,6 @@ def ensure_directories() -> None:
 def get_bootstrap_dir() -> Path:
     """Get the bootstrap scripts directory."""
     return PROJECT_ROOT / "ami" / "scripts" / "bootstrap"
-
-
-def get_npm_path() -> Path:
-    """Get npm binary path."""
-    return PROJECT_ROOT / ".boot-linux" / "node-env" / "bin" / "npm"
-
-
-def get_node_modules_dir() -> Path:
-    """Get node_modules installation directory."""
-    return PROJECT_ROOT / ".venv" / "node_modules"
-
-
-def ensure_node_env() -> bool:
-    """Ensure Node.js environment is set up."""
-    npm_path = get_npm_path()
-    if npm_path.exists():
-        return True
-
-    try:
-        result = subprocess.run(
-            ["bash", "-c", "source ami/scripts/setup/node.sh && setup_node_env"],
-            cwd=str(PROJECT_ROOT),
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return False
-    else:
-        return result.returncode == 0
-
-
-def install_npm_packages(packages: list[str]) -> bool:
-    """Install npm packages (all at once to avoid conflicts).
-
-    Args:
-        packages: List of package names with versions
-
-    Returns:
-        True if successful, False otherwise
-    """
-    if not packages:
-        return True
-
-    if not ensure_node_env():
-        return False
-
-    npm_path = get_npm_path()
-    node_modules = get_node_modules_dir()
-
-    try:
-        cmd = [
-            str(npm_path),
-            "install",
-            "--prefix",
-            str(node_modules.parent),
-            "--no-save",
-            "--force",
-            "--loglevel",
-            "error",
-            *packages,
-        ]
-        result = subprocess.run(cmd, cwd=str(PROJECT_ROOT), check=False)
-    except (OSError, subprocess.SubprocessError):
-        return False
-    else:
-        return result.returncode == 0
 
 
 def run_bootstrap_script(script_name: str) -> bool:
@@ -128,11 +62,7 @@ def run_bootstrap_script(script_name: str) -> bool:
 
 def install_component(component: Component) -> bool:
     """Install a single component based on its type."""
-    if component.type == ComponentType.NPM:
-        if not component.package:
-            return False
-        return install_npm_packages([component.package])
-    elif component.type == ComponentType.SCRIPT:
+    if component.type == ComponentType.SCRIPT:
         if not component.script:
             return False
         return run_bootstrap_script(component.script)
@@ -143,11 +73,10 @@ def install_component(component: Component) -> bool:
 
 
 def _categorize_components(components: list[Component]) -> CategorizedComponents:
-    """Separate components into core, npm, and other categories."""
+    """Separate components into core and other categories."""
     core = [c for c in components if c.group == "Core Dependencies"]
-    npm = [c for c in components if c.type == ComponentType.NPM]
-    other = [c for c in components if c.type != ComponentType.NPM and c not in core]
-    return CategorizedComponents(core=core, npm=npm, other=other)
+    other = [c for c in components if c not in core]
+    return CategorizedComponents(core=core, other=other)
 
 
 def _make_result(name: str, success: bool) -> InstallationResult:
@@ -166,23 +95,6 @@ def _install_core_deps(cat: CategorizedComponents, ctx: "_InstallContext") -> in
         if ctx.on_result:
             ctx.on_result(comp, success)
     return ctx.idx
-
-
-def _install_npm_batch(cat: CategorizedComponents, ctx: "_InstallContext") -> None:
-    """Install npm packages as a batch."""
-    if not cat.npm:
-        return
-    ctx.idx += 1
-    if ctx.on_progress:
-        ctx.on_progress(
-            ctx.idx, ctx.total, f"NPM: {', '.join(c.label for c in cat.npm)}"
-        )
-    packages = [c.package for c in cat.npm if c.package]
-    success = install_npm_packages(packages)
-    for comp in cat.npm:
-        ctx.results.append(_make_result(comp.name, success))
-        if ctx.on_result:
-            ctx.on_result(comp, success)
 
 
 def _install_other_components(
@@ -220,13 +132,12 @@ def install_components(
     on_progress: Callable[[int, int, str], None] | None = None,
     on_result: Callable[[Component, bool], None] | None = None,
 ) -> list[InstallationResult]:
-    """Install components in order: core deps, npm batch, others."""
+    """Install components in order: core deps, others."""
     ensure_directories()
     cat = _categorize_components(components)
     ctx = _InstallContext(len(components), on_progress, on_result)
 
     _install_core_deps(cat, ctx)
-    _install_npm_batch(cat, ctx)
     _install_other_components(cat, ctx)
 
     return ctx.results

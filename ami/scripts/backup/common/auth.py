@@ -100,12 +100,22 @@ class OAuthCredentialsProvider:
 
     def get_credentials(self) -> GoogleAuthCredentials:
         """Get OAuth credentials, either from existing token or by running auth flow."""
+        from ami.scripts.backup.common.paths import get_project_root
+
         scopes = ["https://www.googleapis.com/auth/drive"]
+        try:
+            project_root = get_project_root()
+        except RuntimeError:
+            project_root = self.config.root_dir
 
         creds = None
         # Allow custom token file path via environment variable, default to token.pickle
         token_filename = os.getenv("GDRIVE_TOKEN_FILE", "token.pickle")
+
+        # Try current root_dir first, then fall back to project root
         token_path = self.config.root_dir / token_filename
+        if not token_path.exists() and project_root != self.config.root_dir:
+            token_path = project_root / token_filename
 
         # The file token.pickle stores the user's access and refresh tokens.
         if token_path.exists():
@@ -120,6 +130,12 @@ class OAuthCredentialsProvider:
             else:
                 # Check if credentials.json exists for the OAuth flow
                 credentials_json_path = self.config.root_dir / "credentials.json"
+                if (
+                    not credentials_json_path.exists()
+                    and project_root != self.config.root_dir
+                ):
+                    credentials_json_path = project_root / "credentials.json"
+
                 if not credentials_json_path.exists():
                     msg = f"credentials.json not found at {credentials_json_path}"
                     raise BackupError(msg)
@@ -131,6 +147,7 @@ class OAuthCredentialsProvider:
                 creds = flow.run_local_server(port=0)
 
             # Save the credentials for the next run
+            # (save back to the path where it was found or root)
             with open(token_path, "wb") as token:
                 pickle.dump(creds, token)
 

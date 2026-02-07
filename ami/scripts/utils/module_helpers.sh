@@ -24,17 +24,11 @@ _detect_current_module() {
 }
 
 _find_module_root() {
-    # Find module root by walking up looking for pyproject.toml or .venv
-    # Returns path to module root or AMI_ROOT as default
+    # Find module root by walking up looking for markers
     local current="$PWD"
 
     while [[ "$current" != "/" ]]; do
-        # Module root has pyproject.toml or .venv
-        if [[ -f "$current/pyproject.toml" ]]; then
-            echo "$current"
-            return 0
-        fi
-        if [[ -d "$current/.venv" ]]; then
+        if [[ -f "$current/pyproject.toml" || -d "$current/.git" ]]; then
             echo "$current"
             return 0
         fi
@@ -42,5 +36,5 @@ _find_module_root() {
     done
 
     # Default to AMI_ROOT
-    echo "$AMI_ROOT"
+    echo "${AMI_ROOT:-$PWD}"
 }
