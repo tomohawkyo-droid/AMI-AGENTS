@@ -60,15 +60,26 @@ def main() -> int:
         help="Non-interactive mode - run agent with provided query string",
     )
 
+    parser.add_argument(
+        "query_args",
+        nargs="*",
+        help="Positional query arguments (runs in query mode if provided)",
+    )
+
     args = parser.parse_args()
 
     # Route to appropriate mode using dispatch
+    # Positional args take precedence as a query if no other mode specified
+    query_text = args.query
+    if not query_text and args.query_args:
+        query_text = " ".join(args.query_args)
+
     mode_handlers_list: list[ModeHandler] = [
         ModeHandler(
             args.interactive_editor,
             lambda: mode_interactive_editor() if args.interactive_editor else 1,
         ),
-        ModeHandler(args.query, lambda: mode_query(args.query) if args.query else 1),
+        ModeHandler(query_text, lambda: mode_query(query_text) if query_text else 1),
         ModeHandler(args.print, lambda: mode_print(args.print) if args.print else 1),
     ]
 
@@ -79,7 +90,7 @@ def main() -> int:
                 return cast(int, handler())
 
     # NEW: If no arguments provided, default to interactive editor mode
-    if not any([args.print, args.interactive_editor, args.query]):
+    if not any([args.print, args.interactive_editor, query_text]):
         return mode_interactive_editor()
 
     # Show help if no mode specified

@@ -192,8 +192,8 @@ _verify_extensions
 # ============================================================================
 # Aliases
 # ============================================================================
-alias @="ami-run ami/cli_components/text_input_cli.py"
-alias msg="ami-run ami/cli_components/text_input_cli.py"
+alias @="ami-agent"
+alias msg="ami-agent"
 
 # ============================================================================
 # Display banner on welcome
