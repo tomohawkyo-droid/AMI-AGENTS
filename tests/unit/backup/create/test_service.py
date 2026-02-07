@@ -29,7 +29,12 @@ class TestBackupService:
     @patch("ami.scripts.backup.create.service.cleanup_local_zip")
     @patch("pathlib.Path.cwd")
     async def test_run_backup_success(
-        self, mock_cwd, mock_cleanup, mock_secondary, mock_archiver, mock_config_class
+        self,
+        mock_cwd,
+        mock_cleanup,
+        mock_secondary,
+        mock_archiver,
+        mock_config_class,
     ):
         """Test successful backup run."""
         # Setup mocks
@@ -42,8 +47,11 @@ class TestBackupService:
 
         mock_cwd.return_value = Path("/tmp/test")
 
-        # Mock archiver to return a zip path
-        mock_archiver.return_value = Path("/tmp/test/backup.tar.zst")
+        # Mock archiver to return a path-like mock with stat()
+        mock_zip = MagicMock()
+        mock_zip.name = "backup.tar.zst"
+        mock_zip.stat.return_value.st_size = 1024
+        mock_archiver.return_value = mock_zip
 
         # Mock uploader to return a file ID
         mock_uploader.upload_to_gdrive.return_value = "test_file_id_123"
@@ -77,14 +85,22 @@ class TestBackupService:
     @patch("ami.scripts.backup.create.service.cleanup_local_zip")
     @patch("pathlib.Path.cwd")
     async def test_run_backup_auth_retry_success(
-        self, mock_cwd, mock_cleanup, mock_secondary, mock_archiver, mock_config_class
+        self,
+        mock_cwd,
+        mock_cleanup,
+        mock_secondary,
+        mock_archiver,
+        mock_config_class,
     ):
         """Test backup with auth retry that succeeds."""
         # Setup mocks
         mock_uploader = AsyncMock()
         mock_auth_manager = MagicMock()
 
-        mock_archiver.return_value = Path("/tmp/test/backup.tar.zst")
+        mock_zip = MagicMock()
+        mock_zip.name = "backup.tar.zst"
+        mock_zip.stat.return_value.st_size = 1024
+        mock_archiver.return_value = mock_zip
         mock_secondary.return_value = None
         mock_cleanup.return_value = None
 
@@ -121,14 +137,22 @@ class TestBackupService:
     @patch("ami.scripts.backup.create.service.cleanup_local_zip")
     @patch("pathlib.Path.cwd")
     async def test_run_backup_upload_error_no_retry(
-        self, mock_cwd, mock_cleanup, mock_secondary, mock_archiver, mock_config_class
+        self,
+        mock_cwd,
+        mock_cleanup,
+        mock_secondary,
+        mock_archiver,
+        mock_config_class,
     ):
         """Test backup with upload error when retry is disabled."""
         # Setup mocks
         mock_uploader = AsyncMock()
         mock_auth_manager = MagicMock()
 
-        mock_archiver.return_value = Path("/tmp/test/backup.tar.zst")
+        mock_zip = MagicMock()
+        mock_zip.name = "backup.tar.zst"
+        mock_zip.stat.return_value.st_size = 1024
+        mock_archiver.return_value = mock_zip
         mock_secondary.return_value = None
         mock_cleanup.return_value = None
 

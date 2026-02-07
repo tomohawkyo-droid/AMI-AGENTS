@@ -151,6 +151,41 @@ else
     log_info "✓ slirp4netns found at $(command -v slirp4netns)"
 fi
 
+# AppArmor profile for rootless Podman (Ubuntu 24.04+)
+# When kernel.apparmor_restrict_unprivileged_userns=1, binaries need an
+# explicit AppArmor profile granting "userns" or they get
+# "failed to reexec: Permission denied" when creating user namespaces.
+APPARMOR_USERNS=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)
+if [[ "$APPARMOR_USERNS" == "1" ]]; then
+    PODMAN_REAL_BIN="${PODMAN_DIR}/usr/local/bin/podman"
+    APPARMOR_PROFILE="/etc/apparmor.d/ami-podman"
+
+    if [[ -f "$APPARMOR_PROFILE" ]] && grep -qF "$PODMAN_REAL_BIN" "$APPARMOR_PROFILE" 2>/dev/null; then
+        log_info "✓ AppArmor userns profile already exists for $PODMAN_REAL_BIN"
+    else
+        log_warn "AppArmor restricts unprivileged user namespaces on this kernel"
+        log_info "Installing AppArmor profile to allow Podman to create user namespaces (requires sudo)..."
+        if sudo tee "$APPARMOR_PROFILE" >/dev/null <<AAEOF
+abi <abi/4.0>,
+include <tunables/global>
+
+profile ami-podman ${PODMAN_REAL_BIN} flags=(unconfined) {
+  userns,
+}
+AAEOF
+        then
+            sudo apparmor_parser -r "$APPARMOR_PROFILE"
+            log_info "✓ AppArmor profile installed and loaded: $APPARMOR_PROFILE"
+        else
+            log_error "Failed to install AppArmor profile"
+            log_error "Podman systemd service will fail with 'reexec: Permission denied'"
+            log_error "Fix manually: sudo cp <profile> $APPARMOR_PROFILE && sudo apparmor_parser -r $APPARMOR_PROFILE"
+        fi
+    fi
+else
+    log_info "✓ AppArmor userns restriction not active — no profile needed"
+fi
+
 # Create venv if it doesn't exist
 if [[ ! -d "${VENV_DIR}" ]]; then
     log_info "Creating virtual environment at ${VENV_DIR}"

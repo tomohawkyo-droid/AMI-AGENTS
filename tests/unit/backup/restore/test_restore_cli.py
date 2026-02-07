@@ -5,37 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ami.scripts.backup.restore.cli import (
-    BYTES_PER_GB,
-    BYTES_PER_KB,
-    BYTES_PER_MB,
-    RestoreCLI,
-    _format_file_size,
-)
-from ami.scripts.backup.restore.drive_client import DriveFileMetadata
+from ami.scripts.backup.restore.cli import RestoreCLI
 
 EXPECTED_PARSED_REVISION = 2
 MINIMUM_SUCCESS_LOG_CALL_COUNT = 3
-
-
-class TestFormatFileSize:
-    """Tests for _format_file_size function."""
-
-    def test_formats_bytes(self) -> None:
-        """Test formats bytes."""
-        assert _format_file_size(500) == "500B"
-
-    def test_formats_kilobytes(self) -> None:
-        """Test formats kilobytes."""
-        assert _format_file_size(BYTES_PER_KB * 5) == "5.0KB"
-
-    def test_formats_megabytes(self) -> None:
-        """Test formats megabytes."""
-        assert _format_file_size(BYTES_PER_MB * 5) == "5.0MB"
-
-    def test_formats_gigabytes(self) -> None:
-        """Test formats gigabytes."""
-        assert _format_file_size(BYTES_PER_GB * 5) == "5.0GB"
 
 
 class TestRestoreCLIInit:
@@ -51,6 +24,18 @@ class TestRestoreCLIInit:
         """Test initialization without service."""
         cli = RestoreCLI()
         assert cli.service is None
+
+    def test_initialization_with_revisions_client(self) -> None:
+        """Test initialization with revisions client."""
+        service = MagicMock()
+        revisions_client = MagicMock()
+        cli = RestoreCLI(service=service, revisions_client=revisions_client)
+        assert cli.revisions_client == revisions_client
+
+    def test_initialization_revisions_client_default_none(self) -> None:
+        """Test revisions client defaults to None."""
+        cli = RestoreCLI()
+        assert cli.revisions_client is None
 
 
 class TestRestoreCLIRequireService:
@@ -288,14 +273,31 @@ class TestRestoreCLIListRevisions:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_prints_revision_table(self, capsys) -> None:
-        """Test prints revision table."""
+    async def test_returns_false_without_revisions_client(self) -> None:
+        """Test returns False when revisions client not set."""
         service = MagicMock()
         service.list_available_drive_backups = AsyncMock(
+            return_value=[{"id": "1", "name": "backup.tar.zst"}]
+        )
+        config = MagicMock()
+
+        cli = RestoreCLI(service=service)
+        result = await cli.run_list_revisions(config)
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_lists_revisions_via_api(self, capsys) -> None:
+        """Test lists revisions using Drive Revisions API."""
+        service = MagicMock()
+        service.list_available_drive_backups = AsyncMock(
+            return_value=[{"id": "f1", "name": "backup.tar.zst"}]
+        )
+        revisions_client = MagicMock()
+        revisions_client.list_revisions = AsyncMock(
             return_value=[
                 {
-                    "id": "1",
-                    "name": "backup1.tar.zst",
+                    "id": "r1",
                     "modifiedTime": "2024-01-01T00:00:00",
                     "size": "1048576",
                 }
@@ -303,79 +305,86 @@ class TestRestoreCLIListRevisions:
         )
         config = MagicMock()
 
-        cli = RestoreCLI(service=service)
+        cli = RestoreCLI(service=service, revisions_client=revisions_client)
         result = await cli.run_list_revisions(config)
 
         assert result is True
         captured = capsys.readouterr()
-        assert "backup1.tar.zst" in captured.out
+        assert "backup.tar.zst" in captured.out
+        revisions_client.list_revisions.assert_called_once_with("f1")
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_no_revisions(self) -> None:
+        """Test returns False when no revisions found."""
+        service = MagicMock()
+        service.list_available_drive_backups = AsyncMock(
+            return_value=[{"id": "f1", "name": "backup.tar.zst"}]
+        )
+        revisions_client = MagicMock()
+        revisions_client.list_revisions = AsyncMock(return_value=[])
+        config = MagicMock()
+
+        cli = RestoreCLI(service=service, revisions_client=revisions_client)
+        result = await cli.run_list_revisions(config)
+
+        assert result is False
 
 
-class TestRestoreCLIPrintRevisionTable:
-    """Tests for RestoreCLI._print_revision_table method."""
+class TestRestoreCLIWizardLaunch:
+    """Tests for RestoreCLI wizard launch on no-args."""
 
-    def test_prints_formatted_table(self, capsys) -> None:
-        """Test prints formatted table."""
-        cli = RestoreCLI()
-        backup_files: list[DriveFileMetadata] = [
-            {
-                "id": "1",
-                "name": "backup1.tar.zst",
-                "modifiedTime": "2024-01-01T12:00:00",
-                "size": "1048576",
-            },
-            {
-                "id": "2",
-                "name": "backup2.tar.zst",
-                "modifiedTime": "2024-01-02T12:00:00",
-                "size": "2097152",
-            },
-        ]
+    @pytest.mark.asyncio
+    async def test_returns_error_without_revisions_client(self) -> None:
+        """Test _run_wizard returns 1 without revisions client."""
+        service = MagicMock()
+        cli = RestoreCLI(service=service)
+        config = MagicMock()
 
-        cli._print_revision_table(backup_files)
+        result = await cli._run_wizard(config, Path("/tmp/restore"))
 
-        captured = capsys.readouterr()
-        assert "File Name" in captured.out
-        assert "Modified Time" in captured.out
-        assert "Size" in captured.out
-        assert "backup1.tar.zst" in captured.out
-        assert "backup2.tar.zst" in captured.out
-        assert "Total backups found: 2" in captured.out
+        assert result == 1
 
-    def test_truncates_long_names(self, capsys) -> None:
-        """Test truncates long file names."""
-        cli = RestoreCLI()
-        long_name = "a" * 60 + ".tar.zst"
-        backup_files: list[DriveFileMetadata] = [
-            {
-                "id": "1",
-                "name": long_name,
-                "modifiedTime": "2024-01-01T00:00:00",
-                "size": "1024",
-            }
-        ]
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.cli.RestoreWizard")
+    async def test_wizard_success_returns_zero(self, mock_wiz_cls) -> None:
+        """Test successful wizard returns 0."""
+        service = MagicMock()
+        revisions_client = MagicMock()
+        cli = RestoreCLI(service=service, revisions_client=revisions_client)
 
-        cli._print_revision_table(backup_files)
+        mock_wiz_cls.return_value.run = AsyncMock(return_value=True)
+        config = MagicMock()
 
-        captured = capsys.readouterr()
-        assert "..." in captured.out
+        result = await cli._run_wizard(config, Path("/tmp/restore"))
 
+        assert result == 0
 
-class TestRestoreCLIFormatSize:
-    """Tests for RestoreCLI._format_size method."""
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.cli.RestoreWizard")
+    async def test_wizard_failure_returns_one(self, mock_wiz_cls) -> None:
+        """Test failed wizard returns 1."""
+        service = MagicMock()
+        revisions_client = MagicMock()
+        cli = RestoreCLI(service=service, revisions_client=revisions_client)
 
-    def test_formats_unknown(self) -> None:
-        """Test returns Unknown as-is."""
-        cli = RestoreCLI()
-        assert cli._format_size("Unknown") == "Unknown"
+        mock_wiz_cls.return_value.run = AsyncMock(return_value=False)
+        config = MagicMock()
 
-    def test_formats_valid_size(self) -> None:
-        """Test formats valid size string."""
-        cli = RestoreCLI()
-        # 2MB = 2097152 bytes (> 1MB threshold)
-        assert cli._format_size("2097152") == "2.0MB"
+        result = await cli._run_wizard(config, Path("/tmp/restore"))
 
-    def test_handles_invalid_size(self) -> None:
-        """Test handles invalid size string."""
-        cli = RestoreCLI()
-        assert cli._format_size("invalid") == "invalid"
+        assert result == 1
+
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.restore.cli.RestoreWizard")
+    async def test_wizard_keyboard_interrupt(self, mock_wiz_cls) -> None:
+        """Test wizard handles KeyboardInterrupt."""
+        service = MagicMock()
+        revisions_client = MagicMock()
+        cli = RestoreCLI(service=service, revisions_client=revisions_client)
+
+        mock_wiz_cls.return_value.run = AsyncMock(side_effect=KeyboardInterrupt)
+        config = MagicMock()
+
+        result = await cli._run_wizard(config, Path("/tmp/restore"))
+
+        assert result == 1

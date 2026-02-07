@@ -60,14 +60,17 @@ class TestBackupUploader:
         mock_drive_files.list.return_value = mock_list_request
         mock_list_request.execute.return_value = {"files": []}
 
-        # Setup create response
+        # Setup create response - next_chunk returns (status, response)
         mock_create_request = MagicMock()
         mock_drive_files.create.return_value = mock_create_request
-        mock_create_request.execute.return_value = {
-            "id": "test_file_id_123",
-            "name": "test-archive.tar.zst",
-            "webViewLink": "https://drive.google.com/file/d/test_file_id_123/view",
-        }
+        mock_create_request.next_chunk.return_value = (
+            None,
+            {
+                "id": "test_file_id_123",
+                "name": "test-archive.tar.zst",
+                "webViewLink": "https://drive.google.com/file/d/test_file_id_123/view",
+            },
+        )
 
         mock_build.return_value = mock_service
 
@@ -110,14 +113,17 @@ class TestBackupUploader:
             "files": [{"id": "existing_file_id_456", "name": "test-archive.tar.zst"}]
         }
 
-        # Setup update response
+        # Setup update response - next_chunk returns (status, response)
         mock_update_request = MagicMock()
         mock_drive_files.update.return_value = mock_update_request
-        mock_update_request.execute.return_value = {
-            "id": "existing_file_id_456",
-            "name": "test-archive.tar.zst",
-            "webViewLink": "https://drive.google.com/file/d/existing_file_id_456/view",
-        }
+        mock_update_request.next_chunk.return_value = (
+            None,
+            {
+                "id": "existing_file_id_456",
+                "name": "test-archive.tar.zst",
+                "webViewLink": "https://drive.google.com/file/d/existing_file_id_456/view",
+            },
+        )
 
         mock_build.return_value = mock_service
 
@@ -154,10 +160,10 @@ class TestBackupUploader:
         mock_drive_files.list.return_value = mock_list_request
         mock_list_request.execute.return_value = {"files": []}
 
-        # Make create operation raise an exception
+        # Make create operation raise an exception via next_chunk
         mock_create_request = MagicMock()
         mock_drive_files.create.return_value = mock_create_request
-        mock_create_request.execute.side_effect = Exception("API Error")
+        mock_create_request.next_chunk.side_effect = Exception("API Error")
 
         mock_build.return_value = mock_service
 
@@ -192,12 +198,13 @@ class TestBackupUploader:
         mock_drive_files.list.return_value = mock_list_request
         mock_list_request.execute.return_value = {"files": []}
 
-        # Setup create response with no ID
+        # Setup create response with no ID - next_chunk returns (status, response)
         mock_create_request = MagicMock()
         mock_drive_files.create.return_value = mock_create_request
-        mock_create_request.execute.return_value = {
-            "name": "test-archive.tar.zst"  # No ID field
-        }
+        mock_create_request.next_chunk.return_value = (
+            None,
+            {"name": "test-archive.tar.zst"},  # No ID field
+        )
 
         mock_build.return_value = mock_service
 

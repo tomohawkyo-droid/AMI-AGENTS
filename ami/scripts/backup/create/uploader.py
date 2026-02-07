@@ -6,7 +6,7 @@ Handles uploading archives to Google Drive using configured authentication.
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, NamedTuple, Protocol, cast
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -36,11 +36,30 @@ class DriveFilesResource(Protocol):
         ...
 
 
+class UploadProgress(Protocol):
+    """Protocol for upload progress status."""
+
+    def progress(self) -> float:
+        """Return upload progress as a float between 0.0 and 1.0."""
+        ...
+
+
+class ChunkResult(NamedTuple):
+    """Result from a resumable upload chunk."""
+
+    status: UploadProgress | None
+    response: DriveFileResponse | None
+
+
 class DriveRequest(Protocol):
     """Protocol for Google Drive request objects."""
 
     def execute(self) -> DriveFileResponse:
         """Execute the request."""
+        ...
+
+    def next_chunk(self) -> ChunkResult:
+        """Execute the next chunk of a resumable upload."""
         ...
 
 
@@ -68,6 +87,16 @@ class BackupUploader:
             )
         return self._service
 
+    def _chunked_upload(self, request: DriveRequest) -> DriveFileResponse:
+        """Execute resumable upload with progress logging."""
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+            if status:
+                pct = int(status.progress() * 100)
+                logger.info(f"  Upload progress: {pct}%")
+        return response
+
     async def _search_existing_file(
         self, service: DriveService, search_query: str
     ) -> str | None:
@@ -75,15 +104,17 @@ class BackupUploader:
         try:
             results = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: service.files()
-                .list(
-                    q=search_query,
-                    spaces="drive",
-                    fields="files(id, name)",
-                    includeItemsFromAllDrives=True,
-                    supportsAllDrives=True,
-                )
-                .execute(),
+                lambda: (
+                    service.files()
+                    .list(
+                        q=search_query,
+                        spaces="drive",
+                        fields="files(id, name)",
+                        includeItemsFromAllDrives=True,
+                        supportsAllDrives=True,
+                    )
+                    .execute()
+                ),
             )
 
             files = results.get("files")
@@ -109,8 +140,6 @@ class BackupUploader:
         Raises:
             UploadError: If upload fails
         """
-        logger.info("Uploading to Google Drive...")
-
         try:
             service = await self._get_service()
 
@@ -137,26 +166,26 @@ class BackupUploader:
             if existing_file_id:
                 file = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: service.files()
-                    .update(
-                        fileId=existing_file_id,
-                        media_body=media,
-                        fields="id,name,webViewLink",
-                        supportsAllDrives=True,
-                    )
-                    .execute(),
+                    lambda: self._chunked_upload(
+                        service.files().update(
+                            fileId=existing_file_id,
+                            media_body=media,
+                            fields="id,name,webViewLink",
+                            supportsAllDrives=True,
+                        )
+                    ),
                 )
             else:
                 file = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: service.files()
-                    .create(
-                        body=file_metadata,
-                        media_body=media,
-                        fields="id,name,webViewLink",
-                        supportsAllDrives=True,
-                    )
-                    .execute(),
+                    lambda: self._chunked_upload(
+                        service.files().create(
+                            body=file_metadata,
+                            media_body=media,
+                            fields="id,name,webViewLink",
+                            supportsAllDrives=True,
+                        )
+                    ),
                 )
 
         except Exception as e:

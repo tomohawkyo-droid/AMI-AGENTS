@@ -20,6 +20,9 @@ from ami.scripts.backup.create.secondary import copy_to_secondary_backup
 from ami.scripts.backup.create.uploader import BackupUploader
 from ami.scripts.backup.create.utils import cleanup_local_zip
 
+TOTAL_STEPS = 4
+BYTES_PER_MB = 1024 * 1024
+
 
 class BackupOptions(BaseModel):
     """Options for backup operations."""
@@ -66,21 +69,23 @@ class BackupService:
         # Update auth manager with new config
         self.auth_manager.update_config(config)
 
-        # Create zip archive from source_dir
         # Use CWD as output directory to avoid polluting source
         output_dir = Path.cwd()
-
-        # Use default backup name if not specified
         backup_name = options.output_filename or DEFAULT_BACKUP_NAME
 
+        # Step 1: Create archive
+        logger.info(f"[Step 1/{TOTAL_STEPS}] Creating archive...")
         zip_path = await create_zip_archive(
             source_dir,
             backup_name,
             options.ignore_exclusions,
             output_dir=output_dir,
         )
+        archive_size_mb = zip_path.stat().st_size / BYTES_PER_MB
+        logger.info(f"  Archive ready: {zip_path.name} ({archive_size_mb:.1f} MB)")
 
-        # Upload to Google Drive
+        # Step 2: Upload to Google Drive
+        logger.info(f"[Step 2/{TOTAL_STEPS}] Uploading to Google Drive...")
         try:
             file_id = await self.uploader.upload_to_gdrive(zip_path, config)
         except UploadError as e:
@@ -88,10 +93,12 @@ class BackupService:
                 e, zip_path, config, options.retry_auth
             )
 
-        # Copy to secondary backup location if AMI-BACKUP drives are mounted
+        # Step 3: Copy to secondary backup location
+        logger.info(f"[Step 3/{TOTAL_STEPS}] Copying to secondary backup...")
         await copy_to_secondary_backup(zip_path)
 
-        # Cleanup
+        # Step 4: Cleanup
+        logger.info(f"[Step 4/{TOTAL_STEPS}] Cleaning up...")
         await cleanup_local_zip(zip_path, options.keep_local)
 
         return file_id

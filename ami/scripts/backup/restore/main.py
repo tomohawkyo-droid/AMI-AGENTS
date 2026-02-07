@@ -27,6 +27,7 @@ from ami.scripts.backup.common.auth import AuthenticationManager
 from ami.scripts.backup.core.config import BackupRestoreConfig
 from ami.scripts.backup.restore.cli import RestoreCLI
 from ami.scripts.backup.restore.drive_client import DriveRestoreClient
+from ami.scripts.backup.restore.revisions_client import RevisionsClient
 from ami.scripts.backup.restore.service import BackupRestoreService
 
 
@@ -46,8 +47,9 @@ def main() -> int:
 
         # Service uses functional modules for extraction, only needs clients and auth
         service = BackupRestoreService(drive_client, auth_manager)
+        revisions_client = RevisionsClient(auth_manager)
 
-        cli = RestoreCLI(service)
+        cli = RestoreCLI(service, revisions_client=revisions_client)
         args = cli.parse_arguments(sys.argv[1:])
 
         # Run the async main

@@ -10,7 +10,6 @@ from ami.cli.mode_handlers import mode_interactive_editor, mode_query
 from ami.cli.timer_utils import TimerDisplay, wrap_text_in_box
 from ami.cli_components.text_editor import TextEditor
 from ami.core.bootloader_agent import AgentRunResult
-from ami.types.results import ProviderResult
 
 
 class TestMainIntegration:
@@ -68,17 +67,23 @@ class TestModeHandlersIntegration:
         assert result == 0
         assert mock_agent.run.called
 
-    @patch("ami.cli.mode_handlers.get_agent_cli")
-    def test_mode_query_end_to_end(self, mock_get_cli):
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    @patch("ami.cli.mode_handlers.TranscriptStore")
+    def test_mode_query_end_to_end(self, mock_store_cls, mock_create_bootloader):
         """End-to-end test of query mode."""
-        mock_cli = Mock()
-        mock_cli.run_print.return_value = ProviderResult("Response", None)
-        mock_get_cli.return_value = mock_cli
+        mock_store = mock_store_cls.return_value
+        mock_resumable = Mock()
+        mock_resumable.session_id = "test-transcript-id"
+        mock_store.get_resumable_session.return_value = mock_resumable
+
+        mock_agent = Mock()
+        mock_agent.run.return_value = AgentRunResult("Response", None)
+        mock_create_bootloader.return_value = mock_agent
 
         result = mode_query("Test query")
 
         assert result == 0
-        assert mock_cli.run_print.called
+        assert mock_agent.run.called
 
 
 class TestConfigurationIntegration:
@@ -98,7 +103,7 @@ class TestCLIIntegration:
     @patch("ami.cli.factory.get_config")
     def test_cli_factory_default(self, mock_get_config):
         """Test CLI factory returns Claude when configured."""
-        mock_get_config.return_value.get.return_value = "claude"
+        mock_get_config.return_value.get_value.return_value = "claude"
         cli = get_agent_cli()
         assert isinstance(cli, ClaudeAgentCLI)
 

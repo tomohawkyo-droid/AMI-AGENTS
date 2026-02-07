@@ -7,10 +7,13 @@ Safety Guarantee: NEVER deletes resources labeled or named 'checkpoint'.
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
+from pathlib import Path
 from typing import Any, cast
+
+KB_PER_UNIT = 1024
+MIN_SIZE_KB = 1024  # Skip targets smaller than 1 MB
 
 
 def run_cmd(cmd: list[str]) -> str:
@@ -23,10 +26,27 @@ def run_cmd(cmd: list[str]) -> str:
         return ""
 
 
+def human_readable(size_in_kb: int) -> str:
+    """Convert a size in KB to a human-readable string."""
+    units = ["KB", "MB", "GB", "TB"]
+    val = float(size_in_kb)
+    for unit in units:
+        if val < KB_PER_UNIT:
+            return f"{val:.2f} {unit}"
+        val /= KB_PER_UNIT
+    return f"{val:.2f} PB"
+
+
 class DiskCleaner:
-    def __init__(self, force: bool = False, dry_run: bool = False) -> None:
+    def __init__(
+        self,
+        force: bool = False,
+        dry_run: bool = False,
+        scan_root: str = ".",
+    ) -> None:
         self.force = force
         self.dry_run = dry_run
+        self.scan_root = Path(scan_root).resolve()
         if not self.force and not self.dry_run:
             print("[INFO] Running in DRY RUN mode. Use --force to execute deletions.")
             self.dry_run = True
@@ -47,26 +67,6 @@ class DiskCleaner:
         except json.JSONDecodeError:
             # Fallback for weird Podman versions handling empty lists
             return []
-
-    def clean_uv_cache(self) -> None:
-        """Cleans 'uv' package cache (~24GB potential)."""
-        print("\n--- Analyzing UV Cache ---")
-        if shutil.which("uv"):
-            # uv cache prune doesn't have a dry-run flag that outputs size easily,
-            # so we just check existence and run if forced.
-            cache_dir = os.path.expanduser("~/.cache/uv")
-            if os.path.exists(cache_dir):
-                size_output = run_cmd(["du", "-sh", cache_dir])
-                print(f"Found uv cache: {size_output}")
-                if not self.dry_run:
-                    print("[DELETE] Cleaning uv cache...")
-                    subprocess.run(["uv", "cache", "clean"], check=False)
-                else:
-                    print("[PLAN] Would run 'uv cache clean'")
-            else:
-                print("No uv cache directory found.")
-        else:
-            print("uv tool not found. Skipping.")
 
     def clean_containers(self) -> None:
         """Removes stopped/exited/created containers."""
@@ -108,70 +108,30 @@ class DiskCleaner:
             if not self.dry_run:
                 subprocess.run(["podman", "rm", "-f", c_id], check=False)
 
-    @staticmethod
-    def _get_image_tag_str(img: object) -> str:
-        """Extract a display string from image repo tags."""
-        img_any = cast(Any, img)
-        repo_tags = img_any.get("RepoTags", [])
-        if not repo_tags:
-            return "<none>"
-        if isinstance(repo_tags, list):
-            return ", ".join(repo_tags)
-        return str(repo_tags)
-
-    @staticmethod
-    def _is_protected_image(tag_str: str, keywords: list[str]) -> bool:
-        """Check if image matches any protected keyword."""
-        tag_lower = tag_str.lower()
-        for kw in keywords:
-            if kw in tag_lower:
-                print(f"[SKIP] Image '{tag_str}' matches protected keyword: '{kw}'")
-                return True
-        return False
-
     def clean_images(self) -> None:
-        """Removes all unused images (not just dangling)."""
-        print("\n--- Analyzing Images ---")
-
-        # 1. Get IDs of images used by ANY container (running or stopped)
-        used_images_cmd = [
+        """Remove only dangling (<none>) images. Tagged images are kept."""
+        print("\n--- Analyzing Dangling Images ---")
+        cmd = [
             "podman",
-            "ps",
-            "-a",
+            "images",
+            "--filter",
+            "dangling=true",
             "--format",
-            "{{.ImageID}}",
-            "--no-trunc",
+            "json",
         ]
-        used_images_output = run_cmd(used_images_cmd)
-        used_image_ids = (
-            set(used_images_output.splitlines()) if used_images_output else set()
-        )
+        dangling = self.get_json_items(cmd)
 
-        # 2. Get all images
-        cmd = ["podman", "images", "--format", "json"]
-        all_images = self.get_json_items(cmd)
-
-        if not all_images:
-            print("No images found.")
+        if not dangling:
+            print("No dangling images found.")
             return
 
-        protected_keywords = ["checkpoint", "base-os", "postgres"]
-
-        for img_obj in all_images:
+        for img_obj in dangling:
             if not isinstance(img_obj, dict):
                 continue
             img = cast(Any, img_obj)
             img_id_full = str(img.get("Id", img.get("ID", "")))
-            tag_str = self._get_image_tag_str(img)
-
-            if img_id_full in used_image_ids:
-                continue
-
-            if self._is_protected_image(tag_str, protected_keywords):
-                continue
-
             img_id_short = img_id_full[:12]
-            print(f"[DELETE] Unused Image {tag_str} ({img_id_short})")
+            print(f"[DELETE] Dangling image ({img_id_short})")
             if not self.dry_run:
                 subprocess.run(["podman", "rmi", "-f", img_id_full], check=False)
 
@@ -223,8 +183,66 @@ class DiskCleaner:
             if not self.dry_run:
                 subprocess.run(["podman", "volume", "rm", "-f", name], check=False)
 
+    def _find_cargo_projects(self) -> list[str]:
+        """Find Cargo.toml files, skipping heavy dirs."""
+        cmd = [
+            "find",
+            str(self.scan_root),
+            "-name",
+            "Cargo.toml",
+            "-not",
+            "-path",
+            "*/target/*",
+            "-not",
+            "-path",
+            "*/.venv/*",
+            "-not",
+            "-path",
+            "*/node_modules/*",
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        output = result.stdout.strip()
+        return output.splitlines() if output else []
+
+    def clean_rust_targets(self) -> None:
+        """Remove Rust target/ directories (build artifacts)."""
+        print(f"\n--- Analyzing Rust Build Artifacts under {self.scan_root} ---")
+        cargo_paths = self._find_cargo_projects()
+        if not cargo_paths:
+            print("No Rust projects found.")
+            return
+
+        total_kb = 0
+        for cargo_toml in cargo_paths:
+            target_dir = Path(cargo_toml).parent / "target"
+            if not target_dir.is_dir():
+                continue
+
+            size_output = run_cmd(["du", "-sk", str(target_dir)])
+            if not size_output:
+                continue
+            parts = size_output.split("\t")
+            try:
+                size_kb = int(parts[0])
+            except (ValueError, IndexError):
+                continue
+
+            if size_kb < MIN_SIZE_KB:
+                continue
+
+            total_kb += size_kb
+            hr = human_readable(size_kb)
+            print(f"[DELETE] {hr:>10}  {target_dir}")
+            if not self.dry_run:
+                shutil.rmtree(target_dir, ignore_errors=True)
+
+        if total_kb:
+            print(f"[INFO] Rust targets total: {human_readable(total_kb)}")
+        else:
+            print("No Rust target/ directories found.")
+
     def run(self) -> None:
-        self.clean_uv_cache()
+        self.clean_rust_targets()
         self.clean_containers()
         self.clean_images()
         self.clean_volumes()
@@ -232,13 +250,18 @@ class DiskCleaner:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Safe Disk Space Cleaner for Podman")
+    parser = argparse.ArgumentParser(description="Safe Disk Space Cleaner")
     parser.add_argument(
         "--force",
         action="store_true",
         help="Actually execute deletions (default: Dry Run)",
     )
+    parser.add_argument(
+        "--scan-path",
+        default=".",
+        help="Root path to scan for Rust target/ directories (default: cwd)",
+    )
     args = parser.parse_args()
 
-    cleaner = DiskCleaner(force=args.force)
+    cleaner = DiskCleaner(force=args.force, scan_root=args.scan_path)
     cleaner.run()

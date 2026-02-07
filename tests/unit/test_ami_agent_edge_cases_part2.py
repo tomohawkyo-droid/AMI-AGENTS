@@ -146,27 +146,15 @@ class TestQwenCLIErrorConditions:
 class TestHelperErrorConditions:
     """Test error conditions in helper functions."""
 
-    @patch("ami.cli.mode_handlers.validate_path_and_return_code")
-    @patch("ami.cli.mode_handlers.get_agent_cli")
-    def test_mode_print_with_instruction_file_and_content(
-        self, mock_get_cli, mock_validate
-    ):
+    def test_mode_print_with_instruction_file_and_content(self):
         """Test print mode with both file and content.
 
         Should be impossible via CLI but good for coverage.
         """
-        # This is hard to test via mode_print directly
-        # as it takes one or the other arg logic.
-        # But we can test run_print directly
-
-        mock_validate.return_value = 0
         cli = ClaudeAgentCLI()
 
         # run_print raises ValueError if both instruction
         # and instruction_file are provided
-        # But mode_print logic prevents this call signature usually
-        # Let's test calling run_print directly with a real Path object
-
         with pytest.raises(
             ValueError, match="Cannot provide both instruction and instruction_file"
         ):

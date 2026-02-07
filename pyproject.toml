@@ -40,6 +40,7 @@ dependencies = [
     "google-api-python-client==2.189.0",
     "zstandard==0.25.0",
     "pyahocorasick==2.3.0",
+    "podman-compose==1.5.0",
 ]
 
 [tool.pytest.ini_options]
@@ -77,7 +78,7 @@ dev = [
     "types-requests==2.32.4.20260107",
     "types-setuptools==80.10.0.20260124",
     "types-PyYAML==6.0.12.20250915",
-    "types-tqdm==4.67.2.20260202",
+    "types-tqdm==4.67.3.20260205",
     "google-auth-stubs==0.3.0",
     "tomli==2.4.0",
     "tomli-w==1.2.0",

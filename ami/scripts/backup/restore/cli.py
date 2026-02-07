@@ -7,14 +7,19 @@ Handles command line argument parsing and execution.
 import argparse
 import sys
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 from loguru import logger
 
+from ami.cli_components.selector import (
+    BackupFileInfo,
+    select_backup_interactive,
+)
 from ami.scripts.backup.core.config import BackupRestoreConfig
-from ami.scripts.backup.restore.drive_client import DriveFileMetadata
-from ami.scripts.backup.restore.selector import select_backup_interactive
+from ami.scripts.backup.restore.revision_display import display_revision_list
+from ami.scripts.backup.restore.revisions_client import RevisionsClient
 from ami.scripts.backup.restore.service import BackupRestoreService
+from ami.scripts.backup.restore.wizard import RestoreWizard
 
 
 class RestoreExecuteResult(NamedTuple):
@@ -24,29 +29,16 @@ class RestoreExecuteResult(NamedTuple):
     handled: bool
 
 
-# Size constants for human-readable formatting
-BYTES_PER_KB = 1024
-BYTES_PER_MB = 1024 * 1024
-BYTES_PER_GB = 1024 * 1024 * 1024
-MAX_DISPLAY_NAME_LENGTH = 50
-
-
-def _format_file_size(size_bytes: int) -> str:
-    """Format file size in human-readable format."""
-    if size_bytes > BYTES_PER_GB:
-        return f"{size_bytes / BYTES_PER_GB:.1f}GB"
-    if size_bytes > BYTES_PER_MB:
-        return f"{size_bytes / BYTES_PER_MB:.1f}MB"
-    if size_bytes > BYTES_PER_KB:
-        return f"{size_bytes / BYTES_PER_KB:.1f}KB"
-    return f"{size_bytes}B"
-
-
 class RestoreCLI:
     """Command line interface for backup restore operations."""
 
-    def __init__(self, service: BackupRestoreService | None = None):
+    def __init__(
+        self,
+        service: BackupRestoreService | None = None,
+        revisions_client: RevisionsClient | None = None,
+    ):
         self.service = service
+        self.revisions_client = revisions_client
 
     def _require_service(self) -> BackupRestoreService:
         """Get the service, raising an error if not initialized."""
@@ -197,7 +189,8 @@ Examples:
             logger.error("No backup files found")
             return False
 
-        selected_file_id = select_backup_interactive(backup_files)
+        files_info = cast(list[BackupFileInfo], backup_files)
+        selected_file_id = select_backup_interactive(files_info)
         if selected_file_id is None:
             logger.info("No backup selected, exiting")
             return False
@@ -208,7 +201,7 @@ Examples:
         )
 
     async def run_list_revisions(self, config: BackupRestoreConfig) -> bool:
-        """List available backup revisions in non-interactive mode."""
+        """List available backup revisions using Drive Revisions API."""
         service = self._require_service()
         logger.info("Fetching backup files from Google Drive...")
         backup_files = await service.list_available_drive_backups(config)
@@ -217,38 +210,23 @@ Examples:
             logger.error("No backup files found")
             return False
 
-        self._print_revision_table(backup_files)
-        logger.info(f"Listed {len(backup_files)} backup revisions")
+        if not self.revisions_client:
+            logger.error("Revisions client not available")
+            return False
+
+        # Use first backup file to show revision history
+        file_id = backup_files[0].get("id", "")
+        file_name = backup_files[0].get("name", "Unknown")
+
+        revisions = await self.revisions_client.list_revisions(file_id)
+        if not revisions:
+            logger.warning("No revision history for this file")
+            return False
+
+        display_revision_list(file_name, revisions)
+        count = len(revisions)
+        logger.info(f"Listed {count} revision(s)")
         return True
-
-    def _print_revision_table(self, backup_files: list[DriveFileMetadata]) -> None:
-        """Print formatted table of backup revisions."""
-        print(f"\n   {'File Name':<50} {'Modified Time':<25} {'Size':<10}")
-        print("-" * (3 + 50 + 25 + 10))
-
-        for i, file_info in enumerate(backup_files):
-            name = file_info.get("name", "Unknown")
-            modified_time = file_info.get("modifiedTime", "Unknown")
-            size_str = self._format_size(file_info.get("size", "Unknown"))
-            truncated_name = (
-                (name[: MAX_DISPLAY_NAME_LENGTH - 3] + "...")
-                if len(name) > MAX_DISPLAY_NAME_LENGTH
-                else name
-            )
-            print(
-                f"{i:>2d} {truncated_name:<50} {modified_time[:19]:<25} {size_str:<10}"
-            )
-
-        print(f"\nTotal backups found: {len(backup_files)}")
-
-    def _format_size(self, size: str) -> str:
-        """Format size value to human-readable string."""
-        if size == "Unknown":
-            return size
-        try:
-            return _format_file_size(int(size))
-        except ValueError:
-            return size
 
     def _setup_logging(self, verbose: bool) -> None:
         """Configure logging level based on verbose flag."""
@@ -336,6 +314,26 @@ Examples:
 
         return RestoreExecuteResult(success=False, handled=False)
 
+    async def _run_wizard(self, config: BackupRestoreConfig, restore_path: Path) -> int:
+        """Launch the interactive restore wizard."""
+        service = self._require_service()
+        if not self.revisions_client:
+            logger.error("Revisions client not available")
+            return 1
+
+        wizard = RestoreWizard(service, self.revisions_client, config, restore_path)
+        try:
+            success = await wizard.run()
+        except KeyboardInterrupt:
+            logger.info("\nWizard cancelled by user")
+            return 1
+
+        if success:
+            self._log_success(restore_path, None)
+            return 0
+        logger.error("Restore wizard failed or was cancelled")
+        return 1
+
     def _log_success(self, restore_path: Path, paths: list[Path] | None) -> None:
         """Log successful restore completion."""
         logger.info("=" * 60)
@@ -359,11 +357,13 @@ Examples:
 
         try:
             execute_result = await self._execute_restore(args, restore_path, config)
-        except KeyboardInterrupt:
-            logger.info("\nOperation cancelled by user")
-            return 1
-        except Exception as e:
-            logger.error(f"Restore failed with error: {e}")
+        except (KeyboardInterrupt, Exception) as e:
+            msg = (
+                "\nOperation cancelled by user"
+                if isinstance(e, KeyboardInterrupt)
+                else f"Restore failed with error: {e}"
+            )
+            logger.error(msg)
             return 1
 
         if not execute_result.handled:
@@ -372,16 +372,15 @@ Examples:
                     "Paths specified but no source. "
                     "Use --file-id, --local-path, or --revision."
                 )
-            else:
-                self.create_parser().print_help()
+                return 1
+            return await self._run_wizard(config, restore_path)
+
+        if not execute_result.success:
+            logger.error("Restore failed")
             return 1
 
-        if execute_result.success:
-            self._log_success(restore_path, args.paths)
-            return 0
-
-        logger.error("Restore failed")
-        return 1
+        self._log_success(restore_path, args.paths)
+        return 0
 
 
 # Note: The main entry point is in backup/restore/main.py

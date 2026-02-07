@@ -151,6 +151,22 @@ class DriveListResponse(TypedDict, total=False):
     nextPageToken: str
 
 
+class DriveRevisionInfo(TypedDict, total=False):
+    """Metadata for a Google Drive file revision."""
+
+    id: str
+    modifiedTime: str
+    size: str
+    originalFilename: str
+    keepForever: bool
+
+
+class DriveRevisionListResponse(TypedDict, total=False):
+    """Response from Google Drive revisions.list()."""
+
+    revisions: list[DriveRevisionInfo]
+
+
 # Container labels are arbitrary key-value pairs from Docker/Podman,
 # so dict[str, str] is the correct type (not TypedDict).
 ContainerLabels = dict[str, str]

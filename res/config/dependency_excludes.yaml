@@ -1,0 +1,6 @@
+# Dependencies to exclude from version checking and auto-upgrading.
+# These packages may have strict version requirements from other projects
+# in the workspace, or need to be kept at specific versions for stability.
+
+excludes:
+  - setuptools  # Strict requirement (80.10.2) from timeseries-transformer-forecasting

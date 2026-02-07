@@ -150,7 +150,7 @@ class StreamRenderer:
 
         # Footer
         if not self.capture_content:
-            sys.stdout.write(f"🤖 {time.strftime('%H:%M:%S')}\n\n")
+            sys.stdout.write(f"\n🤖 {time.strftime('%H:%M:%S')}\n\n")
             sys.stdout.flush()
 
         return {

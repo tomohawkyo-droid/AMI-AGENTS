@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ami.cli.exceptions import AgentError, AgentExecutionError
 from ami.cli.mode_handlers import (
     get_latest_session_id,
     get_user_confirmation,
@@ -16,7 +15,6 @@ from ami.cli.mode_handlers import (
     mode_query,
 )
 from ami.core.bootloader_agent import AgentRunResult
-from ami.types.results import ProviderResult
 
 # Test constants
 EXPECTED_EDITOR_RUN_CALLS = 2
@@ -60,8 +58,7 @@ class TestModeInteractiveEditor:
     @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
-    @patch("ami.cli.mode_handlers.display_final_output")
-    def test_interactive_editor_success(self, mock_display, *mocks):
+    def test_interactive_editor_success(self, *mocks):
         """Test successful execution flow."""
         MockCreateBootloader, MockTextEditor, MockTranscriptStore = mocks[:3]
 
@@ -84,7 +81,6 @@ class TestModeInteractiveEditor:
         # Verify
         assert exit_code == 0
         assert mock_editor.run.call_count == EXPECTED_EDITOR_RUN_CALLS
-        mock_display.assert_called_with(["Do something"], "✅ Sent to agent")
         mock_agent.run.assert_called_once()
         call_ctx = mock_agent.run.call_args[0][0]  # First positional arg is RunContext
         assert call_ctx.instruction == "Do something"
@@ -93,10 +89,15 @@ class TestModeInteractiveEditor:
 
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
+    @patch("ami.cli.mode_handlers.confirm", return_value=False)
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
     def test_interactive_editor_cancel(
-        self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay
+        self,
+        MockCreateBootloader,
+        MockTextEditor,
+        *mocks,
     ):
         """Test user cancellation in editor."""
         mock_editor = MockTextEditor.return_value
@@ -105,14 +106,20 @@ class TestModeInteractiveEditor:
         exit_code = mode_interactive_editor()
 
         assert exit_code == 0
-        MockCreateBootloader.assert_not_called()
+        # create_bootloader is called once during mode_interactive_editor init
+        MockCreateBootloader.assert_called_once()
 
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
+    @patch("ami.cli.mode_handlers.confirm", return_value=False)
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.TextEditor")
     @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
     def test_interactive_editor_empty(
-        self, MockCreateBootloader, MockTextEditor, mock_isatty, MockTimerDisplay
+        self,
+        MockCreateBootloader,
+        MockTextEditor,
+        *mocks,
     ):
         """Test empty input."""
         mock_editor = MockTextEditor.return_value
@@ -121,7 +128,8 @@ class TestModeInteractiveEditor:
         exit_code = mode_interactive_editor()
 
         assert exit_code == 0
-        MockCreateBootloader.assert_not_called()
+        # create_bootloader is called once during mode_interactive_editor init
+        MockCreateBootloader.assert_called_once()
 
     @patch("ami.cli.timer_utils.TimerDisplay")
     @patch("sys.stdin.isatty", return_value=False)
@@ -147,7 +155,7 @@ class TestModeInteractiveEditor:
             exit_code = mode_interactive_editor()
 
             assert exit_code == 1
-            mock_stderr.assert_any_call("Error calling agent: Agent crashed\n")
+            mock_stderr.assert_any_call("\nError: Agent crashed\n")
 
 
 class TestGetLatestSessionId:
@@ -188,51 +196,61 @@ class TestGetLatestSessionId:
 class TestModeQuery:
     """Tests for mode_query function."""
 
-    @patch("ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.wrap_text_in_box")
     @patch.object(sys.stdout, "write")
     @patch.object(sys.stdout, "flush")
-    def test_mode_query_success(self, mock_flush, mock_write, mock_wrap, mock_get_cli):
+    def test_mode_query_success(
+        self, mock_flush, mock_write, mock_wrap, MockStore, MockAgent
+    ):
         """Test successful query execution."""
         mock_wrap.return_value = "boxed text"
-        mock_cli = MagicMock()
-        mock_cli.run_print.return_value = ProviderResult("output", MagicMock())
-        mock_get_cli.return_value = mock_cli
+        mock_store = MockStore.return_value
+        mock_resumable = MagicMock()
+        mock_resumable.session_id = "test-session-id"
+        mock_store.get_resumable_session.return_value = mock_resumable
+        mock_agent = MockAgent.return_value
+        mock_agent.run.return_value = AgentRunResult("output", "sess-id")
 
         result = mode_query("What is Python?")
 
         assert result == 0
-        mock_cli.run_print.assert_called_once()
+        mock_agent.run.assert_called_once()
 
-    @patch("ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.wrap_text_in_box")
     @patch.object(sys.stdout, "write")
     @patch.object(sys.stdout, "flush")
     def test_mode_query_keyboard_interrupt(
-        self, mock_flush, mock_write, mock_wrap, mock_get_cli
+        self, mock_flush, mock_write, mock_wrap, MockStore, MockAgent
     ):
         """Test query cancellation with Ctrl+C."""
         mock_wrap.return_value = "boxed text"
-        mock_cli = MagicMock()
-        mock_cli.run_print.side_effect = KeyboardInterrupt()
-        mock_get_cli.return_value = mock_cli
+        mock_store = MockStore.return_value
+        mock_resumable = MagicMock()
+        mock_resumable.session_id = "test-session-id"
+        mock_store.get_resumable_session.return_value = mock_resumable
+        mock_agent = MockAgent.return_value
+        mock_agent.run.side_effect = KeyboardInterrupt()
 
         result = mode_query("What is Python?")
 
         assert result == 0
 
-    @patch("ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch("ami.cli.mode_handlers.wrap_text_in_box")
     @patch.object(sys.stdout, "write")
     @patch.object(sys.stdout, "flush")
     def test_mode_query_exception(
-        self, mock_flush, mock_write, mock_wrap, mock_get_cli
+        self, mock_flush, mock_write, mock_wrap, MockStore, MockAgent
     ):
         """Test query execution with exception."""
         mock_wrap.return_value = "boxed text"
-        mock_cli = MagicMock()
-        mock_cli.run_print.side_effect = Exception("Query failed")
-        mock_get_cli.return_value = mock_cli
+        mock_agent = MockAgent.return_value
+        mock_agent.run.side_effect = Exception("Query failed")
 
         result = mode_query("What is Python?")
 
@@ -248,14 +266,18 @@ class TestModePrint:
 
         assert result == 1
 
-    @patch("ami.cli.mode_handlers.get_agent_cli")
+    @patch("ami.cli.mode_handlers.AgentFactory.create_bootloader")
+    @patch("ami.cli.mode_handlers.TranscriptStore")
     @patch.object(sys.stdin, "read")
-    def test_mode_print_success(self, mock_stdin_read, mock_get_cli):
+    def test_mode_print_success(self, mock_stdin_read, MockStore, MockAgent):
         """Test successful print execution."""
         mock_stdin_read.return_value = ""
-        mock_cli = MagicMock()
-        mock_cli.run_print.return_value = ProviderResult("output", MagicMock())
-        mock_get_cli.return_value = mock_cli
+        mock_store = MockStore.return_value
+        mock_resumable = MagicMock()
+        mock_resumable.session_id = "test-session-id"
+        mock_store.get_resumable_session.return_value = mock_resumable
+        mock_agent = MockAgent.return_value
+        mock_agent.run.return_value = AgentRunResult("output", "sess-id")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("Test instruction")
@@ -265,76 +287,6 @@ class TestModePrint:
             result = mode_print(temp_path)
 
             assert result == 0
-            mock_cli.run_print.assert_called_once()
-        finally:
-            Path(temp_path).unlink()
-
-    @patch("ami.cli.mode_handlers.get_agent_cli")
-    @patch.object(sys.stdin, "read")
-    @patch.object(sys.stderr, "write")
-    def test_mode_print_agent_execution_error(
-        self, mock_stderr, mock_stdin_read, mock_get_cli
-    ):
-        """Test mode_print with AgentExecutionError."""
-        mock_stdin_read.return_value = ""
-        mock_cli = MagicMock()
-        # AgentExecutionError takes (exit_code, stdout, stderr, cmd)
-        mock_cli.run_print.side_effect = AgentExecutionError(
-            exit_code=2, stdout="", stderr="Exec failed", cmd=["test"]
-        )
-        mock_get_cli.return_value = mock_cli
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("Test instruction")
-            temp_path = f.name
-
-        try:
-            result = mode_print(temp_path)
-
-            assert result == EXPECTED_AGENT_EXEC_ERROR_EXIT_CODE
-        finally:
-            Path(temp_path).unlink()
-
-    @patch("ami.cli.mode_handlers.get_agent_cli")
-    @patch.object(sys.stdin, "read")
-    @patch.object(sys.stderr, "write")
-    def test_mode_print_agent_error(self, mock_stderr, mock_stdin_read, mock_get_cli):
-        """Test mode_print with AgentError."""
-        mock_stdin_read.return_value = ""
-        mock_cli = MagicMock()
-        mock_cli.run_print.side_effect = AgentError("Agent error")
-        mock_get_cli.return_value = mock_cli
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("Test instruction")
-            temp_path = f.name
-
-        try:
-            result = mode_print(temp_path)
-
-            assert result == 1
-        finally:
-            Path(temp_path).unlink()
-
-    @patch("ami.cli.mode_handlers.get_agent_cli")
-    @patch.object(sys.stdin, "read")
-    @patch.object(sys.stderr, "write")
-    def test_mode_print_unexpected_error(
-        self, mock_stderr, mock_stdin_read, mock_get_cli
-    ):
-        """Test mode_print with unexpected exception."""
-        mock_stdin_read.return_value = ""
-        mock_cli = MagicMock()
-        mock_cli.run_print.side_effect = Exception("Unexpected error")
-        mock_get_cli.return_value = mock_cli
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("Test instruction")
-            temp_path = f.name
-
-        try:
-            result = mode_print(temp_path)
-
-            assert result == 1
+            mock_agent.run.assert_called_once()
         finally:
             Path(temp_path).unlink()

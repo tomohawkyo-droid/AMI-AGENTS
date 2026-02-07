@@ -21,6 +21,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import yaml
+
 from ami.types.results import (
     DependencyCheckResult,
     LooseDependency,
@@ -37,6 +39,21 @@ BUILTIN_EXCLUDES = {
     "pandas",  # Constrained by mlflow<3
     "pandas-" + "st" + "ubs",  # Type annotations package, must match pandas version
 }
+
+
+def load_config_excludes() -> set[str]:
+    """Load exclusions from res/config/dependency_excludes.yaml."""
+    config_path = Path("res/config/dependency_excludes.yaml")
+    if not config_path.exists():
+        return set()
+
+    try:
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+            return {x.strip().lower() for x in data.get("excludes", []) if x.strip()}
+    except Exception as e:
+        print(f"Warning: Failed to load config excludes: {e}")
+        return set()
 
 
 def get_latest_pypi_version(package_name: str) -> str | None:
@@ -192,9 +209,11 @@ def main() -> int:
         return 1
 
     excludes = {x.strip().lower() for x in args.exclude.split(",") if x.strip()}
+    config_excludes = load_config_excludes()
+    all_excludes = excludes | config_excludes
 
     print(f"Checking {path}...")
-    loose, outdated, _ = check_and_collect(path, excludes)
+    loose, outdated, _ = check_and_collect(path, all_excludes)
 
     if args.upgrade and (loose or outdated):
         print("Upgrading versions...")
