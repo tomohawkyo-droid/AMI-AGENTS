@@ -30,8 +30,8 @@ install: ## Install AMI Agents in editable mode with all setup
 	$(MAKE) sync-package
 	$(MAKE) setup-config
 	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
 	$(MAKE) install-bootstrap
+	$(MAKE) install-safety-scripts
 	$(MAKE) install-shell
 	@echo "✨ Installation complete!"
 	@bash ami/scripts/shell/shell-setup --welcome
@@ -42,8 +42,9 @@ install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
 	$(MAKE) sync-package
 	$(MAKE) setup-config
 	$(MAKE) register-extensions
-	$(MAKE) install-safety-scripts
 	$(MAKE) install-bootstrap-ci
+	$(MAKE) install-safety-scripts
+	$(MAKE) install-shell
 	@echo "✨ Installation complete (CI mode)!"
 
 .PHONY: sync-package
