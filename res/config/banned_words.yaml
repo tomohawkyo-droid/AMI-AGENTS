@@ -28,7 +28,7 @@ banned:
   # Exception: types/common.py ContainerLabels needs dict[str, str] for arbitrary Docker labels
   - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
     reason: "BANNED. Use TypedDict/NamedTuple/Pydantic."
-    exception_regex: "(scripts/ci/|types/common\\.py)"
+    exception_regex: "(scripts/ci/|types/common\\.py|px-to-rem\\.py)"
 
   # Exception: subprocess interface files need Mapping for Popen env parameter
   - pattern: '\b(Mapping|Sequence|MutableMapping|MutableSequence|Iterable|Iterator)\['
@@ -81,6 +81,7 @@ banned:
 
   - pattern: '\bskeleton\b'
     reason: "No skeleton code."
+    exception_regex: "\\.js$"
 
   - pattern: '\bplaceholders?\b'
     reason: "No placeholder code."

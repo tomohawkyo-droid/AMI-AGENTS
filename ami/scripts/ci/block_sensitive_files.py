@@ -53,6 +53,7 @@ SAFE_EXCEPTIONS = {
     "requirements.txt",
     "setup.cfg",
     "tox.ini",
+    "tsconfig.json",
     ".pre-commit-config.yaml",
 }
 

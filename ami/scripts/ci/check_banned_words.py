@@ -12,6 +12,7 @@ Configuration is loaded from res/config/banned_words.yaml (v3.0.0 format):
 import argparse
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import TypedDict, cast
@@ -31,6 +32,8 @@ IGNORE_DIRS = {
     ".ruff_cache",
     "dist",
     "build",
+    ".next",
+    "out",
     "checkpoints",
     "logs",
     "results",
@@ -84,6 +87,7 @@ class BannedWordsConfig(TypedDict, total=False):
     directory_rules: object  # Parsed from YAML, structure validated at runtime
     filename_rules: list[PatternConfig]
     ignored_files: list[str]
+    ignore_dirs: list[str]
 
 
 class PatternRule:
@@ -258,6 +262,51 @@ def print_errors(errors: list[BannedPatternError]) -> None:
         print()
 
 
+def _list_tracked_files(root_dir: str, ignore_dirs: set[str]) -> list[str]:
+    """Return relative paths of files to scan.
+
+    Prefers ``git ls-files`` so gitignored build artifacts are skipped.
+    Falls back to ``os.walk`` when not inside a git repository.
+    """
+    git_paths = _git_ls_files(root_dir, ignore_dirs)
+    if git_paths is not None:
+        return git_paths
+
+    # Fallback: walk filesystem
+    paths: list[str] = []
+    for root, dirs, files in os.walk(root_dir):
+        dirs[:] = [d for d in dirs if d not in ignore_dirs]
+        for filename in files:
+            filepath = os.path.join(root, filename)
+            paths.append(os.path.relpath(filepath, root_dir))
+    return paths
+
+
+def _git_ls_files(root_dir: str, ignore_dirs: set[str]) -> list[str] | None:
+    """Return tracked file paths via git, or None if not in a git repo."""
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            capture_output=True,
+            text=True,
+            cwd=root_dir,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+    paths: list[str] = []
+    for entry in result.stdout.splitlines():
+        stripped = entry.strip()
+        if not stripped:
+            continue
+        parts = Path(stripped).parts
+        if any(p in ignore_dirs for p in parts):
+            continue
+        paths.append(stripped)
+    return paths
+
+
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Check for banned words/patterns")
@@ -265,6 +314,13 @@ def main() -> None:
         "--config",
         default=DEFAULT_CONFIG_PATH,
         help=f"Path to config file (default: {DEFAULT_CONFIG_PATH})",
+    )
+    parser.add_argument(
+        "--exclude-dir",
+        action="append",
+        default=[],
+        dest="exclude_dirs",
+        help="Additional directory names to ignore (repeatable)",
     )
     args = parser.parse_args()
 
@@ -275,6 +331,11 @@ def main() -> None:
     dir_rules_config = config.get("directory_rules", {})
     filename_configs = config.get("filename_rules", [])
     ignored_files = set(config.get("ignored_files", []))
+
+    # Merge config-level + CLI ignore_dirs with built-in IGNORE_DIRS
+    extra_ignore: set[str] = set(config.get("ignore_dirs", []))
+    extra_ignore.update(args.exclude_dirs)
+    effective_ignore_dirs = IGNORE_DIRS | extra_ignore
 
     # Pre-compile all rule objects
     global_rules = [PatternRule(cfg) for cfg in banned_configs]
@@ -291,29 +352,29 @@ def main() -> None:
     print(f"  Directory-specific rules: {dir_rule_count}")
     print(f"  Filename rules: {len(filename_rules)}")
 
-    for root, dirs, files in os.walk(root_dir):
-        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+    # Use git ls-files if inside a git repo to respect .gitignore;
+    # fall back to os.walk for non-git contexts.
+    tracked_files = _list_tracked_files(root_dir, effective_ignore_dirs)
 
-        for filename in files:
-            if not any(filename.endswith(ext) for ext in INCLUDE_EXTENSIONS):
-                continue
+    for rel_path in tracked_files:
+        filename = os.path.basename(rel_path)
 
-            filepath = os.path.join(root, filename)
-            rel_path = os.path.relpath(filepath, root_dir)
+        if not any(filename.endswith(ext) for ext in INCLUDE_EXTENSIONS):
+            continue
 
-            if rel_path in ignored_files or filename in ignored_files:
-                continue
+        if rel_path in ignored_files or filename in ignored_files:
+            continue
 
-            files_checked += 1
+        files_checked += 1
 
-            # Check filename
-            errors.extend(check_filename(rel_path, filename_rules))
+        # Check filename
+        errors.extend(check_filename(rel_path, filename_rules))
 
-            # Get directory-specific rules (using pre-compiled rules)
-            dir_rules = get_dir_rules(rel_path, dir_rules_compiled)
+        # Get directory-specific rules (using pre-compiled rules)
+        dir_rules = get_dir_rules(rel_path, dir_rules_compiled)
 
-            # Check content
-            errors.extend(check_file_content(rel_path, global_rules, dir_rules))
+        # Check content
+        errors.extend(check_file_content(rel_path, global_rules, dir_rules))
 
     print(f"  Files checked: {files_checked}")
 
