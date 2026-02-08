@@ -1,7 +1,7 @@
 """
 Interactive restore wizard.
 
-4-step wizard: select backup file, select revision, choose path, confirm.
+5-step wizard: select file, select revision, choose path, select paths, confirm.
 """
 
 import tempfile
@@ -25,7 +25,7 @@ from ami.scripts.backup.restore.revisions_client import RevisionsClient
 from ami.scripts.backup.restore.service import BackupRestoreService
 from ami.types.common import DriveRevisionInfo
 
-WIZARD_TOTAL_STEPS = 4
+WIZARD_TOTAL_STEPS = 5
 
 
 class FileSelection(NamedTuple):
@@ -36,7 +36,7 @@ class FileSelection(NamedTuple):
 
 
 class RestoreWizard:
-    """Interactive 4-step restore wizard."""
+    """Interactive 5-step restore wizard."""
 
     def __init__(
         self,
@@ -77,13 +77,16 @@ class RestoreWizard:
             logger.info("Wizard cancelled at path selection")
             return False
 
-        # Step 4: Confirm
-        if not self._confirm_restore(file_name, revision, restore_path):
+        # Step 4: Select paths to restore
+        paths = self._select_paths()
+
+        # Step 5: Confirm
+        if not self._confirm_restore(file_name, revision, restore_path, paths):
             logger.info("Restore cancelled by user")
             return False
 
         # Execute
-        return await self._execute_restore(file_id, revision, restore_path)
+        return await self._execute_restore(file_id, revision, restore_path, paths)
 
     async def _select_backup_file(self) -> FileSelection | None:
         """Step 1: Select a backup file from Google Drive.
@@ -200,37 +203,70 @@ class RestoreWizard:
 
         return Path(chosen)
 
+    def _select_paths(self) -> list[Path] | None:
+        """Step 4: Select specific paths to restore.
+
+        Returns:
+            List of paths to restore, or None for all files
+        """
+        self._print_step_header(4, "Select Paths to Restore")
+
+        if confirm("Restore all files?", title="Path Filter"):
+            return None
+
+        print("Enter paths to restore (one per line, blank line to finish):")
+        paths: list[Path] = []
+        while True:
+            line = input("> ").strip()
+            if not line:
+                break
+            paths.append(Path(line))
+
+        if not paths:
+            logger.info("No paths entered, restoring all files")
+            return None
+
+        logger.info(f"Selected {len(paths)} path(s) to restore")
+        return paths
+
     def _confirm_restore(
         self,
         file_name: str,
         revision: DriveRevisionInfo,
         restore_path: Path,
+        paths: list[Path] | None = None,
     ) -> bool:
-        """Step 4: Show summary and confirm.
+        """Step 5: Show summary and confirm.
 
         Args:
             file_name: Backup file name
             revision: Selected revision info
             restore_path: Destination path
+            paths: Specific paths to restore, or None for all
 
         Returns:
             True if user confirms
         """
-        self._print_step_header(4, "Confirm Restore")
+        self._print_step_header(5, "Confirm Restore")
 
         modified = revision.get("modifiedTime", "Unknown")
         size_str = format_file_size(revision.get("size", ""))
         rev_id = revision.get("id", "")
+
+        paths_display = "* (all files)" if paths is None else f"{len(paths)} selected"
 
         content = [
             f"{Colors.YELLOW}File:{Colors.RESET}     {file_name}",
             f"{Colors.YELLOW}Revision:{Colors.RESET} {modified}",
             f"{Colors.YELLOW}Size:{Colors.RESET}     {size_str}",
             f"{Colors.YELLOW}ID:{Colors.RESET}       {rev_id}",
-            "",
-            f"{Colors.YELLOW}Restore to:{Colors.RESET}",
-            f"  {restore_path.absolute()}",
+            f"{Colors.YELLOW}Paths:{Colors.RESET}    {paths_display}",
         ]
+        if paths:
+            content.extend(f"  - {p}" for p in paths)
+        content.append("")
+        content.append(f"{Colors.YELLOW}Restore to:{Colors.RESET}")
+        content.append(f"  {restore_path.absolute()}")
 
         TUI.draw_box(
             content=content,
@@ -245,6 +281,7 @@ class RestoreWizard:
         file_id: str,
         revision: DriveRevisionInfo,
         restore_path: Path,
+        paths: list[Path] | None = None,
     ) -> bool:
         """Execute the actual restore operation.
 
@@ -252,6 +289,7 @@ class RestoreWizard:
             file_id: Google Drive file ID
             revision: Selected revision info
             restore_path: Destination path
+            paths: Specific paths to restore, or None for all
 
         Returns:
             True if restore was successful
@@ -260,18 +298,25 @@ class RestoreWizard:
         is_head = rev_id in {"head", ""}
 
         if is_head:
+            if paths is not None:
+                return await self.service.selective_restore_from_drive_by_file_id(
+                    file_id, paths, restore_path, self.config
+                )
             return await self.service.restore_from_drive_by_file_id(
                 file_id, restore_path, self.config
             )
 
         # Download specific revision to temp, then extract
-        return await self._restore_specific_revision(file_id, rev_id, restore_path)
+        return await self._restore_specific_revision(
+            file_id, rev_id, restore_path, paths
+        )
 
     async def _restore_specific_revision(
         self,
         file_id: str,
         revision_id: str,
         restore_path: Path,
+        paths: list[Path] | None = None,
     ) -> bool:
         """Download and extract a specific revision.
 
@@ -279,6 +324,7 @@ class RestoreWizard:
             file_id: Google Drive file ID
             revision_id: Revision ID to download
             restore_path: Destination path
+            paths: Specific paths to restore, or None for all
 
         Returns:
             True if successful
@@ -298,7 +344,7 @@ class RestoreWizard:
 
             logger.info(f"Extracting to: {restore_path}")
             try:
-                return await extract_specific_paths(archive_path, None, restore_path)
+                return await extract_specific_paths(archive_path, paths, restore_path)
             except Exception as e:
                 logger.error(f"Extraction failed: {e}")
                 return False

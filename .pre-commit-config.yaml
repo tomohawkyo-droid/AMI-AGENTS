@@ -39,12 +39,12 @@ repos:
         entry: ./ami/scripts/ci/check_init_files.py
         language: system
         files: __init__\.py$
-      - id: frontend-preflight
-        name: Frontend Preflight
-        entry: bash -c 'cd frontend && npm run preflight'
+      - id: portal-preflight
+        name: Portal Preflight
+        entry: bash -c 'cd projects/AMI-PORTAL && npm run preflight'
         language: system
         pass_filenames: false
-        files: ^frontend/
+        files: ^projects/AMI-PORTAL/
       - id: mypy
         name: mypy
         entry: uv run mypy

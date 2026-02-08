@@ -9,6 +9,7 @@ from ami.scripts.backup.restore.wizard import FileSelection, RestoreWizard
 from ami.types.common import DriveRevisionInfo
 
 WIZARD_MODULE = "ami.scripts.backup.restore.wizard"
+EXPECTED_TWO_PATHS = 2
 
 
 def _make_wizard(
@@ -20,6 +21,7 @@ def _make_wizard(
     service = MagicMock()
     service.list_available_drive_backups = AsyncMock(return_value=backup_files or [])
     service.restore_from_drive_by_file_id = AsyncMock(return_value=True)
+    service.selective_restore_from_drive_by_file_id = AsyncMock(return_value=True)
 
     revisions_client = MagicMock()
     revisions_client.list_revisions = AsyncMock(return_value=revisions or [])
@@ -186,6 +188,46 @@ class TestWizardChooseRestorePath:
         assert result == Path("/custom/path")
 
 
+class TestWizardSelectPaths:
+    """Tests for RestoreWizard._select_paths."""
+
+    @patch(f"{WIZARD_MODULE}.confirm", return_value=True)
+    def test_returns_none_when_all_confirmed(
+        self, mock_confirm, tmp_path: Path
+    ) -> None:
+        """Test returns None when user wants all files."""
+        wizard = _make_wizard(tmp_path)
+        result = wizard._select_paths()
+
+        assert result is None
+        mock_confirm.assert_called_once()
+
+    @patch("builtins.input", side_effect=["etc/config.yaml", "var/data", ""])
+    @patch(f"{WIZARD_MODULE}.confirm", return_value=False)
+    def test_returns_paths_from_input(
+        self, mock_confirm, mock_input, tmp_path: Path
+    ) -> None:
+        """Test returns list of paths from user input."""
+        wizard = _make_wizard(tmp_path)
+        result = wizard._select_paths()
+
+        assert result is not None
+        assert len(result) == EXPECTED_TWO_PATHS
+        assert result[0] == Path("etc/config.yaml")
+        assert result[1] == Path("var/data")
+
+    @patch("builtins.input", return_value="")
+    @patch(f"{WIZARD_MODULE}.confirm", return_value=False)
+    def test_returns_none_on_empty_input(
+        self, mock_confirm, mock_input, tmp_path: Path
+    ) -> None:
+        """Test returns None when no paths entered."""
+        wizard = _make_wizard(tmp_path)
+        result = wizard._select_paths()
+
+        assert result is None
+
+
 class TestWizardConfirmRestore:
     """Tests for RestoreWizard._confirm_restore."""
 
@@ -267,6 +309,37 @@ class TestWizardExecuteRestore:
 
         assert result is False
 
+    @pytest.mark.asyncio
+    async def test_selective_restore_for_head_with_paths(self, tmp_path: Path) -> None:
+        """Test uses selective restore when paths provided for head."""
+        wizard = _make_wizard(tmp_path)
+        rev = DriveRevisionInfo(id="head", modifiedTime="current")
+        paths = [Path("etc/config.yaml")]
+
+        result = await wizard._execute_restore("f1", rev, tmp_path, paths)
+
+        assert result is True
+        wizard.service.selective_restore_from_drive_by_file_id.assert_called_once()
+        wizard.service.restore_from_drive_by_file_id.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch(f"{WIZARD_MODULE}.extract_specific_paths", new_callable=AsyncMock)
+    async def test_passes_paths_to_extract_for_revision(
+        self, mock_extract, tmp_path: Path
+    ) -> None:
+        """Test passes paths to extract_specific_paths for specific revision."""
+        mock_extract.return_value = True
+        wizard = _make_wizard(tmp_path)
+        rev = DriveRevisionInfo(id="r123", modifiedTime="2024-01-01", size="1024")
+        paths = [Path("etc/config.yaml"), Path("var/data")]
+
+        result = await wizard._execute_restore("f1", rev, tmp_path, paths)
+
+        assert result is True
+        mock_extract.assert_called_once()
+        call_args = mock_extract.call_args
+        assert call_args[0][1] == paths
+
 
 class TestWizardRun:
     """Tests for RestoreWizard.run end-to-end."""
@@ -309,8 +382,8 @@ class TestWizardRun:
         revs = [DriveRevisionInfo(id="r1", modifiedTime="2024-01-01", size="1024")]
         wizard = _make_wizard(tmp_path, backup_files=files, revisions=revs)
         mock_select.return_value = "f1"
-        # confirm is called twice: path + final confirm
-        mock_confirm.side_effect = [True, True]
+        # confirm is called three times: path + paths(all) + final confirm
+        mock_confirm.side_effect = [True, True, True]
 
         result = await wizard.run()
 
