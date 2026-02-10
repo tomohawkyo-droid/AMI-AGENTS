@@ -101,14 +101,12 @@ Standardize on a single, authoritative detection method (preferably looking for 
 
 ---
 
-## 9. Git Wrapper Recursion Loop
-**File:** `ami/scripts/utils/disable_no_verify_patcher.sh`
+## 9. Git Wrapper Recursion Loop (Resolved)
+**File:** `ami/scripts/utils/git-guard` (installed by `bootstrap_git.sh`)
 **The Failure:**
-The patcher script wrote the wrapper to `.boot-linux/bin/git`. However, this path was a **symlink** created by `bootstrap_git.sh` pointing to the real binary at `.boot-linux/git/bin/git`.
-**The Consequence:**
-The shell followed the symlink and **overwrote the real git binary** with the wrapper script. The wrapper then tried to call `REAL_GIT` (itself), resulting in an infinite recursion loop and a hung process.
+A separate patcher script (`disable_no_verify_patcher.sh`) wrote the wrapper to `.boot-linux/bin/git`, but `bootstrap_git.sh` created a symlink at the same path. Running bootstrap after the patcher (or standalone via `make bootstrap-core`) silently destroyed the safety wrapper.
 **The Fix:**
-Updated the patcher to explicitly check for and `rm` the symlink before writing the wrapper script. Restored the corrupted binary.
+Eliminated the separate patcher. The bootstrap now installs the `git-guard` script directly (same pattern as `podman-guard`). Real git is symlinked to `real-git`, guard script is copied as `git`. Running bootstrap always installs the guard.
 
 ---
 

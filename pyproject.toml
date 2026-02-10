@@ -76,7 +76,7 @@ dev = [
     "mypy==1.19.1",
     "httpx==0.28.1",
     "types-requests==2.32.4.20260107",
-    "types-setuptools==80.10.0.20260124",
+    "types-setuptools==82.0.0.20260210",
     "types-PyYAML==6.0.12.20250915",
     "types-tqdm==4.67.3.20260205",
     "google-auth-stubs==0.3.0",

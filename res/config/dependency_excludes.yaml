@@ -4,3 +4,6 @@
 
 excludes:
   - setuptools  # Strict requirement (80.10.2) from timeseries-transformer-forecasting
+
+npm_excludes:
+  - next-auth  # Using 5.0.0-beta tag, latest dist-tag points to stable 4.x

@@ -18,10 +18,10 @@ repos:
         language: system
       - id: check-dependency-versions
         name: Check Dependency Versions (strict pinning + latest)
-        entry: ./ami/scripts/ci/check_dependency_versions.py
+        entry: ./ami/scripts/ci/check_dependency_versions.py pyproject.toml projects/AMI-PORTAL/package.json
         language: system
         pass_filenames: false
-        files: pyproject\.toml$
+        files: (pyproject\.toml|package\.json)$
       - id: check-banned-words
         name: Check Banned Words
         entry: ./ami/scripts/ci/check_banned_words.py

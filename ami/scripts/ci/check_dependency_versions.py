@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Dependency version checker.
+Dependency version checker (PyPI + npm).
 
 Ensures that:
-1. All dependencies use strict pinning (==), not loose constraints (>=, <=, >, <, ~=)
-2. All pinned versions are the latest available from PyPI
+1. All dependencies use strict pinning (== for PyPI, exact semver for npm)
+2. All pinned versions are the latest available from their registry
 
 Usage:
-    ./check_dependency_versions.py              # Check only (default)
-    ./check_dependency_versions.py --upgrade    # Auto-upgrade to latest versions
-    ./check_dependency_versions.py --exclude torch,numpy  # Exclude packages
+    ./check_dependency_versions.py                          # Check pyproject.toml
+    ./check_dependency_versions.py package.json             # Check package.json
+    ./check_dependency_versions.py pyproject.toml pkg.json  # Check both
+    ./check_dependency_versions.py --upgrade                # Auto-upgrade
+    ./check_dependency_versions.py --exclude torch,numpy    # Exclude packages
 """
 
 import argparse
@@ -18,6 +20,7 @@ import re
 import sys
 import tomllib
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -41,7 +44,7 @@ BUILTIN_EXCLUDES = {
 }
 
 
-def load_config_excludes() -> set[str]:
+def load_config_excludes(key: str = "excludes") -> set[str]:
     """Load exclusions from res/config/dependency_excludes.yaml."""
     config_path = Path("res/config/dependency_excludes.yaml")
     if not config_path.exists():
@@ -50,7 +53,7 @@ def load_config_excludes() -> set[str]:
     try:
         with open(config_path) as f:
             data = yaml.safe_load(f)
-            return {x.strip().lower() for x in data.get("excludes", []) if x.strip()}
+            return {x.strip().lower() for x in data.get(key, []) if x.strip()}
     except Exception as e:
         print(f"Warning: Failed to load config excludes: {e}")
         return set()
@@ -149,6 +152,97 @@ def check_and_collect(path: Path, excludes: set[str]) -> DependencyCheckResult:
     return DependencyCheckResult(loose_deps, outdated_deps, data)
 
 
+# --- npm support ---
+
+_NPM_STRICT_RE = re.compile(r"^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$")
+_NPM_SKIP_PREFIXES = ("workspace:", "file:", "git:", "git+", "http:", "https:", "link:")
+
+
+def get_latest_npm_version(package_name: str) -> str | None:
+    """Query npm registry for the latest version of a package."""
+    encoded = urllib.parse.quote(package_name, safe="@")
+    url = f"https://registry.npmjs.org/{encoded}/latest"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            version: str | None = data.get("version")
+            return version
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError):
+        return None
+
+
+def parse_npm_dependency(name: str, version_spec: str) -> ParsedDependency:
+    """Parse an npm dependency name and version specifier."""
+    spec = version_spec.strip()
+    if not spec or spec in ("*", "latest"):
+        return ParsedDependency(name, None, None, None)
+    for prefix in (">=", "<=", ">", "<", "^", "~"):
+        if spec.startswith(prefix):
+            return ParsedDependency(name, None, prefix, spec[len(prefix) :].strip())
+    if _NPM_STRICT_RE.match(spec):
+        return ParsedDependency(name, None, "==", spec)
+    return ParsedDependency(name, None, None, spec)
+
+
+def check_npm_and_collect(path: Path, excludes: set[str]) -> DependencyCheckResult:
+    """Check package.json and collect issues."""
+    with open(path) as f:
+        data = json.load(f)
+
+    deps: dict[str, str] = data.get("dependencies", {})
+    dev_deps: dict[str, str] = data.get("devDependencies", {})
+    all_deps = {**deps, **dev_deps}
+
+    loose_deps: list[LooseDependency] = []
+    outdated_deps: list[OutdatedDependency] = []
+
+    for name, version_spec in all_deps.items():
+        if name.lower() in excludes:
+            continue
+        if version_spec.startswith(_NPM_SKIP_PREFIXES):
+            continue
+
+        parsed = parse_npm_dependency(name, version_spec)
+        latest = get_latest_npm_version(name)
+        if latest is None:
+            continue
+
+        if parsed.operator is None or parsed.operator != "==":
+            current_spec = f"{name}@{version_spec}"
+            loose_deps.append(LooseDependency(name, current_spec, latest))
+        elif parsed.version != latest:
+            outdated_deps.append(OutdatedDependency(name, None, parsed.version, latest))
+
+    return DependencyCheckResult(loose_deps, outdated_deps, data)
+
+
+def upgrade_package_json(
+    path: Path,
+    loose: list[LooseDependency],
+    outdated: list[OutdatedDependency],
+) -> None:
+    """Upgrade versions in package.json to latest strict pins."""
+    with open(path) as f:
+        data = json.load(f)
+
+    upgrade_map: dict[str, str] = {}
+    for loose_dep in loose:
+        upgrade_map[loose_dep.name] = loose_dep.latest_version
+    for outdated_dep in outdated:
+        upgrade_map[outdated_dep.name] = outdated_dep.new_version
+
+    for section in ("dependencies", "devDependencies"):
+        if section not in data:
+            continue
+        for pkg_name in data[section]:
+            if pkg_name in upgrade_map:
+                data[section][pkg_name] = upgrade_map[pkg_name]
+
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+
+
 def upgrade_pyproject(
     path: Path,
     loose: list[LooseDependency],
@@ -180,9 +274,54 @@ def upgrade_pyproject(
     path.write_text(content)
 
 
+def _is_npm_file(path: Path) -> bool:
+    return path.name == "package.json"
+
+
+def _check_path(path: Path, excludes: set[str], *, upgrade: bool) -> tuple[bool, int]:
+    """Check a single file for dependency issues."""
+    is_npm = _is_npm_file(path)
+    print(f"Checking {path}...")
+
+    if is_npm:
+        loose, outdated, _ = check_npm_and_collect(path, excludes)
+    else:
+        loose, outdated, _ = check_and_collect(path, excludes)
+
+    if upgrade and (loose or outdated):
+        label = "package.json" if is_npm else "pyproject.toml"
+        print(f"Upgrading {label}...")
+        if is_npm:
+            upgrade_package_json(path, loose, outdated)
+        else:
+            upgrade_pyproject(path, loose, outdated)
+        return False, len(loose) + len(outdated)
+
+    has_errors = False
+    if loose:
+        has_errors = True
+        print(f"\n!!! LOOSE DEPENDENCY CONSTRAINTS in {path} !!!")
+        print("All dependencies must use strict pinning")
+        for loose_dep in loose:
+            spec = loose_dep.current_spec
+            latest = loose_dep.latest_version
+            print(f"  - {spec} -> {loose_dep.name}=={latest}")
+
+    if outdated:
+        has_errors = True
+        print(f"\n!!! OUTDATED DEPENDENCIES in {path} !!!")
+        for outdated_dep in outdated:
+            extras = outdated_dep.extras or ""
+            old = outdated_dep.old_version
+            new = outdated_dep.new_version
+            print(f"  - {outdated_dep.name}{extras}=={old} -> {new}")
+
+    return has_errors, 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Check and optionally upgrade dependency versions in pyproject.toml"
+        description="Check and optionally upgrade dependency versions"
     )
     parser.add_argument(
         "--upgrade",
@@ -196,53 +335,36 @@ def main() -> int:
         help="Comma-separated list of packages to exclude from checking",
     )
     parser.add_argument(
-        "path",
-        nargs="?",
-        default="pyproject.toml",
-        help="Path to pyproject.toml (default: pyproject.toml)",
+        "paths",
+        nargs="*",
+        default=["pyproject.toml"],
+        help="Paths to check (pyproject.toml and/or package.json)",
     )
     args = parser.parse_args()
 
-    path = Path(args.path)
-    if not path.exists():
-        print(f"Error: {path} not found")
-        return 1
+    cli_excludes = {x.strip().lower() for x in args.exclude.split(",") if x.strip()}
+    pypi_excludes = cli_excludes | load_config_excludes()
+    npm_excludes = cli_excludes | load_config_excludes("npm_excludes")
 
-    excludes = {x.strip().lower() for x in args.exclude.split(",") if x.strip()}
-    config_excludes = load_config_excludes()
-    all_excludes = excludes | config_excludes
+    dep_errors = False
+    upgrade_count = 0
 
-    print(f"Checking {path}...")
-    loose, outdated, _ = check_and_collect(path, all_excludes)
+    for path_str in args.paths:
+        path = Path(path_str)
+        if not path.exists():
+            print(f"Error: {path} not found")
+            return 1
 
-    if args.upgrade and (loose or outdated):
-        print("Upgrading versions...")
-        upgrade_pyproject(path, loose, outdated)
-        print(f"Updated {len(loose) + len(outdated)} dependencies.")
+        excludes = npm_excludes if _is_npm_file(path) else pypi_excludes
+        errors, upgraded = _check_path(path, excludes, upgrade=args.upgrade)
+        dep_errors = dep_errors or errors
+        upgrade_count += upgraded
+
+    if args.upgrade and upgrade_count > 0:
+        print(f"Updated {upgrade_count} dependencies.")
         return 0
 
-    has_errors = False
-
-    if loose:
-        has_errors = True
-        print("\n!!! LOOSE DEPENDENCY CONSTRAINTS !!!")
-        print("All dependencies must use strict pinning (==)")
-        for loose_dep in loose:
-            spec = loose_dep.current_spec
-            latest = loose_dep.latest_version
-            print(f"  - {spec} -> {loose_dep.name}=={latest}")
-
-    if outdated:
-        has_errors = True
-        print("\n!!! OUTDATED DEPENDENCIES !!!")
-        print("The following dependencies are not at their latest PyPI version:")
-        for outdated_dep in outdated:
-            extras = outdated_dep.extras or ""
-            old_ver = outdated_dep.old_version
-            new_ver = outdated_dep.new_version
-            print(f"  - {outdated_dep.name}{extras}=={old_ver} -> {new_ver}")
-
-    if has_errors:
+    if dep_errors:
         print("\nRun with --upgrade to auto-fix.")
         return 1
 

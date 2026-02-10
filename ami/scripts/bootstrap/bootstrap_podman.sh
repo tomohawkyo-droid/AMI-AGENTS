@@ -271,12 +271,12 @@ for binary in crun fuse-overlayfs fusermount3 pasta runc; do
     fi
 done
 
-# Link real podman to podman-real
+# Link real podman to real-podman
 log_info "Installing Podman with safety guard"
 if [[ -f "${PODMAN_DIR}/usr/local/bin/podman" ]]; then
-    ln -sf "${PODMAN_DIR}/usr/local/bin/podman" "${VENV_DIR}/bin/podman-real"
+    ln -sf "${PODMAN_DIR}/usr/local/bin/podman" "${VENV_DIR}/bin/real-podman"
 elif [[ -f "${PODMAN_DIR}/bin/podman" ]]; then
-    ln -sf "${PODMAN_DIR}/bin/podman" "${VENV_DIR}/bin/podman-real"
+    ln -sf "${PODMAN_DIR}/bin/podman" "${VENV_DIR}/bin/real-podman"
 fi
 
 # Install guard script as the main podman command
@@ -286,7 +286,7 @@ if [[ -f "$GUARD_SCRIPT" ]]; then
     cp "$GUARD_SCRIPT" "${VENV_DIR}/bin/podman"
     chmod +x "${VENV_DIR}/bin/podman"
     log_info "✓ Installed podman-guard as ${VENV_DIR}/bin/podman"
-    log_info "  Real podman available at: ${VENV_DIR}/bin/podman-real"
+    log_info "  Real podman available at: ${VENV_DIR}/bin/real-podman"
 else
     log_warn "Guard script not found at $GUARD_SCRIPT, falling back to direct symlink"
     if [[ -f "${PODMAN_DIR}/usr/local/bin/podman" ]]; then
@@ -363,10 +363,10 @@ log_info "✓ Created ${POLICY_JSON}"
 
 log_info "✓ Created ${CONTAINERS_CONF}"
 
-# Verify installation (use podman-real for direct check)
+# Verify installation (use real-podman for direct check)
 log_info "Verifying Podman installation"
-if "${VENV_DIR}/bin/podman-real" --version; then
-    log_info "Podman installed successfully: $(${VENV_DIR}/bin/podman-real --version)"
+if "${VENV_DIR}/bin/real-podman" --version; then
+    log_info "Podman installed successfully: $(${VENV_DIR}/bin/real-podman --version)"
 else
     log_error "Podman installation verification failed"
     exit 1
@@ -411,7 +411,7 @@ log_warn "SAFETY GUARD ACTIVE - The following commands are BLOCKED:"
 log_warn "  - podman system migrate/reset/prune"
 log_warn "  - podman rm -a / rmi -a"
 log_warn "  - podman volume/container/network/image prune"
-log_warn "  Use podman-real to bypass (at your own risk)"
+log_warn "  Use real-podman to bypass (at your own risk)"
 log_info ""
 log_info "To use Podman:"
 log_info "  1. Run: ami-run commands (Podman is auto-available)"

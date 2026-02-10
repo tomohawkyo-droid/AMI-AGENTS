@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Podman Guard - Blocks destructive commands
-# Installed to ${VENV_DIR}/bin/podman, calls podman-real
+# Installed to ${VENV_DIR}/bin/podman, calls real-podman
 #
 # This wrapper prevents accidental data loss from dangerous podman commands.
 # It cannot be bypassed because it IS the podman binary in PATH.
 
 set -euo pipefail
 
-PODMAN_REAL="$(dirname "$0")/podman-real"
+PODMAN_REAL="$(dirname "$0")/real-podman"
 ARGS="$*"
 
 # Ensure real podman exists
 if [[ ! -x "$PODMAN_REAL" ]]; then
-    echo "ERROR: podman-real not found at $PODMAN_REAL"
+    echo "ERROR: real-podman not found at $PODMAN_REAL"
     echo "Run bootstrap_podman.sh to fix installation"
     exit 1
 fi
@@ -21,8 +21,8 @@ block() {
     echo "❌ BLOCKED: $1"
     echo "This command is forbidden to prevent data loss."
     echo ""
-    echo "If you REALLY need to run this command, use podman-real directly:"
-    echo "  $(dirname "$0")/podman-real $ARGS"
+    echo "If you REALLY need to run this command, use real-podman directly:"
+    echo "  $(dirname "$0")/real-podman $ARGS"
     exit 1
 }
 

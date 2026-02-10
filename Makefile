@@ -31,7 +31,6 @@ install: ## Install AMI Agents in editable mode with all setup
 	$(MAKE) setup-config
 	$(MAKE) register-extensions
 	$(MAKE) install-bootstrap
-	$(MAKE) install-safety-scripts
 	$(MAKE) install-shell
 	@echo "✨ Installation complete!"
 	@bash ami/scripts/shell/shell-setup --welcome
@@ -43,7 +42,6 @@ install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
 	$(MAKE) setup-config
 	$(MAKE) register-extensions
 	$(MAKE) install-bootstrap-ci
-	$(MAKE) install-safety-scripts
 	$(MAKE) install-shell
 	@echo "✨ Installation complete (CI mode)!"
 
@@ -195,13 +193,6 @@ install-hooks: ## Install pre-commit and pre-push hooks
 		echo "✅ Injected auto-LFS tracking and auto-staging into .git/hooks/pre-commit"; \
 	fi
 	@echo "✅ Pre-commit and pre-push hooks installed (with auto-LFS and auto-staging)"
-
-.PHONY: install-safety-scripts
-install-safety-scripts: ## Install git and podman safety scripts
-	@echo "🔒 Installing safety scripts..."
-	@bash ami/scripts/utils/disable_no_verify_patcher.sh
-	@bash ami/scripts/utils/podman_safety_wrapper.sh
-	@echo "✅ Safety scripts installed"
 
 # --- Quality & Test ---
 

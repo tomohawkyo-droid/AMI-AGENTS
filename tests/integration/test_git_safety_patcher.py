@@ -1,6 +1,7 @@
-"""Integration tests for the git safety patcher script.
+"""Integration tests for the git-guard safety wrapper.
 
-Tests that the patcher installs a git wrapper that blocks destructive commands.
+Tests that the git-guard script blocks destructive commands and passes
+safe commands through to real-git.
 """
 
 import os
@@ -22,36 +23,37 @@ def _find_project_root() -> Path:
 
 
 PROJECT_ROOT = _find_project_root()
-PATCHER_SCRIPT = PROJECT_ROOT / "ami/scripts/utils/disable_no_verify_patcher.sh"
+GIT_GUARD = PROJECT_ROOT / "ami/scripts/utils/git-guard"
 
 
 class MockEnv(NamedTuple):
     """Test environment with paths and env vars."""
 
     env: dict
-    boot_linux_dir: Path
-    git_wrapper: Path
+    bin_dir: Path
+    git_guard: Path
 
 
 @pytest.fixture
 def mock_env(tmp_path: Path) -> MockEnv:
-    """Sets up a temporary environment for testing the patcher."""
-    boot_linux_dir = tmp_path / ".boot-linux"
-    boot_linux_dir.mkdir()
-    bin_dir = boot_linux_dir / "bin"
+    """Sets up a temp bin dir with git-guard and a mock real-git."""
+    bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
 
-    # Set up env to use temp boot-linux dir
+    # Copy git-guard into temp bin dir
+    guard_dest = bin_dir / "git"
+    guard_dest.write_text(GIT_GUARD.read_text())
+    guard_dest.chmod(0o755)
+
+    # Create a mock real-git that just prints args
+    git_real = bin_dir / "real-git"
+    git_real.write_text('#!/usr/bin/env bash\necho "PASSTHROUGH: $*"\n')
+    git_real.chmod(0o755)
+
     env = os.environ.copy()
-    env["BOOT_LINUX_DIR"] = str(boot_linux_dir)
-    # Prepend our bin dir to PATH so wrapper is found first
     env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
 
-    return MockEnv(
-        env=env,
-        boot_linux_dir=boot_linux_dir,
-        git_wrapper=bin_dir / "git",
-    )
+    return MockEnv(env=env, bin_dir=bin_dir, git_guard=guard_dest)
 
 
 def run_git_cmd(cmd: str, env: dict) -> subprocess.CompletedProcess[str]:
@@ -61,29 +63,17 @@ def run_git_cmd(cmd: str, env: dict) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_patcher_installation(mock_env: MockEnv) -> None:
-    """Verify the patcher installs the wrapper correctly."""
-    # Run patcher
-    subprocess.run(["bash", str(PATCHER_SCRIPT)], env=mock_env.env, check=True)
-
-    # Check wrapper was created
-    assert mock_env.git_wrapper.exists(), "Git wrapper not created"
-    assert os.access(mock_env.git_wrapper, os.X_OK), "Git wrapper not executable"
-
-    # Check wrapper content
-    content = mock_env.git_wrapper.read_text()
+def test_guard_exists() -> None:
+    """Verify the git-guard script exists and is executable."""
+    assert GIT_GUARD.exists(), "git-guard not found"
+    assert os.access(GIT_GUARD, os.X_OK), "git-guard not executable"
+    content = GIT_GUARD.read_text()
     assert "BLOCKED" in content
-    assert "reset)" in content
-    assert "checkout)" in content
-    assert "clean)" in content
+    assert "real-git" in content
 
 
-def test_blocked_commands(mock_env: MockEnv) -> None:
+def test_guard_blocks_destructive_commands(mock_env: MockEnv) -> None:
     """Verify destructive commands are blocked."""
-    subprocess.run(
-        ["bash", str(PATCHER_SCRIPT)], env=mock_env.env, check=True
-    )  # Install first
-
     destructive_cmds = [
         "git reset --hard HEAD",
         "git checkout main",
@@ -97,14 +87,12 @@ def test_blocked_commands(mock_env: MockEnv) -> None:
 
     for cmd in destructive_cmds:
         res = run_git_cmd(cmd, mock_env.env)
-        assert res.returncode == 1, f"Command '{cmd}' should have failed"
-        assert "BLOCKED" in res.stdout, f"Command '{cmd}' output: {res.stdout}"
+        assert res.returncode == 1, f"'{cmd}' should have been blocked"
+        assert "BLOCKED" in res.stdout, f"'{cmd}' output: {res.stdout}"
 
 
-def test_blocked_flags(mock_env: MockEnv) -> None:
+def test_guard_blocks_destructive_flags(mock_env: MockEnv) -> None:
     """Verify destructive flags are blocked."""
-    subprocess.run(["bash", str(PATCHER_SCRIPT)], env=mock_env.env, check=True)
-
     blocked_flag_cmds = [
         "git commit -m 'msg' --no-verify",
         "git push origin main --force",
@@ -114,14 +102,12 @@ def test_blocked_flags(mock_env: MockEnv) -> None:
 
     for cmd in blocked_flag_cmds:
         res = run_git_cmd(cmd, mock_env.env)
-        assert res.returncode == 1, f"Command '{cmd}' should have failed"
+        assert res.returncode == 1, f"'{cmd}' should have been blocked"
         assert "BLOCKED" in res.stdout
 
 
-def test_blocked_subcommands(mock_env: MockEnv) -> None:
+def test_guard_blocks_destructive_subcommands(mock_env: MockEnv) -> None:
     """Verify blocked sub-commands/args."""
-    subprocess.run(["bash", str(PATCHER_SCRIPT)], env=mock_env.env, check=True)
-
     cmds = ["git stash drop", "git stash clear", "git branch -D feature"]
 
     for cmd in cmds:
@@ -130,13 +116,39 @@ def test_blocked_subcommands(mock_env: MockEnv) -> None:
         assert "BLOCKED" in res.stdout
 
 
-def test_allowed_commands(mock_env: MockEnv) -> None:
-    """Verify safe commands are allowed."""
-    subprocess.run(["bash", str(PATCHER_SCRIPT)], env=mock_env.env, check=True)
+def test_guard_allows_safe_commands(mock_env: MockEnv) -> None:
+    """Verify safe commands pass through to real-git."""
+    safe_cmds = [
+        "git status",
+        "git log --oneline -1",
+        "git diff",
+        "git add .",
+        "git commit -m 'msg'",
+        "git push origin main",
+        "git pull",
+        "git fetch",
+        "git branch -d feature",
+        "git stash",
+        "git stash list",
+        "git stash pop",
+    ]
 
-    # These should NOT be blocked (they pass through to real git)
+    for cmd in safe_cmds:
+        res = run_git_cmd(cmd, mock_env.env)
+        assert "BLOCKED" not in res.stdout, f"'{cmd}' should be allowed"
+        assert "PASSTHROUGH" in res.stdout, f"'{cmd}' didn't reach real-git"
+
+
+def test_guard_no_args_passes_through(mock_env: MockEnv) -> None:
+    """Verify bare 'git' with no args passes through."""
+    res = run_git_cmd("git", mock_env.env)
+    assert "BLOCKED" not in res.stdout
+    assert "PASSTHROUGH" in res.stdout
+
+
+def test_guard_fails_without_git_real(mock_env: MockEnv) -> None:
+    """Verify guard errors if real-git is missing."""
+    (mock_env.bin_dir / "real-git").unlink()
     res = run_git_cmd("git status", mock_env.env)
-    assert "BLOCKED" not in res.stdout
-
-    res = run_git_cmd("git log --oneline -1", mock_env.env)
-    assert "BLOCKED" not in res.stdout
+    assert res.returncode == 1
+    assert "real-git not found" in res.stdout

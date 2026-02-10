@@ -103,10 +103,23 @@ log_info "  - Git core: ${GIT_DIR}/libexec/git-core/"
 log_info ""
 log_info "Git is now available in .boot-linux"
 
-# Create symlink in .boot-linux/bin/
+# Install git with safety guard (mirrors podman bootstrap pattern)
 BIN_DIR="${BOOT_DIR}/bin"
 mkdir -p "${BIN_DIR}"
 
-ln -sf "../git/bin/git" "${BIN_DIR}/git"
+# Link real git to real-git
+log_info "Installing Git with safety guard"
+ln -sf "../git/bin/git" "${BIN_DIR}/real-git"
 
-log_info "✓ Symlink created at ${BIN_DIR}/git"
+# Install guard script as the main git command
+GUARD_SCRIPT="${SCRIPT_DIR}/../utils/git-guard"
+if [[ -f "$GUARD_SCRIPT" ]]; then
+    rm -f "${BIN_DIR}/git"  # Remove existing symlink/wrapper first
+    cp "$GUARD_SCRIPT" "${BIN_DIR}/git"
+    chmod +x "${BIN_DIR}/git"
+    log_info "✓ Installed git-guard as ${BIN_DIR}/git"
+    log_info "  Real git available at: ${BIN_DIR}/real-git"
+else
+    log_warn "Guard script not found at $GUARD_SCRIPT, falling back to direct symlink"
+    ln -sf "../git/bin/git" "${BIN_DIR}/git"
+fi
