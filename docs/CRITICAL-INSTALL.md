@@ -55,10 +55,10 @@ Scripts disagree on the root directory, causing "File not found" errors when run
 **The Failure:**
 The Makefile defines separate targets for `install-cpu`, `install-cuda`, `install-rocm`, `install-intel-xpu`, `install-mps`, etc.
 **The Reality:**
-They all execute the *exact same* 4 setup commands (`install-package-*`, `setup-config`, `register-extensions`, `install-safety-scripts`).
+They all executed the *exact same* setup commands. The original 4-command flow was `install-package-*`, `setup-config`, `register-extensions`, `install-safety-scripts`. The `install-safety-scripts` target was later removed because bootstraps now install guards directly (e.g., `bootstrap_git.sh` installs `git-guard`, see item 9). The current consolidated 5-step flow is: `sync-package`, `setup-config`, `register-extensions`, `install-bootstrap`, `install-shell`.
 **The Consequence:**
-Massive visual noise and violation of DRY (Don't Repeat Yourself). Adding a new installation step requires editing 8 different targets.
-*   **The Fix:** Use variables or pattern rules to consolidate into a single install flow that accepts an `EXTRA=...` argument.
+Massive visual noise and violation of DRY (Don't Repeat Yourself). Adding a new installation step required editing 8 different targets.
+*   **The Fix:** Use variables or pattern rules to consolidate into a single install flow that accepts an `EXTRA=...` argument. (DONE — targets consolidated; safety scripts absorbed into bootstrap guards.)
 
 ---
 
