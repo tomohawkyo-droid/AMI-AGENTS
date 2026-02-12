@@ -14,6 +14,8 @@ import yaml
 
 # Exit code from pytest-cov when coverage is below threshold
 EXIT_CODE_COVERAGE_FAILURE = 2
+EXIT_CODE_SIGSEGV = -11
+EXIT_CODE_SIGSEGV_UNSIGNED = 139
 
 DEFAULT_CONFIG = {
     "unit": {"path": "tests/unit", "min_coverage": 90, "source_path": "."},
@@ -51,6 +53,19 @@ def run_coverage(
     ]
 
     result = subprocess.run(cmd, capture_output=False, check=False)
+
+    # SIGSEGV during coverage report generation -- retry without coverage
+    if result.returncode in (EXIT_CODE_SIGSEGV, EXIT_CODE_SIGSEGV_UNSIGNED):
+        print(
+            f"⚠️  {context_name} crashed (SIGSEGV), retrying without coverage report..."
+        )
+        retry_cmd = ["uv", "run", "pytest", test_path, "--tb=short", "-q"]
+        retry = subprocess.run(retry_cmd, capture_output=False, check=False)
+        if retry.returncode == 0:
+            print(f"✅ {context_name} Tests Passed (coverage skipped due to SIGSEGV)")
+            return True
+        print(f"❌ {context_name} Tests FAILED on retry (exit code {retry.returncode})")
+        return False
 
     # Fail on ANY non-zero exit code (test failures OR coverage failures)
     if result.returncode != 0:

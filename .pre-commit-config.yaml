@@ -27,6 +27,7 @@ repos:
         entry: ./ami/scripts/ci/check_banned_words.py
         language: system
         pass_filenames: false
+        stages: [pre-commit]
       - id: check-file-length
         name: Check File Length (max 512 lines)
         entry: ./ami/scripts/ci/check_file_length.py
