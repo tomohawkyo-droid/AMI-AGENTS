@@ -25,14 +25,12 @@ repos:
       - id: check-banned-words
         name: Check Banned Words
         entry: ./ami/scripts/ci/check_banned_words.py
-        language: python
-        additional_dependencies: [PyYAML]
+        language: system
         pass_filenames: false
       - id: check-file-length
         name: Check File Length (max 512 lines)
         entry: ./ami/scripts/ci/check_file_length.py
-        language: python
-        additional_dependencies: [PyYAML, pydantic]
+        language: system
         pass_filenames: false
       - id: check-init-files
         name: Enforce Empty __init__.py Files (CRITICAL SECURITY REQUIREMENT)
