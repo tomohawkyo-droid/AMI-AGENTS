@@ -1,14 +1,3 @@
-#!/usr/bin/env bash
-# ami-repo: Git repository server management CLI
-# Wrapper for ami_repo.py
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-AMI_ROOT="$("$SCRIPT_DIR/ami-pwd")"
-export AMI_ROOT
-
-# Add .boot-linux/bin to PATH so git/ssh tools are available (bootstrapped tools)
-export PATH="$AMI_ROOT/.boot-linux/bin:$PATH"
-
-# Use venv from AMI_ROOT
-exec "$AMI_ROOT/.venv/bin/python" "$SCRIPT_DIR/ami_repo.py" "$@"
+version https://git-lfs.github.com/spec/v1
+oid sha256:896239b20513f9aa90c45a31331eedda803f0fe560c1ad13ea8f79fbf2f4a02e
+size 473
