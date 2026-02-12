@@ -20,3 +20,4 @@ ami/scripts/bin/ami-repo filter=lfs diff=lfs merge=lfs -text
 ami/scripts/bin/ami-run filter=lfs diff=lfs merge=lfs -text
 ami/scripts/register_extensions.py filter=lfs diff=lfs merge=lfs -text
 tests/unit/ci/test_check_dead_code.py filter=lfs diff=lfs merge=lfs -text
+config/banned_words_exceptions.yaml filter=lfs diff=lfs merge=lfs -text
