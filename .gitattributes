@@ -38,3 +38,10 @@ tests/unit/hooks/test_manager.py filter=lfs diff=lfs merge=lfs -text
 tests/unit/hooks/test_types.py filter=lfs diff=lfs merge=lfs -text
 tests/unit/hooks/test_validators.py filter=lfs diff=lfs merge=lfs -text
 tests/unit/test_bootloader_agent_unit.py filter=lfs diff=lfs merge=lfs -text
+ami/config/policies/default_allow.yaml filter=lfs diff=lfs merge=lfs -text
+ami/config/policies/interactive_allow.yaml filter=lfs diff=lfs merge=lfs -text
+ami/config/policies/manifest.yaml filter=lfs diff=lfs merge=lfs -text
+ami/core/guards.py filter=lfs diff=lfs merge=lfs -text
+ami/core/logic.py filter=lfs diff=lfs merge=lfs -text
+ami/core/policies/engine.py filter=lfs diff=lfs merge=lfs -text
+tests/unit/test_guards.py filter=lfs diff=lfs merge=lfs -text
