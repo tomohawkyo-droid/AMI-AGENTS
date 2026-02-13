@@ -45,3 +45,4 @@ ami/core/guards.py filter=lfs diff=lfs merge=lfs -text
 ami/core/logic.py filter=lfs diff=lfs merge=lfs -text
 ami/core/policies/engine.py filter=lfs diff=lfs merge=lfs -text
 tests/unit/test_guards.py filter=lfs diff=lfs merge=lfs -text
+docs/SPEC-HOOKS.md filter=lfs diff=lfs merge=lfs -text
