@@ -83,3 +83,8 @@ ami/scripts/utils/component_status.py filter=lfs diff=lfs merge=lfs -text
 ansible/inventory/host_vars/localhost.yml filter=lfs diff=lfs merge=lfs -text
 ami/scripts/ci/_docker_versions.py filter=lfs diff=lfs merge=lfs -text
 tests/unit/ci/test_docker_versions.py filter=lfs diff=lfs merge=lfs -text
+README.md filter=lfs diff=lfs merge=lfs -text
+ami/scripts/register_extensions.py filter=lfs diff=lfs merge=lfs -text
+ami/scripts/shell/ami-banner.sh filter=lfs diff=lfs merge=lfs -text
+ami/config/patterns/README.md filter=lfs diff=lfs merge=lfs -text
+ami/scripts/backup/restore/README.md filter=lfs diff=lfs merge=lfs -text
