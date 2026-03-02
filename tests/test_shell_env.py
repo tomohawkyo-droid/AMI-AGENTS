@@ -61,9 +61,9 @@ class TestShellAliases:
         # We check if 'node' (which is in .boot-linux/bin) becomes available
         # 'type node' will fail in clean env, should pass after source
         result = run_in_shell_env("type node")
-        assert (
-            result.returncode == 0
-        ), "node not found after sourcing shell-setup. PATH configuration failed."
+        assert result.returncode == 0, (
+            "node not found after sourcing shell-setup. PATH configuration failed."
+        )
 
     def test_ami_run_python(self):
         """Test 'ami-run python' alias."""

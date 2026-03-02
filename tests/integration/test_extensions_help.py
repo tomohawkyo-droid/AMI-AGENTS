@@ -145,9 +145,9 @@ class TestExtensionInstallation:
         if not cmd_path.exists():
             pytest.xfail(f"Command not installed: {ext_name}")
 
-        assert os.access(
-            cmd_path, os.X_OK
-        ), f"Extension {ext_name} is not executable: {cmd_path}"
+        assert os.access(cmd_path, os.X_OK), (
+            f"Extension {ext_name} is not executable: {cmd_path}"
+        )
 
     @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
     def test_symlink_or_wrapper_type(self, ext_name: str):
@@ -160,16 +160,16 @@ class TestExtensionInstallation:
 
         if ext.binary.endswith(".py"):
             # Python scripts get wrapper scripts (not symlinks)
-            assert (
-                not cmd_path.is_symlink()
-            ), f"{ext_name} (.py binary) should be a wrapper, not a symlink"
+            assert not cmd_path.is_symlink(), (
+                f"{ext_name} (.py binary) should be a wrapper, not a symlink"
+            )
             content = cmd_path.read_text()
             assert "ami-run" in content, f"{ext_name} wrapper should call ami-run"
         else:
             # Non-Python binaries get symlinks
-            assert (
-                cmd_path.is_symlink()
-            ), f"{ext_name} (non-.py binary) should be a symlink"
+            assert cmd_path.is_symlink(), (
+                f"{ext_name} (non-.py binary) should be a symlink"
+            )
 
 
 @pytest.mark.integration
@@ -252,9 +252,9 @@ class TestExtensionMetadata:
         assert ext is not None
 
         assert ext.description, f"Extension {ext_name} has empty description"
-        assert (
-            len(ext.description) >= MIN_DESCRIPTION_LENGTH
-        ), f"Extension {ext_name} description too short: '{ext.description}'"
+        assert len(ext.description) >= MIN_DESCRIPTION_LENGTH, (
+            f"Extension {ext_name} description too short: '{ext.description}'"
+        )
 
     @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
     def test_extension_has_binary(self, ext_name: str):
@@ -282,9 +282,9 @@ class TestExtensionBinaries:
             f" relative path, not absolute: {ext.binary}"
         )
 
-        assert (
-            ".." not in ext.binary
-        ), f"Extension {ext_name} binary path should not contain '..': {ext.binary}"
+        assert ".." not in ext.binary, (
+            f"Extension {ext_name} binary path should not contain '..': {ext.binary}"
+        )
 
     @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
     def test_binary_shebang_valid(self, ext_name: str):
@@ -335,6 +335,6 @@ class TestHiddenExtensions:
     def test_hidden_extension_command_exists(self, ext_name: str):
         """Test that hidden extensions still have commands installed."""
         cmd_path = BIN_DIR / ext_name
-        assert (
-            cmd_path.exists()
-        ), f"Hidden extension {ext_name} not installed in {BIN_DIR}"
+        assert cmd_path.exists(), (
+            f"Hidden extension {ext_name} not installed in {BIN_DIR}"
+        )

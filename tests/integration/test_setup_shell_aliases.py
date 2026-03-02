@@ -53,9 +53,9 @@ def test_aliases_exist_and_respond_to_help() -> None:
             result = subprocess.run(
                 bash_test_cmd, check=False, capture_output=True, text=True
             )
-            assert (
-                result.returncode == 0
-            ), f"Function {func_name} does not exist: {result.stderr}"
+            assert result.returncode == 0, (
+                f"Function {func_name} does not exist: {result.stderr}"
+            )
 
             output = result.stdout.strip()
             assert output in [
@@ -74,9 +74,9 @@ def test_aliases_exist_and_respond_to_help() -> None:
         result = subprocess.run(
             bash_test_cmd, check=False, capture_output=True, text=True
         )
-        assert (
-            result.returncode == 0
-        ), f"Function {func_name} does not exist: {result.stderr}"
+        assert result.returncode == 0, (
+            f"Function {func_name} does not exist: {result.stderr}"
+        )
 
         output = result.stdout.strip()
         assert output in [
@@ -137,9 +137,9 @@ def test_aliases_exist_and_respond_to_help() -> None:
         result = subprocess.run(
             bash_test_cmd, check=False, capture_output=True, text=True
         )
-        assert (
-            result.returncode == 0
-        ), f"Alias {alias_name} does not exist: {result.stderr}"
+        assert result.returncode == 0, (
+            f"Alias {alias_name} does not exist: {result.stderr}"
+        )
 
 
 def test_cli_agents_available() -> None:
@@ -154,9 +154,9 @@ def test_cli_agents_available() -> None:
         result = subprocess.run(
             bash_test_cmd, check=False, capture_output=True, text=True
         )
-        assert (
-            result.returncode == 0
-        ), f"CLI agent {agent} does not exist: {result.stderr}"
+        assert result.returncode == 0, (
+            f"CLI agent {agent} does not exist: {result.stderr}"
+        )
 
 
 if __name__ == "__main__":

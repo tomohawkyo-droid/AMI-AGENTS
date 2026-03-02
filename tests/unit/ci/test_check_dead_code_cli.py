@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from ami.ci.check_dead_code import (
     _count_file_lines,
     _count_node_lines,

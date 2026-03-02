@@ -16,6 +16,7 @@ from ami.ci.types import (
     VersionEntry,
     VersionUpdate,
 )
+
 from ami.cli_components.confirmation_dialog import confirm
 from ami.core.env import PROJECT_ROOT
 

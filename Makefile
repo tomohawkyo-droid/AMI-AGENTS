@@ -176,8 +176,8 @@ test: ## Run tests
 .PHONY: lint
 lint: ## Run linters
 	@echo "🔍 Running linters..."
-	ruff check .
-	ruff format .
+	uv run ruff check --config res/config/ruff.toml .
+	uv run ruff format --config res/config/ruff.toml --check .
 
 .PHONY: type-check
 type-check: ## Run type checker

@@ -1,4 +1,4 @@
-exclude = ["__pycache__", "*.egg-info", ".venv", ".git", "node_modules", ".pytest_cache", ".boot-linux"]
+exclude = ["__pycache__", "*.egg-info", ".venv", ".git", "node_modules", ".pytest_cache", ".boot-linux", "projects"]
 line-length = 88
 
 [lint]
