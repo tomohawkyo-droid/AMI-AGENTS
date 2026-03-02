@@ -1,3 +1,11 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:dceacb3af18deeaf982f8c1d15a2fd4ee1b87d425c1e2078678b2203c2ee679c
-size 323
+# AMI Orchestrator - Managed Services Inventory
+#
+# This file is read by ami/cli_components/status_systemd.py
+# to determine which services are managed (vs orphan).
+
+compose_services:
+  ami-compose:
+    compose_file: projects/AMI-DATAOPS/res/docker/docker-compose.yml
+    profiles: [data, secrets, dev]
+
+local_services: {}

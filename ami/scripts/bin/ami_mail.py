@@ -211,9 +211,7 @@ def cmd_send_block(args: argparse.Namespace) -> None:
                             msg = email.message_from_bytes(response_part[1])
                             subject, encoding = decode_header(msg["Subject"])[0]
                             if isinstance(subject, bytes):
-                                subject = subject.decode(
-                                    encoding if encoding else "utf-8"
-                                )
+                                subject = subject.decode(encoding or "utf-8")
 
                             # Simple matching: Check if reply subject contains original
                             # subject or just accept it if it's new enough?
@@ -279,7 +277,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
                     msg = email.message_from_bytes(response_part[1])
                     subject, encoding = decode_header(msg["Subject"])[0]
                     if isinstance(subject, bytes):
-                        subject = subject.decode(encoding if encoding else "utf-8")
+                        subject = subject.decode(encoding or "utf-8")
                     from_ = msg.get("From")
                     print(f"  [{i + 1}] From: {from_} | Subject: {subject}")
 

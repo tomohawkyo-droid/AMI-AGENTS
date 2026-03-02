@@ -1,3 +1,67 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:771d105de069319335147946ea8419f4d45da2f91fcde55f92e0e4c008d102ec
-size 2702
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff-format
+        pass_filenames: false
+        always_run: true
+        args: [ --config, res/config/ruff.toml, . ]
+      - id: ruff
+        pass_filenames: false
+        always_run: true
+        args: [ --config, res/config/ruff.toml, --fix, --exit-non-zero-on-fix, . ]
+  - repo: local
+    hooks:
+      - id: block-sensitive-files
+        name: Block Sensitive Files
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_block_sensitive_files \"$@\"' --"
+        language: system
+      - id: check-dependency-versions
+        name: Check Dependency Versions (strict pinning + latest)
+        entry: uv run python -m ami.ci.check_dependency_versions pyproject.toml projects/AMI-PORTAL/package.json projects/AMI-DATAOPS/res/docker/docker-compose.yml
+        language: system
+        pass_filenames: false
+        files: (pyproject\.toml|package\.json|docker-compose\.ya?ml|Dockerfile)$
+      - id: check-banned-words
+        name: Check Banned Words
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_banned_words'"
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: check-file-length
+        name: Check File Length (max 512 lines)
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_file_length'"
+        language: system
+        pass_filenames: false
+      - id: check-init-files
+        name: Enforce Empty __init__.py Files (CRITICAL SECURITY REQUIREMENT)
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_init_files \"$@\"' --"
+        language: system
+        files: __init__\.py$
+      - id: portal-preflight
+        name: Portal Preflight
+        entry: bash -c 'cd projects/AMI-PORTAL && npm run preflight'
+        language: system
+        pass_filenames: false
+        files: ^projects/AMI-PORTAL/
+      - id: mypy
+        name: mypy
+        entry: uv run python -m mypy
+        language: system
+        pass_filenames: false
+        args: [ --config-file, res/config/mypy.toml, --exclude, projects/, ami ]
+        files: \.py$
+        exclude: ^projects/
+      - id: block-coauthored
+        name: Block Co-authored Commits
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_block_coauthored \"$1\"' --"
+        language: system
+        stages: [commit-msg]
+  - repo: local
+    hooks:
+      - id: verify-coverage
+        name: Verify Test Coverage (Unit >90%, Integration >75%)
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_verify_coverage'"
+        language: system
+        stages: [pre-push]
+        pass_filenames: false

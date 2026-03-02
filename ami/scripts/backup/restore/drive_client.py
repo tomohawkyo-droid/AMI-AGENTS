@@ -99,16 +99,18 @@ class DriveRestoreClient:
             # Search for backup files, ordered by modification time (newest first)
             results = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: service.files()
-                .list(
-                    q=search_query,
-                    spaces="drive",
-                    fields="files(id, name, modifiedTime, size)",
-                    orderBy="modifiedTime desc",
-                    includeItemsFromAllDrives=True,
-                    supportsAllDrives=True,
-                )
-                .execute(),
+                lambda: (
+                    service.files()
+                    .list(
+                        q=search_query,
+                        spaces="drive",
+                        fields="files(id, name, modifiedTime, size)",
+                        orderBy="modifiedTime desc",
+                        includeItemsFromAllDrives=True,
+                        supportsAllDrives=True,
+                    )
+                    .execute()
+                ),
             )
 
             raw_files = results.get("files")
@@ -152,9 +154,11 @@ class DriveRestoreClient:
             # Get file metadata first to verify it's the backup file
             file_metadata = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: service.files()
-                .get(fileId=file_id, supportsAllDrives=True)
-                .execute(),
+                lambda: (
+                    service.files()
+                    .get(fileId=file_id, supportsAllDrives=True)
+                    .execute()
+                ),
             )
 
             name = file_metadata.get("name", "Unknown")
@@ -197,9 +201,11 @@ class DriveRestoreClient:
 
             raw_metadata = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: service.files()
-                .get(fileId=file_id, supportsAllDrives=True)
-                .execute(),
+                lambda: (
+                    service.files()
+                    .get(fileId=file_id, supportsAllDrives=True)
+                    .execute()
+                ),
             )
             if not isinstance(raw_metadata, dict):
                 return None

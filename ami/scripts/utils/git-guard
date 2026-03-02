@@ -1,3 +1,77 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:245e54b86d84ad3c865a693a1b5e7920ed4ecfc004b433584f4d91f2bb7e4dd7
-size 2041
+#!/usr/bin/env bash
+# Git Guard - Blocks destructive commands
+# Installed to ${BOOT_LINUX_DIR}/bin/git, calls real-git
+#
+# This wrapper prevents accidental data loss from dangerous git commands.
+# It cannot be bypassed because it IS the git binary in PATH.
+
+set -euo pipefail
+
+GIT_REAL="$(dirname "$0")/real-git"
+
+# Ensure real git exists
+if [[ ! -x "$GIT_REAL" ]]; then
+    echo "ERROR: real-git not found at $GIT_REAL"
+    echo "Run bootstrap_git.sh to fix installation"
+    exit 1
+fi
+
+block() {
+    echo "❌ BLOCKED: $1"
+    echo "This command is forbidden to prevent data loss."
+    exit 1
+}
+
+# Handle empty args
+if [[ $# -eq 0 ]]; then
+    exec "$GIT_REAL"
+fi
+
+cmd="$1"
+
+# 1. Block destructive commands
+case "$cmd" in
+    reset)    block "git reset" ;;
+    checkout) block "git checkout" ;;
+    clean)    block "git clean" ;;
+    restore)  block "git restore" ;;
+    rm)       block "git rm" ;;
+    rebase)   block "git rebase" ;;
+    gc)       block "git gc" ;;
+    prune)    block "git prune" ;;
+esac
+
+# 2. Block destructive sub-commands
+if [[ "$cmd" == "stash" ]]; then
+    for arg in "$@"; do
+        [[ "$arg" == "drop" ]] && block "git stash drop"
+        [[ "$arg" == "clear" ]] && block "git stash clear"
+    done
+fi
+
+if [[ "$cmd" == "branch" ]]; then
+    for arg in "$@"; do
+        [[ "$arg" == "-D" ]] && block "git branch -D (use -d instead)"
+    done
+fi
+
+if [[ "$cmd" == "push" ]]; then
+    for arg in "$@"; do
+        [[ "$arg" == "--force" || "$arg" == "-f" ]] && block "git push --force"
+        [[ "$arg" == "--force-with-lease" ]] && block "git push --force-with-lease"
+    done
+fi
+
+# 3. Block destructive flags globally
+for arg in "$@"; do
+    [[ "$arg" == "--hard" ]] && block "--hard flag"
+    [[ "$arg" == "--no-verify" ]] && block "--no-verify flag"
+done
+
+# 4. Block hook-bypass environment variables
+if [[ -n "${SKIP:-}" || -n "${PRE_COMMIT_ALLOW_NO_CONFIG:-}" ]]; then
+    block "SKIP / PRE_COMMIT_ALLOW_NO_CONFIG environment variable (hook bypass)"
+fi
+
+# Safe - pass through to real git
+exec "$GIT_REAL" "$@"

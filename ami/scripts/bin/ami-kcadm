@@ -1,3 +1,5 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ca6031537a80e0dcf834ecedc9484450fa8b41f8727818b10a8cc0099e754741
-size 198
+#!/usr/bin/env bash
+# ami-kcadm: Keycloak Admin CLI wrapper
+# Executes kcadm.sh inside the ami-keycloak container
+set -euo pipefail
+exec podman exec -it ami-keycloak /opt/keycloak/bin/kcadm.sh "$@"

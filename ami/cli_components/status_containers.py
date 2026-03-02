@@ -198,7 +198,7 @@ def get_podman_containers() -> list[PodmanContainer]:
             ]
 
             # Use raw ports if available, otherwise use exposed ports
-            final_ports = parsed_ports if parsed_ports else exposed_ports
+            final_ports = parsed_ports or exposed_ports
 
             containers.append(
                 PodmanContainer(

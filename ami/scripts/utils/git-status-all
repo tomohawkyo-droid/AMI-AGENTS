@@ -1,3 +1,76 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:7be086e8297f01259c8506eecf84220acae16d7e49fa79c2d5f9287b6d7bff2c
-size 2666
+#!/usr/bin/env bash
+# Reports git status for all repositories under projects/
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+PROJECTS_DIR="${PROJECT_ROOT}/projects"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+if [[ ! -d "$PROJECTS_DIR" ]]; then
+    echo -e "${RED}ERROR: ${PROJECTS_DIR} not found${NC}"
+    exit 1
+fi
+
+REAL_GIT="$(dirname "$0")/real-git"
+if [[ ! -x "$REAL_GIT" ]]; then
+    REAL_GIT="$(command -v git 2>/dev/null || true)"
+fi
+
+clean_count=0
+dirty_count=0
+total_count=0
+
+while IFS= read -r git_dir; do
+    repo_dir="$(dirname "$git_dir")"
+    repo_name="${repo_dir#"${PROJECT_ROOT}/"}"
+    total_count=$((total_count + 1))
+
+    branch=$("$REAL_GIT" -C "$repo_dir" branch --show-current 2>/dev/null || echo "detached")
+    status=$("$REAL_GIT" -C "$repo_dir" status --porcelain 2>/dev/null)
+    ahead_behind=$("$REAL_GIT" -C "$repo_dir" rev-list --left-right --count HEAD...@{upstream} 2>/dev/null || echo "? ?")
+    ahead=$(echo "$ahead_behind" | awk '{print $1}')
+    behind=$(echo "$ahead_behind" | awk '{print $2}')
+
+    # Build sync indicator
+    sync=""
+    if [[ "$ahead" == "?" ]]; then
+        sync="${YELLOW}no upstream${NC}"
+    elif [[ "$ahead" -gt 0 && "$behind" -gt 0 ]]; then
+        sync="${RED}↑${ahead} ↓${behind}${NC}"
+    elif [[ "$ahead" -gt 0 ]]; then
+        sync="${YELLOW}↑${ahead}${NC}"
+    elif [[ "$behind" -gt 0 ]]; then
+        sync="${RED}↓${behind}${NC}"
+    else
+        sync="${GREEN}synced${NC}"
+    fi
+
+    if [[ -z "$status" ]]; then
+        clean_count=$((clean_count + 1))
+        echo -e "${GREEN}✓${NC} ${BOLD}${repo_name}${NC}  ${CYAN}${branch}${NC}  ${sync}"
+    else
+        dirty_count=$((dirty_count + 1))
+        modified=$(echo "$status" | grep -c '^ M\|^M ' || true)
+        untracked=$(echo "$status" | grep -c '^??' || true)
+        deleted=$(echo "$status" | grep -c '^ D\|^D ' || true)
+        added=$(echo "$status" | grep -c '^A ' || true)
+
+        changes=""
+        [[ "$modified" -gt 0 ]] && changes+="${YELLOW}~${modified}${NC} "
+        [[ "$added" -gt 0 ]] && changes+="${GREEN}+${added}${NC} "
+        [[ "$deleted" -gt 0 ]] && changes+="${RED}-${deleted}${NC} "
+        [[ "$untracked" -gt 0 ]] && changes+="${CYAN}?${untracked}${NC} "
+
+        echo -e "${RED}✗${NC} ${BOLD}${repo_name}${NC}  ${CYAN}${branch}${NC}  ${sync}  ${changes}"
+    fi
+done < <(find "$PROJECTS_DIR" -name .git -type d 2>/dev/null | sort)
+
+echo ""
+echo -e "${BOLD}${total_count}${NC} repos: ${GREEN}${clean_count} clean${NC}, ${RED}${dirty_count} dirty${NC}"

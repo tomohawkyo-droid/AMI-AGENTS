@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from ami.scripts.backup.backup_exceptions import BackupConfigError
-from ami.scripts.backup.common.paths import find_gcloud
+from ami.scripts.backup.common.paths import find_gcloud, get_project_root
 
 ADC_CREDENTIALS_PATH = (
     Path.home() / ".config/gcloud/application_default_credentials.json"
@@ -110,8 +110,6 @@ class BackupConfig:
     @classmethod
     def load(cls, root_dir: Path) -> "BackupConfig":
         """Load configuration from .env file."""
-        from ami.scripts.backup.common.paths import get_project_root
-
         try:
             # Always prioritize project root discovery
             project_root = get_project_root()

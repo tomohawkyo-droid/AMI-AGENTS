@@ -74,13 +74,19 @@ class StreamProcessor:
         """Register an observer for stream events."""
         self.observers.append(observer)
 
+    def _safe_notify_observer(
+        self, observer: StreamObserver, event: StreamEvent
+    ) -> None:
+        """Notify a single observer, logging errors."""
+        try:
+            observer.on_event(event)
+        except Exception as e:
+            logger.error(f"Observer error: {e}")
+
     def _notify(self, event: StreamEvent) -> None:
         """Notify all observers of an event."""
         for observer in self.observers:
-            try:
-                observer.on_event(event)
-            except Exception as e:
-                logger.error(f"Observer error: {e}")
+            self._safe_notify_observer(observer, event)
 
     def _write_stdin(self, process: subprocess.Popen[str], stdin_data: str) -> None:
         """Write stdin data to process and close stdin."""

@@ -21,6 +21,20 @@ from ami.types.results import DeleteResult, ScanResult, TempFileEntry
 BYTES_PER_UNIT = 1024.0
 
 
+def _accumulate_entry_size(entry: os.DirEntry[str], stack: list[Path]) -> int:
+    """Get size contribution of a single directory entry."""
+    try:
+        if entry.is_symlink():
+            return 0
+        if entry.is_file():
+            return entry.stat().st_size
+        if entry.is_dir():
+            stack.append(Path(entry.path))
+    except Exception:
+        pass
+    return 0
+
+
 def get_size(path: Path) -> int:
     """Calculate the size of a file or directory in bytes safely."""
     total_size = 0
@@ -35,15 +49,7 @@ def get_size(path: Path) -> int:
             try:
                 with os.scandir(current_dir) as it:
                     for entry in it:
-                        try:
-                            if entry.is_symlink():
-                                continue
-                            if entry.is_file():
-                                total_size += entry.stat().st_size
-                            elif entry.is_dir():
-                                stack.append(Path(entry.path))
-                        except Exception:
-                            continue
+                        total_size += _accumulate_entry_size(entry, stack)
             except Exception:
                 continue
     except Exception:
@@ -152,6 +158,20 @@ def _process_directory_entry(
         _handle_file_entry(entry, path, found_files, large_files)
 
 
+def _safe_process_entry(
+    entry: os.DirEntry[str],
+    exclude_paths: set[str],
+    found_files: list[Path],
+    large_files: list[Path],
+    stack: list[Path],
+) -> None:
+    """Process a single directory entry, skipping on error."""
+    try:
+        _process_directory_entry(entry, exclude_paths, found_files, large_files, stack)
+    except Exception:
+        return
+
+
 def scan_directory_robust(
     root_dir: Path,
     exclude_dirs: set[Path],
@@ -181,12 +201,9 @@ def scan_directory_robust(
         try:
             with os.scandir(current_dir) as it:
                 for entry in it:
-                    try:
-                        _process_directory_entry(
-                            entry, exclude_paths, found_files, large_files, stack
-                        )
-                    except Exception:
-                        continue
+                    _safe_process_entry(
+                        entry, exclude_paths, found_files, large_files, stack
+                    )
         except Exception:
             continue
 
@@ -250,6 +267,17 @@ def _print_large_files(large_files: list[Path], repo_root: Path) -> None:
         print(f"[LARGE] {f.relative_to(repo_root)} ({format_size(size)})")
 
 
+def _try_collect_user_entry(entry: os.DirEntry[str], user: str) -> TempFileEntry | None:
+    """Check ownership and collect entry if it belongs to user."""
+    try:
+        path = Path(entry.path)
+        if path.owner() == user:
+            return TempFileEntry(str(path), get_size(path))
+    except Exception:
+        pass
+    return None
+
+
 def _scan_system_tmp(system_tmp: Path) -> None:
     """Scan and print system tmp directory contents."""
     try:
@@ -257,12 +285,9 @@ def _scan_system_tmp(system_tmp: Path) -> None:
         user = os.environ.get("USER", "ami")
         with os.scandir(system_tmp) as it:
             for entry in it:
-                try:
-                    path = Path(entry.path)
-                    if path.owner() == user:
-                        tmp_items.append(TempFileEntry(str(path), get_size(path)))
-                except Exception:
-                    pass
+                item = _try_collect_user_entry(entry, user)
+                if item is not None:
+                    tmp_items.append(item)
 
         tmp_items.sort(key=lambda x: x.size_bytes, reverse=True)
         for tmp_entry in tmp_items[:20]:

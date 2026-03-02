@@ -4,7 +4,7 @@ import urllib.error
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from ami.scripts.ci.check_dependency_versions import (
+from ami.ci.check_dependency_versions import (
     BUILTIN_EXCLUDES,
     check_and_collect,
     get_latest_pypi_version,
@@ -12,7 +12,7 @@ from ami.scripts.ci.check_dependency_versions import (
     parse_dependency,
     upgrade_pyproject,
 )
-from ami.types.results import LooseDependency, OutdatedDependency
+from ami.ci.types import LooseDependency, OutdatedDependency
 
 
 class TestConstants:
@@ -28,7 +28,7 @@ class TestConstants:
 class TestGetLatestPypiVersion:
     """Tests for get_latest_pypi_version function."""
 
-    @patch("ami.scripts.ci.check_dependency_versions.urllib.request.urlopen")
+    @patch("ami.ci.check_dependency_versions.urllib.request.urlopen")
     def test_returns_version_on_success(self, mock_urlopen) -> None:
         """Test returns version when PyPI API succeeds."""
         mock_response = MagicMock()
@@ -41,7 +41,7 @@ class TestGetLatestPypiVersion:
 
         assert version == "8.0.0"
 
-    @patch("ami.scripts.ci.check_dependency_versions.urllib.request.urlopen")
+    @patch("ami.ci.check_dependency_versions.urllib.request.urlopen")
     def test_returns_none_on_url_error(self, mock_urlopen) -> None:
         """Test returns None when URL request fails."""
         mock_urlopen.side_effect = urllib.error.URLError("Connection failed")
@@ -50,7 +50,7 @@ class TestGetLatestPypiVersion:
 
         assert version is None
 
-    @patch("ami.scripts.ci.check_dependency_versions.urllib.request.urlopen")
+    @patch("ami.ci.check_dependency_versions.urllib.request.urlopen")
     def test_returns_none_on_json_error(self, mock_urlopen) -> None:
         """Test returns None when JSON parsing fails."""
         mock_response = MagicMock()
@@ -63,7 +63,7 @@ class TestGetLatestPypiVersion:
 
         assert version is None
 
-    @patch("ami.scripts.ci.check_dependency_versions.urllib.request.urlopen")
+    @patch("ami.ci.check_dependency_versions.urllib.request.urlopen")
     def test_returns_none_when_version_missing(self, mock_urlopen) -> None:
         """Test returns None when version key missing in response."""
         mock_response = MagicMock()
@@ -145,7 +145,7 @@ class TestParseDependency:
 class TestCheckAndCollect:
     """Tests for check_and_collect function."""
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_pypi_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_pypi_version")
     def test_detects_loose_constraint(self, mock_pypi, tmp_path: Path) -> None:
         """Test detects loose constraint."""
         mock_pypi.return_value = "2.0.0"
@@ -160,7 +160,7 @@ dependencies = ["numpy>=1.20.0"]
         assert len(loose) == 1
         assert loose[0][0] == "numpy"
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_pypi_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_pypi_version")
     def test_detects_outdated_dependency(self, mock_pypi, tmp_path: Path) -> None:
         """Test detects outdated dependency."""
         mock_pypi.return_value = "2.0.0"
@@ -178,7 +178,7 @@ dependencies = ["numpy==1.20.0"]
         assert outdated[0][2] == "1.20.0"
         assert outdated[0][3] == "2.0.0"
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_pypi_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_pypi_version")
     def test_skips_builtin_excludes(self, mock_pypi, tmp_path: Path) -> None:
         """Test skips builtin excluded packages."""
         mock_pypi.return_value = "2.0.0"
@@ -194,7 +194,7 @@ dependencies = ["torch>=1.0.0", "torchvision"]
         assert outdated == []
         mock_pypi.assert_not_called()
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_pypi_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_pypi_version")
     def test_checks_optional_dependencies(self, mock_pypi, tmp_path: Path) -> None:
         """Test checks optional dependencies."""
         mock_pypi.return_value = "8.0.0"
@@ -212,7 +212,7 @@ dev = ["pytest>=7.0.0"]
         assert len(loose) == 1
         assert "pytest" in loose[0][0]
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_pypi_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_pypi_version")
     def test_skips_duplicate_packages(self, mock_pypi, tmp_path: Path) -> None:
         """Test skips duplicate packages."""
         mock_pypi.return_value = "2.0.0"
@@ -230,7 +230,7 @@ dev = ["numpy==1.20.0"]
         # Should only check numpy once
         assert mock_pypi.call_count == 1
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_pypi_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_pypi_version")
     def test_respects_custom_excludes(self, mock_pypi, tmp_path: Path) -> None:
         """Test respects custom exclusion list."""
         mock_pypi.return_value = "2.0.0"
@@ -247,7 +247,7 @@ dependencies = ["numpy>=1.0.0", "requests>=1.0.0"]
         assert len(loose) == 1
         assert loose[0][0] == "requests"
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_pypi_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_pypi_version")
     def test_skips_when_pypi_returns_none(self, mock_pypi, tmp_path: Path) -> None:
         """Test skips when PyPI lookup fails."""
         mock_pypi.return_value = None
@@ -316,8 +316,8 @@ dependencies = [
 class TestMain:
     """Tests for main function."""
 
-    @patch("ami.scripts.ci.check_dependency_versions.check_and_collect")
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.check_and_collect")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_returns_zero_when_all_pass(self, mock_path_class, mock_check) -> None:
         """Test returns 0 when all dependencies pass."""
         mock_path = MagicMock()
@@ -330,8 +330,8 @@ class TestMain:
 
         assert result == 0
 
-    @patch("ami.scripts.ci.check_dependency_versions.check_and_collect")
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.check_and_collect")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_returns_one_for_loose_constraints(
         self, mock_path_class, mock_check
     ) -> None:
@@ -350,8 +350,8 @@ class TestMain:
 
         assert result == 1
 
-    @patch("ami.scripts.ci.check_dependency_versions.check_and_collect")
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.check_and_collect")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_returns_one_for_outdated(self, mock_path_class, mock_check) -> None:
         """Test returns 1 when outdated dependencies found."""
         mock_path = MagicMock()
@@ -368,7 +368,7 @@ class TestMain:
 
         assert result == 1
 
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_returns_one_for_missing_pyproject(self, mock_path_class) -> None:
         """Test returns 1 when pyproject.toml missing."""
         mock_path = MagicMock()
@@ -380,9 +380,9 @@ class TestMain:
 
         assert result == 1
 
-    @patch("ami.scripts.ci.check_dependency_versions.upgrade_pyproject")
-    @patch("ami.scripts.ci.check_dependency_versions.check_and_collect")
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.upgrade_pyproject")
+    @patch("ami.ci.check_dependency_versions.check_and_collect")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_upgrade_mode(self, mock_path_class, mock_check, mock_upgrade) -> None:
         """Test upgrade mode calls upgrade_pyproject."""
         mock_path = MagicMock()

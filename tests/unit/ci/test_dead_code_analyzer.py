@@ -4,7 +4,7 @@ import ast
 import textwrap
 from pathlib import Path
 
-from ami.scripts.ci.dead_code_analyzer import (
+from ami.ci.dead_code_analyzer import (
     CrossReferenceGraph,
     Definition,
     DefinitionCollector,
@@ -53,8 +53,8 @@ class TestPathToModuleName:
         assert path_to_module_name("setup.py") == "setup"
 
     def test_nested_path(self) -> None:
-        result = path_to_module_name("ami/scripts/ci/check_dead_code.py")
-        assert result == "ami.scripts.ci.check_dead_code"
+        result = path_to_module_name("ami/ci/check_dead_code.py")
+        assert result == "ami.ci.check_dead_code"
 
 
 # ---------------------------------------------------------------------------

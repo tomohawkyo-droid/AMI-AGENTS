@@ -1,3 +1,12 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ad282739f967f3301bb8024967710c5e85db6f78ee9e0fe9224bcd2836c398a1
-size 231
+"""Key name constants returned by read_key_sequence().
+
+Single source of truth — all TUI components import from here.
+"""
+
+UP = "UP"
+DOWN = "DOWN"
+LEFT = "LEFT"
+RIGHT = "RIGHT"
+ENTER = "ENTER"
+ESC = "ESC"
+BACKSPACE = "BACKSPACE"

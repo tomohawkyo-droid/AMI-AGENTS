@@ -71,6 +71,16 @@ def get_visual_width(text: str) -> int:
     return width
 
 
+def _collect_ports_from_process(p: "psutil.Process", ports: set[str]) -> None:
+    """Collect listening ports from a single process."""
+    try:
+        for conn in p.net_connections(kind="inet"):
+            if conn.status == psutil.CONN_LISTEN:
+                ports.add(str(conn.laddr.port))
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        pass
+
+
 def get_local_ports(pid: str) -> list[str]:
     if pid == "0" or not pid:
         return []
@@ -79,12 +89,7 @@ def get_local_ports(pid: str) -> list[str]:
         proc = psutil.Process(int(pid))
         procs = [proc, *proc.children(recursive=True)]
         for p in procs:
-            try:
-                for conn in p.net_connections(kind="inet"):
-                    if conn.status == psutil.CONN_LISTEN:
-                        ports.add(str(conn.laddr.port))
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
+            _collect_ports_from_process(p, ports)
     except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
         return []
     return sorted(ports)

@@ -1,3 +1,24 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:790d3b64e66722e2d65db7100ab2dd4abe13576d21bf3067af37765ea2a2666b
-size 691
+#!/usr/bin/env bash
+# AMI Agent Entrypoint - Local Venv Mode
+set -e
+
+# Find the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
+# Handle installation mode
+if [[ "$1" == "-i" || "$1" == "--install" ]]; then
+    echo "alias ami-agent='$SCRIPT_DIR/ami-agent'"
+    exit 0
+fi
+
+# Define the local venv python path
+VENV_PYTHON="/home/ami/AMI-AGENTS/.venv/bin/python"
+
+if [[ ! -f "$VENV_PYTHON" ]]; then
+    echo "CRITICAL: Local venv python not found at $VENV_PYTHON" >&2
+    echo "Run 'uv sync' to create the environment." >&2
+    exit 1
+fi
+
+# Execute the main module using the local venv
+exec "$VENV_PYTHON" -m ami.cli.main "$@"

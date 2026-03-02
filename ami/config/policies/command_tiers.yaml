@@ -1,3 +1,155 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:cf230c0e20d066cf8d05f821ffb56ef84ac418da5cdd121f1a73da7ad1b8cbe6
-size 4250
+# Command Tier Classification
+# Defines security tiers for shell commands with default actions.
+#
+# Flow:
+#   1. Hard deny check (no override possible)
+#   2. Classify command → highest matching tier wins
+#   3. Resolve action from scope chain (directory → session → default)
+#   4. Execute action (allow / confirm / deny)
+#
+# Tiers (ordered least → most powerful):
+#   observe  - Read-only, no side effects
+#   modify   - Creates or modifies files (triggers PRE_EDIT hooks)
+#   execute  - Runs programs or scripts
+#   admin    - Destructive or privileged operations
+#
+# Commands matching multiple tiers are classified by the highest tier.
+# Unclassified commands are denied (fail-closed).
+
+version: "1.0.0"
+
+# Hard deny: security-critical patterns that cannot be overridden by any scope.
+# Checked FIRST, before tier classification.
+hard_deny:
+  # Command chaining (bypasses single-command tier classification)
+  - pattern: '&&'
+    message: "Command chaining with && forbidden"
+  - pattern: ';'
+    message: "Command chaining with ; forbidden"
+  - pattern: '\|\|'
+    message: "Command chaining with || forbidden"
+  - pattern: '&(?!&)'
+    message: "Background execution forbidden"
+
+  # Dangerous invocations
+  - pattern: '--no-verify'
+    message: "Git hook bypass forbidden"
+  - pattern: '\bpython3?\s+-c\b'
+    message: "Inline python execution forbidden"
+  - pattern: '\|\s*python3?\b'
+    message: "Piping to python forbidden"
+  - pattern: '\bpip3?\b'
+    message: "Use uv sync instead of pip"
+  - pattern: '(?<!ami-)\bruff\b'
+    message: "Use scripts/git-commit for linting"
+  - pattern: '^\s*cd\b'
+    message: "Use absolute paths instead of cd"
+  - pattern: '\bgit\b.*\brm\b.*--cached'
+    message: "git rm --cached forbidden"
+  - pattern: '\bdd\b'
+    message: "Low-level disk operations forbidden"
+  - pattern: '\bshred\b'
+    message: "Secure deletion forbidden"
+  - pattern: '\bwipe\b'
+    message: "Secure deletion forbidden"
+
+  # Nested shells
+  - pattern: '\bbash\b'
+    message: "Direct shell invocation forbidden"
+  - pattern: '\bsh\b'
+    message: "Direct shell invocation forbidden"
+  - pattern: '\bzsh\b'
+    message: "Direct shell invocation forbidden"
+  - pattern: '\bksh\b'
+    message: "Direct shell invocation forbidden"
+  - pattern: '\bcsh\b'
+    message: "Direct shell invocation forbidden"
+  - pattern: '\bdash\b'
+    message: "Direct shell invocation forbidden"
+  - pattern: '\bnode\b'
+    message: "Direct node invocation forbidden"
+
+# Tier classification: highest matching tier wins.
+tiers:
+  admin:
+    default_action: deny
+    triggers_edit_hooks: false
+    patterns:
+      - '\brm\b'
+      - '\bsudo\b'
+      - '\bchmod\b'
+      - '\bchown\b'
+      - '\bkill\b'
+      - '\bpkill\b'
+      - '\bkillall\b'
+      - '\bgit\s+(push|reset|checkout|restore|pull|rebase|merge|commit)\b'
+
+  execute:
+    default_action: confirm
+    triggers_edit_hooks: false
+    patterns:
+      - '\bpython3?\b'
+      - '\bpytest\b'
+      - '\bmypy\b'
+      - '\bmake\b'
+      - '\bcargo\b'
+      - '\buv\b'
+      - '\bxargs\b'
+      - '\bami-\w+\b'
+      - '\bami\s+'
+      - '\bscripts/'
+      - '\bcurl\b'
+      - '\bwget\b'
+      - '\bgit\s+(add|stash\s+(?!list))\b'
+
+  modify:
+    default_action: confirm
+    triggers_edit_hooks: true
+    patterns:
+      - '\btouch\b'
+      - '\bmkdir\b'
+      - '\becho\b'
+      - '\bprintf\b'
+      - '\bsed\b'
+      - '\bawk\b'
+      - '\btee\b'
+      - '\bcp\b'
+      - '\bmv\b'
+      - '\bln\b'
+      - '>>'
+      - '(?<![>])[>](?![>])'
+
+  observe:
+    default_action: allow
+    triggers_edit_hooks: false
+    patterns:
+      - '\bls\b'
+      - '\bfind\b'
+      - '\bgrep\b'
+      - '\brg\b'
+      - '\bcat\b'
+      - '\bhead\b'
+      - '\btail\b'
+      - '\bwc\b'
+      - '\bstat\b'
+      - '\bfile\b'
+      - '\bwhich\b'
+      - '\breadlink\b'
+      - '\brealpath\b'
+      - '\bdiff\b'
+      - '\btree\b'
+      - '\bpwd\b'
+      - '\benv\b'
+      - '\bprintenv\b'
+      - '\bdate\b'
+      - '\bwhoami\b'
+      - '\buname\b'
+      - '\bdf\b'
+      - '\bdu\b'
+      - '\bfree\b'
+      - '\bjq\b'
+      - '\bsort\b'
+      - '\buniq\b'
+      - '\bcut\b'
+      - '\btr\b'
+      - '\bgit\s+(status|log|diff|show|branch|tag|remote|stash\s+list|rev-parse|describe|shortlog|blame|ls-files)\b'

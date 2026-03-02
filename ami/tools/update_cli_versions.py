@@ -10,14 +10,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ami.cli_components.confirmation_dialog import confirm
-from ami.core.env import PROJECT_ROOT
-from ami.types.results import (
+from ami.ci.types import (
     PackageUpdateCheck,
     UpdateEntry,
     VersionEntry,
     VersionUpdate,
 )
+from ami.cli_components.confirmation_dialog import confirm
+from ami.core.env import PROJECT_ROOT
 
 
 def get_latest_npm_version(package_name: str) -> str | None:

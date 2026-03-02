@@ -99,43 +99,6 @@ class TempFileEntry(NamedTuple):
     size_bytes: int
 
 
-class LooseDependency(NamedTuple):
-    """A dependency without pinned version."""
-
-    name: str
-    current_spec: str
-    latest_version: str
-
-
-class OutdatedDependency(NamedTuple):
-    """A dependency with outdated pinned version."""
-
-    name: str
-    extras: str | None
-    old_version: str | None
-    new_version: str
-
-
-class ParsedDependency(NamedTuple):
-    """A parsed dependency specification."""
-
-    name: str
-    extras: str | None
-    operator: str | None
-    version: str | None
-
-
-class DeadCodeEntry(NamedTuple):
-    """Dead code item with line count."""
-
-    name: str
-    kind: str
-    file: str
-    line: int
-    reason: str
-    line_count: int
-
-
 class ComponentStatusEntry(NamedTuple):
     """Status entry for a single component."""
 
@@ -174,27 +137,6 @@ class ScanResult(NamedTuple):
     large: list[str]
 
 
-class VersionUpdate(NamedTuple):
-    """A version update from old to new."""
-
-    old: str
-    new: str
-
-
-class VersionEntry(NamedTuple):
-    """Package name paired with version string."""
-
-    package: str
-    version: str
-
-
-class UpdateEntry(NamedTuple):
-    """Package name paired with version update info."""
-
-    package: str
-    update: VersionUpdate
-
-
 class ContainerStatusDisplay(NamedTuple):
     """Display info for container status."""
 
@@ -228,28 +170,6 @@ class ContainerInspectInfo(NamedTuple):
 
     ports: "list[PortMapping]"
     labels: "ContainerLabels"
-
-
-class LoadedConfig(NamedTuple):
-    """Result from loading a dead code config file."""
-
-    raw: object  # config file raw data
-    config: object  # DeadCodeConfig
-
-
-class DependencyCheckResult(NamedTuple):
-    """Result from checking and collecting dependency issues."""
-
-    loose: list[LooseDependency]
-    outdated: list[OutdatedDependency]
-    toml_data: object  # parsed TOML data
-
-
-class PackageUpdateCheck(NamedTuple):
-    """Result from checking for package updates."""
-
-    latest_versions: list[VersionEntry]
-    updates_needed: list[UpdateEntry]
 
 
 class NamedComponentStatus(NamedTuple):

@@ -5,7 +5,7 @@ import urllib.error
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from ami.scripts.ci.check_dependency_versions import (
+from ami.ci.check_dependency_versions import (
     _is_npm_file,
     check_npm_and_collect,
     get_latest_npm_version,
@@ -13,13 +13,13 @@ from ami.scripts.ci.check_dependency_versions import (
     parse_npm_dependency,
     upgrade_package_json,
 )
-from ami.types.results import LooseDependency, OutdatedDependency
+from ami.ci.types import LooseDependency, OutdatedDependency
 
 
 class TestGetLatestNpmVersion:
     """Tests for get_latest_npm_version function."""
 
-    @patch("ami.scripts.ci.check_dependency_versions.urllib.request.urlopen")
+    @patch("ami.ci.check_dependency_versions.urllib.request.urlopen")
     def test_returns_version_on_success(self, mock_urlopen) -> None:
         """Test returns version when npm registry API succeeds."""
         mock_response = MagicMock()
@@ -32,7 +32,7 @@ class TestGetLatestNpmVersion:
 
         assert version == "19.1.1"
 
-    @patch("ami.scripts.ci.check_dependency_versions.urllib.request.urlopen")
+    @patch("ami.ci.check_dependency_versions.urllib.request.urlopen")
     def test_returns_none_on_url_error(self, mock_urlopen) -> None:
         """Test returns None when URL request fails."""
         mock_urlopen.side_effect = urllib.error.URLError("Connection failed")
@@ -41,7 +41,7 @@ class TestGetLatestNpmVersion:
 
         assert version is None
 
-    @patch("ami.scripts.ci.check_dependency_versions.urllib.request.urlopen")
+    @patch("ami.ci.check_dependency_versions.urllib.request.urlopen")
     def test_returns_none_on_json_error(self, mock_urlopen) -> None:
         """Test returns None when JSON parsing fails."""
         mock_response = MagicMock()
@@ -54,7 +54,7 @@ class TestGetLatestNpmVersion:
 
         assert version is None
 
-    @patch("ami.scripts.ci.check_dependency_versions.urllib.request.urlopen")
+    @patch("ami.ci.check_dependency_versions.urllib.request.urlopen")
     def test_encodes_scoped_package(self, mock_urlopen) -> None:
         """Test properly encodes scoped npm packages in URL."""
         mock_response = MagicMock()
@@ -139,7 +139,7 @@ class TestParseNpmDependency:
 class TestCheckNpmAndCollect:
     """Tests for check_npm_and_collect function."""
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_npm_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_npm_version")
     def test_detects_loose_caret(self, mock_npm, tmp_path: Path) -> None:
         """Test detects caret range as loose."""
         mock_npm.return_value = "19.1.1"
@@ -151,7 +151,7 @@ class TestCheckNpmAndCollect:
         assert len(loose) == 1
         assert loose[0].name == "react"
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_npm_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_npm_version")
     def test_detects_outdated(self, mock_npm, tmp_path: Path) -> None:
         """Test detects outdated strict pin."""
         mock_npm.return_value = "19.1.1"
@@ -166,7 +166,7 @@ class TestCheckNpmAndCollect:
         assert outdated[0].old_version == "18.0.0"
         assert outdated[0].new_version == "19.1.1"
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_npm_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_npm_version")
     def test_up_to_date_passes(self, mock_npm, tmp_path: Path) -> None:
         """Test up-to-date strict pin passes."""
         mock_npm.return_value = "19.1.1"
@@ -178,7 +178,7 @@ class TestCheckNpmAndCollect:
         assert loose == []
         assert outdated == []
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_npm_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_npm_version")
     def test_checks_dev_dependencies(self, mock_npm, tmp_path: Path) -> None:
         """Test checks devDependencies."""
         mock_npm.return_value = "10.0.0"
@@ -190,7 +190,7 @@ class TestCheckNpmAndCollect:
         assert len(loose) == 1
         assert loose[0].name == "eslint"
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_npm_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_npm_version")
     def test_skips_workspace_refs(self, mock_npm, tmp_path: Path) -> None:
         """Test skips workspace: references."""
         mock_npm.return_value = "1.0.0"
@@ -203,7 +203,7 @@ class TestCheckNpmAndCollect:
         assert outdated == []
         mock_npm.assert_not_called()
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_npm_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_npm_version")
     def test_respects_excludes(self, mock_npm, tmp_path: Path) -> None:
         """Test respects exclusion set."""
         mock_npm.return_value = "2.0.0"
@@ -217,7 +217,7 @@ class TestCheckNpmAndCollect:
         assert len(loose) == 1
         assert loose[0].name == "next"
 
-    @patch("ami.scripts.ci.check_dependency_versions.get_latest_npm_version")
+    @patch("ami.ci.check_dependency_versions.get_latest_npm_version")
     def test_skips_when_registry_returns_none(self, mock_npm, tmp_path: Path) -> None:
         """Test skips when npm registry lookup fails."""
         mock_npm.return_value = None
@@ -283,8 +283,8 @@ class TestIsNpmFile:
 class TestMainNpm:
     """Tests for main function with npm paths."""
 
-    @patch("ami.scripts.ci.check_dependency_versions.check_npm_and_collect")
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.check_npm_and_collect")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_npm_all_pass(self, mock_path_class, mock_check) -> None:
         """Test returns 0 when all npm dependencies pass."""
         mock_path = MagicMock()
@@ -298,8 +298,8 @@ class TestMainNpm:
 
         assert result == 0
 
-    @patch("ami.scripts.ci.check_dependency_versions.check_npm_and_collect")
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.check_npm_and_collect")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_npm_loose_fails(self, mock_path_class, mock_check) -> None:
         """Test returns 1 when loose npm constraints found."""
         mock_path = MagicMock()
@@ -317,9 +317,9 @@ class TestMainNpm:
 
         assert result == 1
 
-    @patch("ami.scripts.ci.check_dependency_versions.upgrade_package_json")
-    @patch("ami.scripts.ci.check_dependency_versions.check_npm_and_collect")
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.upgrade_package_json")
+    @patch("ami.ci.check_dependency_versions.check_npm_and_collect")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_npm_upgrade_mode(self, mock_path_class, mock_check, mock_upgrade) -> None:
         """Test upgrade mode calls upgrade_package_json for npm."""
         mock_path = MagicMock()
@@ -341,7 +341,7 @@ class TestMainNpm:
         mock_upgrade.assert_called_once()
         assert result == 0
 
-    @patch("ami.scripts.ci.check_dependency_versions.Path")
+    @patch("ami.ci.check_dependency_versions.Path")
     def test_missing_file_returns_one(self, mock_path_class) -> None:
         """Test returns 1 when package.json not found."""
         mock_path = MagicMock()

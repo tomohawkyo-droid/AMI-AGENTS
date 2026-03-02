@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 import pytest
 
-from ami.scripts.ci.check_dead_code import (
+from ami.ci.check_dead_code import (
     _count_file_lines,
     _count_node_lines,
     find_dead_test_files,
     main,
 )
-from ami.scripts.ci.dead_code_analyzer import (
+from ami.ci.dead_code_analyzer import (
     CrossReferenceGraph,
     DeadCodeConfig,
     DeadCodeItem,

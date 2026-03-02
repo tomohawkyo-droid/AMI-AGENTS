@@ -1,3 +1,72 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9a161092789a53d578c9892f51c553f1f7b43672bb046f6fd1bd4e1f356d1157
-size 1900
+# AMI Automation Configuration
+version: "2.0.0"
+
+# Environment
+environment: "${AMI_ENV:development}"
+
+# Paths (all relative to ORCHESTRATOR_ROOT)
+paths:
+  logs: "logs"
+  config: "config"
+  cache: ".cache"
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  retention_days: 90
+
+  # Transcript archival (per Claude Code docs)
+  transcripts:
+    enabled: true
+    path: "logs/transcripts/{date:%Y-%m-%d}"
+    compress: true
+
+# Hooks — validation pipeline config.
+# Override path: AMI_HOOKS_FILE env var, or set hooks.file below.
+hooks:
+  file: "${AMI_HOOKS_FILE:ami/config/hooks.yaml}"
+
+# Agent CLI settings (multi-provider support)
+agent:
+  provider: "${AMI_AGENT_PROVIDER:qwen}"  # Global default provider: claude or gemini
+
+  # Worker defaults (for task execution, code generation)
+  worker:
+    provider: "${AMI_AGENT_WORKER_PROVIDER:claude}"  # claude or gemini
+    model: "${AMI_AGENT_WORKER_MODEL:}"  # Empty = use provider's model_default
+
+  # Moderator defaults (for validation, verification)
+  moderator:
+    provider: "${AMI_AGENT_MODERATOR_PROVIDER:claude}"  # claude or gemini
+    model: "${AMI_AGENT_MODERATOR_MODEL:}"  # Empty = use provider's model_default
+
+  # Claude Code CLI settings
+  claude:
+    command: "{root}/.venv/node_modules/.bin/claude"
+    model_default: "claude-sonnet-4-5"
+    model_audit: "claude-sonnet-4-5"
+
+  # Gemini CLI settings
+  gemini:
+    command: "{root}/.venv/node_modules/.bin/gemini"
+    model_default: "gemini-3-pro"
+    model_audit: "gemini-3-flash"
+
+  # Qwen CLI settings
+  qwen:
+    command: "{root}/.venv/node_modules/.bin/qwen"
+    model_default: "qwen-coder"
+    model_audit: "qwen-coder"
+
+# Legacy claude_cli config (for backward compatibility - will be deprecated)
+claude_cli:
+  command: "claude"
+  model_default: "claude-sonnet-4-5"
+  model_audit: "claude-sonnet-4-5"
+
+# Prompts
+prompts:
+  dir: "scripts/config/prompts"
+  agent: "agent.txt"
+

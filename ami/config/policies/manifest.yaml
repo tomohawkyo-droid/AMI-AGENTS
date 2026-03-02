@@ -1,3 +1,17 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:702e63ee301110eca941910a837d3cc5820a0b1a5014af89348799212461eafb
-size 508
+# Policy Engine Manifest
+# Lists all policy files and their intended usage
+
+version: "1.0.0"
+
+policies:
+  tiers: "ami/config/policies/command_tiers.yaml"
+  python:
+    fast: "ami/config/patterns/python_fast.yaml"
+  sensitive:
+    files: "ami/config/patterns/sensitive_files.yaml"
+  communication:
+    prohibited: "ami/config/patterns/prohibited_communication_patterns.yaml"
+  api_limits:
+    files: "ami/config/patterns/api_limit_patterns.yaml"
+  exemptions:
+    files: "ami/config/patterns/exemptions.yaml"

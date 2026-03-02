@@ -122,7 +122,7 @@ def _extract_compose_info(exec_start: str) -> ComposeInfo:
         managed_container = container_match.group(1)
 
     if "podman-compose" in exec_start:
-        file_match = re.search(r"-f ([a-zA-Z0-9._-]+)", exec_start)
+        file_match = re.search(r"-f ([^\s]+)", exec_start)
         if file_match:
             compose_file = file_match.group(1)
         profile_matches = re.findall(r"--profile ([a-zA-Z0-9_-]+)", exec_start)

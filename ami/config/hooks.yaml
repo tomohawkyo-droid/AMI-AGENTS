@@ -1,3 +1,24 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9335b874efcb641901ed3e5efe09c732a4acb00e58d79f0bc67b42787a3680bb
-size 809
+# Hook Validation Pipeline v4.0.0
+# Defines which validators run for each hook event.
+#
+# Available validators:
+#   command_tier   - Tiered command classification (observe/modify/execute/admin)
+#   edit_safety    - Blocks modifications to sensitive files
+#   path_traversal - Detects path traversal attacks (../, encoded, null bytes)
+#   content_safety - Blocks prohibited communication patterns in agent output
+#
+# Available events:
+#   pre_bash    - Before executing a shell command
+#   pre_edit    - Before file-modifying commands (triggered by modify-tier)
+#   post_output - After receiving agent output from the LLM
+
+version: "4.0.0"
+
+hooks:
+  pre_bash:
+    - validator: command_tier
+  pre_edit:
+    - validator: path_traversal
+    - validator: edit_safety
+  post_output:
+    - validator: content_safety

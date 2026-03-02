@@ -1,3 +1,37 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:3a4563fe47c5b822f0c214031b5bdf97b1d8d05f9e00a22be7b057c4af57340c
-size 1115
+"""Configuration types for AMI Agents.
+
+Provides Pydantic models for agent configuration, replacing dataclasses.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+
+from pydantic import BaseModel, ConfigDict
+
+from ami.types.api import MCPServerConfig
+from ami.types.events import StreamEvent
+
+# Type alias for stream callbacks
+StreamCallback = Callable[[StreamEvent], None] | None
+
+
+class AgentConfig(BaseModel):
+    """Configuration for an agent execution.
+
+    Defines tools, model, hooks, timeout, and session settings for an agent.
+    This Pydantic model replaces the previous dataclass implementation.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    model: str
+    provider: object  # CLIProvider instance - using object to avoid circular imports
+    session_id: str | None = None
+    allowed_tools: list[str] | None = None
+    enable_hooks: bool = True
+    enable_streaming: bool | None = False
+    timeout: int | None = 180
+    mcp_servers: list[MCPServerConfig] | None = None
+    capture_content: bool = False
+    stream_callback: StreamCallback = None

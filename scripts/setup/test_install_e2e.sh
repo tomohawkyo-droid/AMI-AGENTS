@@ -165,12 +165,14 @@ echo "[PASS] uv.lock present."
 # --- Check 3: Dependency Integrity (Import Test) ---
 echo "Verifying critical imports..."
 .venv/bin/python -c "
-import torch
 import loguru
 import pydantic
 import aiohttp
-print(f'Torch: {torch.__version__}')
+import numpy
+import pandas
 print(f'Pydantic: {pydantic.__version__}')
+print(f'NumPy: {numpy.__version__}')
+print(f'Pandas: {pandas.__version__}')
 " 2>&1 | tee import_test.log
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
     echo "[FAIL] Dependency import failed."
@@ -193,6 +195,19 @@ if [ ${PIPESTATUS[0]} -ne 0 ]; then
     exit 1
 fi
 echo "[PASS] AMI package importable."
+
+# --- Check 5b: AMI-CI namespace package accessible ---
+echo "Verifying ami.ci namespace package..."
+.venv/bin/python -c "
+from ami.ci.check_dependency_versions import main
+print('AMI-CI namespace package accessible')
+" 2>&1 | tee ci_import_test.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo "[FAIL] AMI-CI namespace import failed."
+    cat ci_import_test.log
+    exit 1
+fi
+echo "[PASS] AMI-CI namespace package importable."
 
 # --- Check 5: Configuration files ---
 if [ ! -f "pyproject.toml" ]; then
@@ -253,7 +268,7 @@ if [ "$TEST_BOOTSTRAP" = "1" ]; then
     echo "=========================================="
 
     # --- 6a: Test bootstrap directory creation ---
-    BOOT_DIR="$HOME/.boot-linux"
+    BOOT_DIR="$PWD/.boot-linux"
     echo "Testing bootstrap environment at: $BOOT_DIR"
 
     # --- 6b: Run bootstrap installer with appropriate config ---
@@ -286,7 +301,7 @@ if [ "$TEST_BOOTSTRAP" = "1" ]; then
     if [ "$FULL_INSTALL" = "1" ]; then
         echo ""
         echo "Testing Node.js bootstrap environment..."
-        NODEENV_DIR="$BOOT_DIR/nodeenv"
+        NODEENV_DIR="$BOOT_DIR/node-env"
         if [ -d "$NODEENV_DIR" ]; then
             echo "[PASS] Node.js environment exists: $NODEENV_DIR"
             if [ -f "$NODEENV_DIR/bin/node" ]; then
@@ -347,10 +362,10 @@ if [ "$TEST_BOOTSTRAP" = "1" ]; then
         check_component "ADB" "adb" "version" || true
 
         # Check npm-installed components (in nodeenv)
-        if [ -d "$BOOT_DIR/nodeenv/bin" ]; then
+        if [ -d "$BOOT_DIR/node-env/bin" ]; then
             echo ""
             echo "Checking npm-installed components..."
-            NPM_BIN="$BOOT_DIR/nodeenv/bin"
+            NPM_BIN="$BOOT_DIR/node-env/bin"
             [ -f "$NPM_BIN/claude" ] && echo "[PASS] claude CLI installed" || echo "[SKIP] claude CLI not found"
             [ -f "$NPM_BIN/gemini" ] && echo "[PASS] gemini CLI installed" || echo "[SKIP] gemini CLI not found"
             [ -f "$NPM_BIN/qwen" ] && echo "[PASS] qwen CLI installed" || echo "[SKIP] qwen CLI not found"
@@ -407,6 +422,7 @@ echo ""
 echo "Test Summary:"
 echo "  - Core installation: PASS"
 echo "  - Dependencies: PASS"
+echo "  - AMI-CI namespace: PASS"
 echo "  - Pre-commit hooks: PASS"
 echo "  - Make targets: PASS"
 if [ "$TEST_BOOTSTRAP" = "1" ]; then

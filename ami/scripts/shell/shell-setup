@@ -1,3 +1,205 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:3c0a72d8fe1b3a81edc1e509b9fe8b2ac6ad1655c3670d618d68c29029cb43b6
-size 7123
+#!/usr/bin/env bash
+# AMI Orchestrator Shell Environment Setup
+#
+# This script configures the shell environment for the AMI Orchestrator system.
+# All ami-* commands are loaded from extensions in ami/scripts/extensions/*.sh
+#
+# USAGE:
+#   source agents/ami/scripts/shell/shell-setup           # Load environment temporarily
+#   . agents/ami/scripts/shell/shell-setup               # Alternative to 'source' command
+#
+# PERMANENT INSTALLATION:
+#   agents/ami/scripts/shell/shell-setup --install             # Install to ~/.bashrc
+#   agents/ami/scripts/shell/shell-setup --install --no-backup # Install without backup
+#
+# UNINSTALL:
+#   agents/ami/scripts/shell/shell-setup --uninstall          # Remove from ~/.bashrc
+
+# ============================================================================
+# Path calculation helper
+# ============================================================================
+_get_ami_root() {
+    cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd
+}
+
+_get_agents_scripts() {
+    echo "$AMI_ROOT/ami/scripts"
+}
+
+# ============================================================================
+# Install/Uninstall functions
+# ============================================================================
+_install_to_bashrc() {
+    local backup="${1:-true}"
+    local force="${2:-false}"
+    local bashrc="$HOME/.bashrc"
+    local setup_script="$AMI_ROOT/ami/scripts/shell/shell-setup"
+    local marker="# AMI Orchestrator Shell Setup"
+    local source_line="[ -f \"$setup_script\" ] && . \"$setup_script\" --welcome"
+
+    if grep -qF "$marker" "$bashrc" 2>/dev/null; then
+        # Check if the path is still correct (handles repo moves)
+        if grep -qF "$setup_script" "$bashrc" 2>/dev/null && [[ "$force" != "true" ]]; then
+             echo -e "${YELLOW}⚠${NC} AMI shell setup already installed in $bashrc"
+             return 0
+        fi
+        # Path changed or force — remove old entry and re-add
+        echo -e "${BLUE}→${NC} Updating AMI shell setup path in $bashrc..."
+        sed -i '/# AMI Orchestrator Shell Setup/,+1d' "$bashrc"
+    fi
+
+    if [[ "$backup" == "true" ]]; then
+        cp "$bashrc" "$bashrc.backup-$(date +%Y%m%d-%H%M%S)"
+        echo -e "${GREEN}✓${NC} Backed up $bashrc"
+    fi
+
+    # Remove old AMI aliases
+    if grep -q "# AMI Orchestrator - auto-registered" "$bashrc" 2>/dev/null; then
+        echo -e "${BLUE}→${NC} Removing old AMI aliases from $bashrc"
+        sed -i '/# AMI Orchestrator - auto-registered/d' "$bashrc"
+        sed -i '/# AMI Orchestrator - auto-installed/d' "$bashrc"
+        sed -i '/alias ami-run=/d' "$bashrc"
+        echo -e "${GREEN}✓${NC} Cleaned up old aliases"
+    fi
+
+    echo "" >> "$bashrc"
+    echo "$marker" >> "$bashrc"
+    echo "$source_line" >> "$bashrc"
+
+    echo -e "${GREEN}✓${NC} Installed AMI shell setup to $bashrc"
+    echo -e "${YELLOW}→${NC} Run 'source ~/.bashrc' or restart your shell to activate"
+}
+
+_uninstall_from_bashrc() {
+    local bashrc="$HOME/.bashrc"
+    local marker="# AMI Orchestrator Shell Setup"
+
+    if ! grep -qF "$marker" "$bashrc" 2>/dev/null; then
+        echo -e "${YELLOW}⚠${NC} AMI shell setup not found in $bashrc"
+        return 0
+    fi
+
+    cp "$bashrc" "$bashrc.backup-$(date +%Y%m%d-%H%M%S)"
+    echo -e "${GREEN}✓${NC} Backed up $bashrc"
+
+    sed -i '/# AMI Orchestrator Shell Setup/,+1d' "$bashrc"
+
+    echo -e "${GREEN}✓${NC} Removed AMI shell setup from $bashrc"
+    echo -e "${YELLOW}→${NC} Run 'source ~/.bashrc' or restart your shell to apply"
+}
+
+# ============================================================================
+# Verify extensions are available in PATH
+# ============================================================================
+_verify_extensions() {
+    local config="$AMI_ROOT/ami/config/extensions.yaml"
+    [[ -f "$config" ]] || return 0
+
+    local missing=0
+    while IFS= read -r name; do
+        [[ -z "$name" ]] && continue
+        if ! command -v "$name" &>/dev/null; then
+            echo "  ⚠ Missing: $name" >&2
+            missing=$((missing + 1))
+        fi
+    done < <(grep -v "^#" "$config" | grep "name:" | sed 's/.*name: *//')
+
+    if [[ $missing -gt 0 ]]; then
+        echo "  Run 'make register-extensions' to install missing commands" >&2
+    fi
+}
+
+# ============================================================================
+# Flag handling and initialization
+# ============================================================================
+export AMI_SHOW_WELCOME=0
+export AMI_QUIET_MODE=0
+
+if [[ "${1:-}" == "--install" ]]; then
+    AMI_ROOT="$(_get_ami_root)"
+    export AMI_ROOT
+    AGENTS_SCRIPTS="$(_get_agents_scripts)"
+    export AGENTS_SCRIPTS
+    source "$AGENTS_SCRIPTS/shell/ami-banner.sh"
+
+    backup="true"
+    force="false"
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --no-backup) backup="false" ;;
+            --force|-f) force="true" ;;
+        esac
+        shift
+    done
+
+    _install_to_bashrc "$backup" "$force"
+    exit 0
+elif [[ "${1:-}" == "--uninstall" ]]; then
+    AMI_ROOT="$(_get_ami_root)"
+    export AMI_ROOT
+    AGENTS_SCRIPTS="$(_get_agents_scripts)"
+    export AGENTS_SCRIPTS
+    source "$AGENTS_SCRIPTS/shell/ami-banner.sh"
+
+    _uninstall_from_bashrc
+    exit 0
+elif [[ "${1:-}" == "--welcome" ]]; then
+    AMI_ROOT="$(_get_ami_root)"
+    export AMI_ROOT
+    AGENTS_SCRIPTS="$(_get_agents_scripts)"
+    export AGENTS_SCRIPTS
+    export AMI_SHOW_WELCOME=1
+    source "$AGENTS_SCRIPTS/shell/ami-banner.sh"
+    cd "$AMI_ROOT"
+elif [[ "${1:-}" == "--quiet" ]] || [[ "${1:-}" == "-q" ]]; then
+    AMI_ROOT="$(_get_ami_root)"
+    export AMI_ROOT
+    AGENTS_SCRIPTS="$(_get_agents_scripts)"
+    export AGENTS_SCRIPTS
+    export AMI_QUIET_MODE=1
+    source "$AGENTS_SCRIPTS/shell/ami-banner.sh"
+    cd "$AMI_ROOT"
+else
+    AMI_ROOT="$(_get_ami_root)"
+    export AMI_ROOT
+    AGENTS_SCRIPTS="$(_get_agents_scripts)"
+    export AGENTS_SCRIPTS
+    source "$AGENTS_SCRIPTS/shell/ami-banner.sh"
+    cd "$AMI_ROOT"
+fi
+
+# ============================================================================
+# Environment setup
+# ============================================================================
+source "$AGENTS_SCRIPTS/shell/ami-banner.sh"
+
+AMI_QUIET_MODE=${AMI_QUIET_MODE:-0}
+
+if [[ "$AMI_QUIET_MODE" != "1" ]]; then
+    _ami_echo "${BLUE}🚀 Setting up AMI Orchestrator shell environment...${NC}"
+fi
+
+# Setup PATH and PYTHONPATH
+source "$AGENTS_SCRIPTS/utils/env_setup.sh"
+setup_paths
+
+# Import helper functions
+source "$AGENTS_SCRIPTS/utils/module_helpers.sh"
+
+# Verify all extensions are available
+_verify_extensions
+
+# ============================================================================
+# Aliases
+# ============================================================================
+alias @="ami-agent"
+alias msg="ami-agent"
+
+# ============================================================================
+# Display banner on welcome
+# ============================================================================
+if [[ "${AMI_SHOW_WELCOME:-0}" == "1" ]] && [[ "${AMI_QUIET_MODE:-0}" != "1" ]]; then
+    display_banner
+    display_system_status
+fi

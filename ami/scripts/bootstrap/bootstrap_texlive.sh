@@ -105,23 +105,219 @@ log_info "Installing minimal TeXLive (this may take several minutes)..."
 
 # Install additional packages needed for PDF generation
 BINARY_BASE_DIR="${TEXLIVE_DIR}/texmf/bin"
-if [[ -f "${BINARY_BASE_DIR}/x86_64-linux/tlmgr" ]]; then
-    # Try to install additional packages, but don't fail if some packages don't exist
-    "${BINARY_BASE_DIR}/x86_64-linux/tlmgr" install collection-latex collection-latexrecommended || true
-    "${BINARY_BASE_DIR}/x86_64-linux/tlmgr" install latex-bin xetex fontspec montserrat lato noto || true  # lualatex may already be installed as part of xetex
-elif [[ -f "${BINARY_BASE_DIR}/aarch64-linux/tlmgr" ]]; then
-    "${BINARY_BASE_DIR}/aarch64-linux/tlmgr" install collection-latex collection-latexrecommended || true
-    "${BINARY_BASE_DIR}/aarch64-linux/tlmgr" install latex-bin xetex fontspec montserrat lato noto || true
-else
-    # Look for tlmgr in any architecture directory
+# Find tlmgr binary
+TLMGR=""
+for arch in x86_64-linux aarch64-linux; do
+    if [[ -f "${BINARY_BASE_DIR}/${arch}/tlmgr" ]]; then
+        TLMGR="${BINARY_BASE_DIR}/${arch}/tlmgr"
+        break
+    fi
+done
+if [[ -z "${TLMGR}" ]]; then
     for arch_dir in "${BINARY_BASE_DIR}"/*; do
         if [[ -d "$arch_dir" && -f "$arch_dir/tlmgr" ]]; then
-            "$arch_dir/tlmgr" install collection-latex collection-latexrecommended || true
-            "$arch_dir/tlmgr" install latex-bin xetex fontspec montserrat lato noto || true
+            TLMGR="$arch_dir/tlmgr"
             break
         fi
     done
 fi
+
+if [[ -z "${TLMGR}" ]]; then
+    log_error "Could not find tlmgr binary"
+    exit 1
+fi
+
+log_info "Using tlmgr: ${TLMGR}"
+
+# --- Collections (broad package groups) ---
+log_info "Installing TeX collections..."
+"${TLMGR}" install \
+    collection-latex \
+    collection-latexrecommended \
+    collection-latexextra \
+    collection-fontsrecommended \
+    collection-mathscience \
+    || true
+
+# --- Core engines and tools ---
+log_info "Installing TeX engines and tools..."
+"${TLMGR}" install \
+    latex-bin \
+    xetex \
+    luatex \
+    || true
+
+# --- Fonts (needed for xelatex / pandoc output) ---
+log_info "Installing fonts..."
+"${TLMGR}" install \
+    fontspec \
+    unicode-math \
+    montserrat \
+    lato \
+    noto \
+    roboto \
+    sourcesanspro \
+    sourcecodepro \
+    sourceserifpro \
+    libertinus \
+    libertinus-fonts \
+    libertinus-otf \
+    fira \
+    firamath \
+    firamath-otf \
+    inter \
+    cabin \
+    opensans \
+    raleway \
+    inconsolata \
+    dejavu \
+    freefont \
+    gnu-freefont \
+    ec \
+    cm-unicode \
+    lm \
+    lm-math \
+    || true
+
+# --- Pandoc / document conversion essentials ---
+# These packages are required by pandoc's default LaTeX template
+# and commonly needed when converting markdown to PDF/DOCX
+log_info "Installing pandoc/document conversion packages..."
+"${TLMGR}" install \
+    amsmath \
+    amscls \
+    amsfonts \
+    babel \
+    babel-english \
+    biblatex \
+    biber \
+    bookmark \
+    booktabs \
+    caption \
+    csquotes \
+    enumitem \
+    etoolbox \
+    fancyhdr \
+    fancyvrb \
+    float \
+    footmisc \
+    footnote \
+    framed \
+    geometry \
+    grffile \
+    hyperref \
+    iftex \
+    kvoptions \
+    listings \
+    longtable \
+    mdframed \
+    microtype \
+    multirow \
+    natbib \
+    needspace \
+    oberdiek \
+    parskip \
+    pgf \
+    setspace \
+    soul \
+    subfig \
+    subfigure \
+    tcolorbox \
+    textpos \
+    titlesec \
+    titling \
+    tocloft \
+    tools \
+    trimspaces \
+    ulem \
+    upquote \
+    url \
+    xcolor \
+    xkeyval \
+    xurl \
+    || true
+
+# --- Tables and lists ---
+log_info "Installing table and list packages..."
+"${TLMGR}" install \
+    array \
+    colortbl \
+    ctable \
+    makecell \
+    multirow \
+    tabularx \
+    tabulary \
+    tabu \
+    threeparttable \
+    wrapfig \
+    adjustbox \
+    || true
+
+# --- Graphics and images ---
+log_info "Installing graphics packages..."
+"${TLMGR}" install \
+    graphics \
+    graphicx \
+    svg \
+    svg-inkscape \
+    epstopdf \
+    epstopdf-pkg \
+    pdflscape \
+    pdfpages \
+    tikz-cd \
+    tikzfill \
+    || true
+
+# --- Math and science ---
+log_info "Installing math/science packages..."
+"${TLMGR}" install \
+    mathtools \
+    unicode-math \
+    siunitx \
+    physics \
+    chemformula \
+    mhchem \
+    algorithms \
+    algorithmicx \
+    algorithm2e \
+    || true
+
+# --- Code listings and verbatim ---
+log_info "Installing code/verbatim packages..."
+"${TLMGR}" install \
+    minted \
+    fvextra \
+    lineno \
+    || true
+
+# --- Page layout and headers ---
+log_info "Installing layout packages..."
+"${TLMGR}" install \
+    lastpage \
+    wallpaper \
+    background \
+    everypage \
+    changepage \
+    || true
+
+# --- Misc commonly needed ---
+log_info "Installing miscellaneous packages..."
+"${TLMGR}" install \
+    catchfile \
+    environ \
+    import \
+    letltxmacro \
+    luacode \
+    pdftexcmds \
+    selnolig \
+    stringenc \
+    unicode-data \
+    xifthen \
+    xindy \
+    zref \
+    || true
+
+log_info "Package installation complete"
 
 # Create symlinks in venv/bin for the necessary binaries
 log_info "Creating symlinks in ${VENV_DIR}/bin"

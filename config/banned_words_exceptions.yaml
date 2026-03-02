@@ -1,3 +1,29 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:3111f99d1e6ff74c8a0c57ba4a465a3ab8fd1f11d3c4b7d0b4443e73766bcfdc
-size 1357
+# Banned Words Exceptions — AMI-AGENTS workspace root
+# These exceptions apply only when running banned-words checks from the workspace root.
+
+exceptions:
+  # CI scripts need dict/tuple for internal caches with dynamic keys
+  - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
+    paths: ['scripts/ci/', 'types/common.py']
+
+  # subprocess interface files need Mapping for Popen env parameter
+  - pattern: '\b(Mapping|Sequence|MutableMapping|MutableSequence|Iterable|Iterator)\['
+    paths: ['utils/process.py', 'cli/process_utils.py']
+
+  # CI scripts use dict[str, Any] for parsed YAML/JSON data
+  - pattern: 'dict\[.*,\s*Any\]'
+    paths: ['scripts/ci/check_banned_words.py', 'scripts/ci/check_dependency_versions.py']
+
+  # Hook manager uses dict for validator registry and event dispatch mapping
+  - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
+    paths: ['ami/hooks/manager.py']
+
+  # HookContext NamedTuple uses tuple[ScopeOverride, ...] for immutable scope chain
+  - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
+    paths: ['ami/hooks/types.py']
+
+  # TierClassifier uses dict/Sequence for tier configs and scope chain
+  - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
+    paths: ['ami/core/policies/tiers.py']
+  - pattern: '\b(Mapping|Sequence|MutableMapping|MutableSequence|Iterable|Iterator)\['
+    paths: ['ami/core/policies/tiers.py']

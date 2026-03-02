@@ -19,6 +19,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 from ami.scripts.backup.backup_config import BackupConfig
 from ami.scripts.backup.backup_exceptions import BackupConfigError, BackupError
+from ami.scripts.backup.common.paths import get_project_root
 
 
 class CredentialsProvider(Protocol):
@@ -100,8 +101,6 @@ class OAuthCredentialsProvider:
 
     def get_credentials(self) -> GoogleAuthCredentials:
         """Get OAuth credentials, either from existing token or by running auth flow."""
-        from ami.scripts.backup.common.paths import get_project_root
-
         scopes = ["https://www.googleapis.com/auth/drive"]
         try:
             project_root = get_project_root()

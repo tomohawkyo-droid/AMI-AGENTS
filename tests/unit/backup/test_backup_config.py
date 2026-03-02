@@ -36,7 +36,7 @@ class TestBackupConfig:
             raise RuntimeError
 
         monkeypatch.setattr(
-            "ami.scripts.backup.common.paths.get_project_root",
+            "ami.scripts.backup.backup_config.get_project_root",
             _raise_runtime_error,
         )
 

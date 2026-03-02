@@ -7,6 +7,7 @@ Each component defines:
 - How to install it
 """
 
+import json
 import re
 import subprocess
 from enum import Enum
@@ -193,8 +194,6 @@ CORE_DEPS = [
 
 def _get_package_version(package_name: str) -> str:
     """Get package version from scripts/package.json."""
-    import json
-
     pkg_json_path = PROJECT_ROOT / "scripts/package.json"
     if not pkg_json_path.exists():
         return "latest"

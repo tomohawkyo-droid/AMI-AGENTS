@@ -47,7 +47,7 @@ class TestBackupRestoreConfigLoad:
             raise RuntimeError
 
         monkeypatch.setattr(
-            "ami.scripts.backup.common.paths.get_project_root",
+            "ami.scripts.backup.core.config.get_project_root",
             _raise_runtime_error,
         )
 
@@ -193,7 +193,7 @@ class TestLoadRestoreConfig:
             raise RuntimeError
 
         monkeypatch.setattr(
-            "ami.scripts.backup.common.paths.get_project_root",
+            "ami.scripts.backup.core.config.get_project_root",
             _raise_runtime_error,
         )
 

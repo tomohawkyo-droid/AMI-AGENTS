@@ -3,6 +3,17 @@
 from ami.scripts.backup.restore.drive_client import DriveFileMetadata
 
 
+def _parse_selection(choice: str, max_idx: int) -> int | None:
+    """Parse user selection. Returns index or None on invalid input."""
+    try:
+        idx = int(choice)
+        if 0 <= idx <= max_idx:
+            return idx
+    except ValueError:
+        pass
+    return None
+
+
 def select_backup_interactive(backup_files: list[DriveFileMetadata]) -> str | None:
     """Interactively select a backup file from the list.
 
@@ -32,13 +43,14 @@ def select_backup_interactive(backup_files: list[DriveFileMetadata]) -> str | No
     while True:
         try:
             choice = input("> ").strip()
-            if choice.lower() == "q":
-                return None
-            idx = int(choice)
-            if 0 <= idx < len(backup_files):
-                return backup_files[idx].get("id")
-            print(f"Invalid selection. Enter 0-{len(backup_files) - 1} or 'q'")
-        except ValueError:
-            print("Invalid input. Enter a number or 'q'")
         except (KeyboardInterrupt, EOFError):
             return None
+        if choice.lower() == "q":
+            return None
+        selected = _parse_selection(choice, len(backup_files) - 1)
+        if selected is not None:
+            return backup_files[selected].get("id")
+        if choice.lstrip("-").isdigit():
+            print(f"Invalid selection. Enter 0-{len(backup_files) - 1} or 'q'")
+        else:
+            print("Invalid input. Enter a number or 'q'")

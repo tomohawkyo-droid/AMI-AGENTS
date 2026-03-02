@@ -12,7 +12,7 @@ from loguru import logger
 
 from ami.scripts.backup.backup_config import BackupConfig
 from ami.scripts.backup.backup_exceptions import BackupConfigError
-from ami.scripts.backup.common.paths import find_gcloud
+from ami.scripts.backup.common.paths import find_gcloud, get_project_root
 
 
 class BackupRestoreConfig(BackupConfig):
@@ -101,8 +101,6 @@ class BackupRestoreConfig(BackupConfig):
     @classmethod
     def load(cls, root_dir: Path) -> "BackupRestoreConfig":
         """Load restore configuration from .env file."""
-        from ami.scripts.backup.common.paths import get_project_root
-
         try:
             # Always prioritize project root discovery
             project_root = get_project_root()

@@ -6,13 +6,13 @@ Exercises: scripts/ci/check_dependency_versions.py
 from pathlib import Path
 from unittest.mock import patch
 
-from ami.scripts.ci.check_dependency_versions import (
+from ami.ci.check_dependency_versions import (
     BUILTIN_EXCLUDES,
     check_and_collect,
     parse_dependency,
     upgrade_pyproject,
 )
-from ami.types.results import LooseDependency, OutdatedDependency
+from ami.ci.types import LooseDependency, OutdatedDependency
 
 # ---------------------------------------------------------------------------
 # parse_dependency
@@ -114,7 +114,7 @@ class TestCheckAndCollect:
     def test_pinned_up_to_date(self, tmp_path: Path):
         toml = self._write_pyproject(tmp_path, ["requests==2.31.0"])
         with patch(
-            "ami.scripts.ci.check_dependency_versions.get_latest_pypi_version",
+            "ami.ci.check_dependency_versions.get_latest_pypi_version",
             return_value="2.31.0",
         ):
             loose, outdated, _data = check_and_collect(toml, set())
@@ -124,7 +124,7 @@ class TestCheckAndCollect:
     def test_pinned_outdated(self, tmp_path: Path):
         toml = self._write_pyproject(tmp_path, ["requests==2.30.0"])
         with patch(
-            "ami.scripts.ci.check_dependency_versions.get_latest_pypi_version",
+            "ami.ci.check_dependency_versions.get_latest_pypi_version",
             return_value="2.31.0",
         ):
             _loose, outdated, _data = check_and_collect(toml, set())
@@ -135,7 +135,7 @@ class TestCheckAndCollect:
     def test_loose_constraint(self, tmp_path: Path):
         toml = self._write_pyproject(tmp_path, ["flask>=2.0"])
         with patch(
-            "ami.scripts.ci.check_dependency_versions.get_latest_pypi_version",
+            "ami.ci.check_dependency_versions.get_latest_pypi_version",
             return_value="3.0.0",
         ):
             loose, _outdated, _data = check_and_collect(toml, set())
@@ -145,7 +145,7 @@ class TestCheckAndCollect:
     def test_excluded_package(self, tmp_path: Path):
         toml = self._write_pyproject(tmp_path, ["torch>=2.0"])
         with patch(
-            "ami.scripts.ci.check_dependency_versions.get_latest_pypi_version",
+            "ami.ci.check_dependency_versions.get_latest_pypi_version",
         ) as mock:
             _loose, _outdated, _data = check_and_collect(toml, set())
         mock.assert_not_called()
@@ -153,7 +153,7 @@ class TestCheckAndCollect:
     def test_pypi_unreachable(self, tmp_path: Path):
         toml = self._write_pyproject(tmp_path, ["requests==2.31.0"])
         with patch(
-            "ami.scripts.ci.check_dependency_versions.get_latest_pypi_version",
+            "ami.ci.check_dependency_versions.get_latest_pypi_version",
             return_value=None,
         ):
             loose, outdated, _data = check_and_collect(toml, set())
@@ -163,7 +163,7 @@ class TestCheckAndCollect:
     def test_custom_excludes(self, tmp_path: Path):
         toml = self._write_pyproject(tmp_path, ["mypackage>=1.0"])
         with patch(
-            "ami.scripts.ci.check_dependency_versions.get_latest_pypi_version",
+            "ami.ci.check_dependency_versions.get_latest_pypi_version",
         ) as mock:
             _loose, _outdated, _data = check_and_collect(toml, {"mypackage"})
         mock.assert_not_called()

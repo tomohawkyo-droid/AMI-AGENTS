@@ -1,3 +1,133 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9aa955ab0cd6361b122330bbd061f0384972fe07dfedcad89c4a46fda98b21e3
-size 4599
+# AMI Agent Extensions - Single Source of Truth
+# All commands are created as symlinks/wrappers in .boot-linux/bin/
+#
+# Each extension entry has:
+#   - name: Command name (what you type in shell)
+#   - binary: Path to the executable (relative to project root)
+#   - description: Human-readable description (for banner display)
+#   - category: core, enterprise, dev, or agents
+#   - features: Comma-separated list of key features/flags
+#   - hidden: true to hide from banner (optional)
+#   - container: Docker container name for container-backed commands (optional)
+#
+# If binary ends with .py, a wrapper script is created that calls ami-run.
+# Otherwise, a symlink is created directly.
+#
+# Run 'make register-extensions' to install all commands.
+
+extensions:
+  # ==========================================================================
+  # Core Execution & Management
+  # ==========================================================================
+  - name: ami-agent
+    binary: ami-agent
+    description: AMI Orchestrator main entry point
+    category: core
+    features: --print, --interactive-editor, --query
+
+  - name: ami
+    binary: ami/scripts/bin/ami-run
+    description: Unified CLI for services and system management
+    category: core
+    features: ansible, systemd, podman, status
+
+  - name: ami-run
+    binary: ami/scripts/bin/ami-run
+    description: Universal project execution wrapper
+    category: core
+    features: python, uv, npm, npx, rustc, cargo, go
+
+  - name: ami-repo
+    binary: ami/scripts/bin/ami-repo
+    description: Git repository and server management
+    category: core
+    features: git, gitlab-api, github-api, hf-api
+
+  - name: ami-pwd
+    binary: ami/scripts/bin/ami-pwd
+    description: AMI root directory finder
+    category: core
+    features: find root, export AMI_ROOT
+    hidden: true
+
+  - name: ami-transcripts
+    binary: ami/scripts/bin/ami_transcripts.py
+    description: Transcript session management and search
+    category: core
+    features: list, show, search, replay, resume
+
+  # ==========================================================================
+  # Enterprise Services
+  # ==========================================================================
+  - name: ami-mail
+    binary: ami/scripts/bin/ami_mail.py
+    description: Enterprise mail operations CLI
+    category: enterprise
+    features: send, send-block, fetch
+
+  - name: ami-chat
+    binary: .boot-linux/bin/matrix-commander
+    description: Matrix CLI chat (matrix-commander)
+    category: enterprise
+    features: --message, --room, --listen, --tail
+
+  - name: ami-synadm
+    binary: .boot-linux/bin/synadm
+    description: Matrix Server Admin CLI (synadm)
+    category: enterprise
+    features: user, room, media, version
+
+  - name: ami-kcadm
+    binary: ami/scripts/bin/ami-kcadm
+    description: Keycloak Admin CLI (kcadm.sh)
+    category: enterprise
+    features: config, get, create, update, delete
+    container: ami-keycloak
+
+  - name: ami-browser
+    binary: .venv/bin/playwright
+    description: Browser automation (Playwright)
+    category: enterprise
+    features: open, codegen, screenshot, pdf, install
+
+  # ==========================================================================
+  # Development Tools
+  # ==========================================================================
+  - name: ami-backup
+    binary: ami/scripts/backup/create/main.py
+    description: Backup to Google Drive
+    category: dev
+    features: --name, --keep-local, --dry-run
+
+  - name: ami-restore
+    binary: ami/scripts/backup/restore/main.py
+    description: Restore from Google Drive
+    category: dev
+    features: --file-id, --latest-local, --local-path
+
+  - name: ami-check-storage
+    binary: ami/scripts/bin/check_storage.py
+    description: Storage validation and monitoring
+    category: dev
+    features: disk, memory, alerts
+
+  # ==========================================================================
+  # AI Coding Agents (REQUIRE HUMAN SUPERVISION)
+  # ==========================================================================
+  - name: ami-claude
+    binary: .venv/node_modules/.bin/claude
+    description: Claude Code AI assistant
+    category: agents
+    features: -p, --continue, --resume, --allowedTools
+
+  - name: ami-gemini
+    binary: .venv/node_modules/.bin/gemini
+    description: Gemini CLI AI assistant
+    category: agents
+    features: -p, --resume, --yolo, mcp, extensions
+
+  - name: ami-qwen
+    binary: .venv/node_modules/.bin/qwen
+    description: Qwen Code AI assistant
+    category: agents
+    features: -p, --resume, --yolo, mcp, extensions

@@ -2,7 +2,7 @@
 
 import re
 
-from ami.scripts.ci.dead_code_analyzer import (
+from ami.ci.dead_code_analyzer import (
     CrossReferenceGraph,
     DeadCodeConfig,
     Definition,

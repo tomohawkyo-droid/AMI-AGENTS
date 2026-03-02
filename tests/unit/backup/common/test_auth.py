@@ -168,7 +168,7 @@ class TestOAuthCredentialsProvider:
         mock_creds.refresh.assert_called_once()
 
     @patch(
-        "ami.scripts.backup.common.paths.get_project_root",
+        "ami.scripts.backup.common.auth.get_project_root",
         side_effect=RuntimeError,
     )
     def test_raises_error_when_no_credentials_json(
@@ -186,7 +186,7 @@ class TestOAuthCredentialsProvider:
         assert "credentials.json not found" in str(exc_info.value)
 
     @patch(
-        "ami.scripts.backup.common.paths.get_project_root",
+        "ami.scripts.backup.common.auth.get_project_root",
         side_effect=RuntimeError,
     )
     @patch("ami.scripts.backup.common.auth.pickle.dump")
