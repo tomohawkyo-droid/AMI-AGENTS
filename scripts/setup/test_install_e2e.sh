@@ -9,16 +9,20 @@ usage() {
     echo ""
     echo "E2E installation test for AMI-AGENTS"
     echo ""
+    echo "By default runs the full test suite: all 21 components (install-all.yaml)"
+    echo "and bootstrap verification. Use --minimal or --skip-bootstrap to reduce scope."
+    echo ""
     echo "Options:"
     echo "  --target-dir DIR    Directory where test will run (default: ./tmp/e2e_test_<timestamp>)"
     echo "  --skip-cleanup      Skip cleanup on exit (for debugging)"
-    echo "  --full              Run full component install (install-all.yaml) instead of defaults"
-    echo "  --test-bootstrap    Test bootstrap installer components (Node.js, npm packages)"
+    echo "  --minimal           Use install-defaults.yaml (8 components) instead of full install"
+    echo "  --skip-bootstrap    Skip bootstrap installer and component verification phases"
     echo "  -h, --help          Show this help"
     echo ""
     echo "Example:"
-    echo "  $0 --target-dir ~/Tests --skip-cleanup"
-    echo "  $0 --full --test-bootstrap    # Full comprehensive test"
+    echo "  $0                              # Full e2e test (default)"
+    echo "  $0 --minimal --skip-bootstrap   # Quick smoke test"
+    echo "  $0 --skip-cleanup               # Full test, keep test dir for inspection"
     exit 0
 }
 
@@ -28,8 +32,8 @@ usage() {
 BASE_DIR=$(pwd)
 TEST_DIR=""
 SKIP_CLEANUP=0
-FULL_INSTALL=0
-TEST_BOOTSTRAP=0
+FULL_INSTALL=1
+TEST_BOOTSTRAP=1
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,12 +45,12 @@ while [[ $# -gt 0 ]]; do
             SKIP_CLEANUP=1
             shift
             ;;
-        --full)
-            FULL_INSTALL=1
+        --minimal)
+            FULL_INSTALL=0
             shift
             ;;
-        --test-bootstrap)
-            TEST_BOOTSTRAP=1
+        --skip-bootstrap)
+            TEST_BOOTSTRAP=0
             shift
             ;;
         -h|--help)
@@ -382,17 +386,16 @@ if [ "$TEST_BOOTSTRAP" = "1" ]; then
 
     echo "Running component status detection..."
     .venv/bin/python -c "
-from ami.scripts.bootstrap_components import get_components_by_group, GROUPS
+from ami.scripts.bootstrap_components import get_components_by_group
 
 print('Component Status Report:')
 print('=' * 60)
 
-for group in GROUPS:
-    components = get_components_by_group().get(group, [])
-    if not components:
+for group_info in get_components_by_group():
+    if not group_info.components:
         continue
-    print(f'\n{group}:')
-    for comp in components:
+    print(f'\n{group_info.group}:')
+    for comp in group_info.components:
         status = comp.get_status()
         if status.installed:
             version = f'v{status.version}' if status.version else '(installed)'
