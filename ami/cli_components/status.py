@@ -22,6 +22,7 @@ from ami.cli_components.status_systemd import (
     _parse_systemd_details,
     _print_orphan_services,
     _process_service,
+    get_declared_compose_files,
     get_managed_service_names,
     get_systemd_services,
 )
@@ -221,6 +222,17 @@ def main() -> None:
         if i < len(managed_svcs) - 1:
             print(f"{Colors.CYAN}├{'─' * (DISPLAY_WIDTH - 2)}┤{Colors.RESET}")
             print_box_line("", DISPLAY_WIDTH)
+
+    # Mark containers claimed by declared compose files (even without a running service)
+    declared_files = get_declared_compose_files()
+    if declared_files:
+        config_key = "com.docker.compose.project.config_files"
+        for c in containers_list:
+            if c.name in processed_containers:
+                continue
+            c_config = str(c.labels.get(config_key, ""))
+            if any(df in c_config for df in declared_files):
+                processed_containers.add(c.name)
 
     _print_orphans(containers_list, processed_containers)
     _print_orphan_services(services_list, managed_services)

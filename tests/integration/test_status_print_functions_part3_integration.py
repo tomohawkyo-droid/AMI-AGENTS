@@ -291,19 +291,28 @@ class TestPrintOrphanServices:
 
 # -- 9. get_managed_service_names --------------------------------------------
 class TestGetManagedServiceNames:
-    def test_inventory(self, tmp_path):
+    def test_root_and_projects(self, tmp_path):
+        # Root inventory
         inv = tmp_path / "ansible" / "inventory" / "host_vars"
         inv.mkdir(parents=True)
         (inv / "localhost.yml").write_text(
             "local_services:\n  ami-cms:\n    enabled: true\n"
-            "compose_services:\n  web:\n    image: nginx\n"
+            "compose_services:\n  ami-compose:\n    compose_file: x.yml\n"
         )
-        with patch("ami.cli_components.status_systemd.Path") as mp:
-            mp.home.return_value = tmp_path
-            mp.cwd.return_value = tmp_path
+        # Project services
+        proj = tmp_path / "projects" / "PROJ" / "res" / "ansible"
+        proj.mkdir(parents=True)
+        (proj / "services.yml").write_text(
+            "compose_services:\n  ami-proj:\n    compose_file: y.yml\n"
+        )
+        with patch(
+            "ami.cli_components.status_systemd._find_workspace_root",
+            return_value=tmp_path,
+        ):
             result = get_managed_service_names()
-        assert isinstance(result, set)
+        assert "ami-cms.service" in result
+        assert "ami-compose.service" in result
+        assert "ami-proj.service" in result
 
     def test_returns_set(self):
-        with patch(SYS_RUN, return_value=""):
-            assert isinstance(get_managed_service_names(), set)
+        assert isinstance(get_managed_service_names(), set)

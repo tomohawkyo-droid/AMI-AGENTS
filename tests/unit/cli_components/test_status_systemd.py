@@ -170,47 +170,39 @@ class TestProcessService:
 class TestGetManagedServiceNames:
     """Tests for get_managed_service_names function."""
 
-    @patch("ami.cli_components.status_systemd.Path")
-    def test_returns_empty_when_no_inventory(self, mock_path_cls):
-        """Test returns empty set when no inventory file found."""
-        mock_path = mock_path_cls.return_value
-        mock_path.__truediv__ = lambda self, other: mock_path
-        mock_path.exists.return_value = False
-        # Mock all search paths
-        mock_path_cls.home.return_value.__truediv__ = lambda self, other: mock_path
-        mock_path_cls.cwd.return_value = mock_path
-        mock_path_cls.cwd.return_value.parent = mock_path
-        result = get_managed_service_names()
-        # May return managed or empty depending on real filesystem
-        assert isinstance(result, set)
+    def test_returns_empty_when_no_workspace(self):
+        """Test returns empty set when workspace root not found."""
+        with patch(
+            "ami.cli_components.status_systemd._find_workspace_root",
+            return_value=None,
+        ):
+            assert get_managed_service_names() == set()
 
-    @patch(
-        "builtins.open",
-        create=True,
-    )
-    @patch("ami.cli_components.status_systemd.yaml.safe_load")
-    @patch("ami.cli_components.status_systemd.Path")
-    def test_loads_services_from_inventory(self, mock_path_cls, mock_yaml, mock_open):
-        """Test loads service names from Ansible inventory."""
-        # Make the first candidate path exist
-        mock_candidate = type(mock_path_cls)()
-        mock_candidate.exists = lambda: True
-
-        mock_home = type(mock_path_cls)()
-        mock_home.__truediv__ = lambda self, other: mock_candidate
-        mock_path_cls.home.return_value = mock_home
-        mock_candidate.__truediv__ = lambda self, other: mock_candidate
-
-        mock_yaml.return_value = {
-            "local_services": {
-                "ami-cms": {},
-                "ami-api": {},
-            },
-            "compose_services": {"web": {}},
+    def test_discovers_root_and_project_services(self, tmp_path):
+        """Test loads from root inventory + per-project services.yml."""
+        # Root inventory
+        inv = tmp_path / "ansible" / "inventory" / "host_vars"
+        inv.mkdir(parents=True)
+        (inv / "localhost.yml").write_text(
+            "compose_services:\n  ami-compose:\n    compose_file: x.yml\n"
+            "local_services:\n  ami-cms: {}\n"
+        )
+        # Project services
+        proj = tmp_path / "projects" / "AMI-TRADING" / "res" / "ansible"
+        proj.mkdir(parents=True)
+        (proj / "services.yml").write_text(
+            "compose_services:\n  ami-trading:\n    compose_file: y.yml\n"
+        )
+        with patch(
+            "ami.cli_components.status_systemd._find_workspace_root",
+            return_value=tmp_path,
+        ):
+            result = get_managed_service_names()
+        assert result == {
+            "ami-compose.service",
+            "ami-cms.service",
+            "ami-trading.service",
         }
-
-        result = get_managed_service_names()
-        assert isinstance(result, set)
 
 
 class TestGetSystemdServices:

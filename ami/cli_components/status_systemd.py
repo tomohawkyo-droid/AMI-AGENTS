@@ -32,9 +32,6 @@ from ami.types.status import (
     SystemdService,
 )
 
-# Ansible inventory path (relative to project root)
-ANSIBLE_INVENTORY_PATH = "ansible/inventory/host_vars/localhost.yml"
-
 SYSTEMD_PREFIXES = [
     "ami-",
     "matrix-",
@@ -46,45 +43,93 @@ SYSTEMD_PREFIXES = [
 ]
 
 
-def get_managed_service_names() -> set[str]:
-    """Load managed service names from Ansible inventory."""
-    managed: set[str] = set()
-
-    # Find project root by looking for ansible directory
-    search_paths = [
-        Path.home() / "Projects" / "AMI-ORCHESTRATOR",
-        Path.cwd(),
-        Path.cwd().parent,
-    ]
-
-    inventory_path = None
-    for base in search_paths:
-        candidate = base / ANSIBLE_INVENTORY_PATH
-        if candidate.exists():
-            inventory_path = candidate
+def _find_workspace_root() -> Path | None:
+    """Walk up from this file to find the directory containing ``projects/``."""
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        if (current / "projects").is_dir():
+            return current
+        if current == current.parent:
             break
+        current = current.parent
+    return None
 
-    if not inventory_path or not yaml:
+
+def _load_services_from(path: Path, managed: set[str]) -> None:
+    """Parse a services YAML and add compose/local service names to *managed*."""
+    if yaml is None:
+        return
+    try:
+        with open(path) as f:
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            return
+        for svc_name in data.get("compose_services", {}):
+            managed.add(f"{svc_name}.service")
+        for svc_name in data.get("local_services", {}):
+            managed.add(f"{svc_name}.service")
+    except (OSError, yaml.YAMLError) as e:
+        print(f"Warning: Failed to load {path}: {e}", file=sys.stderr)
+
+
+def get_managed_service_names() -> set[str]:
+    """Load managed service names from workspace and per-project declarations.
+
+    Sources (in order):
+      1. ``<root>/ansible/inventory/host_vars/localhost.yml`` (AMI-AGENTS own)
+      2. ``<root>/projects/*/res/ansible/services.yml``       (each sub-project)
+    """
+    managed: set[str] = set()
+    root = _find_workspace_root()
+    if not root:
         return managed
 
-    try:
-        with open(inventory_path) as f:
-            data = yaml.safe_load(f)
+    # 1. Root inventory (AMI-AGENTS)
+    root_inv = root / "ansible" / "inventory" / "host_vars" / "localhost.yml"
+    if root_inv.exists():
+        _load_services_from(root_inv, managed)
 
-        # Add local_services (ami-cms, ami-secrets-broker, etc.)
-        local_services = data.get("local_services", {})
-        for svc_name in local_services:
-            managed.add(f"{svc_name}.service")
-
-        # Add compose service (ami-compose.service is the unified service)
-        if data.get("compose_services"):
-            managed.add("ami-compose.service")
-
-    except (OSError, yaml.YAMLError) as e:
-        # Log to stderr but don't crash - status should still work without inventory
-        print(f"Warning: Failed to load Ansible inventory: {e}", file=sys.stderr)
+    # 2. Per-project service declarations
+    for svc_file in sorted((root / "projects").glob("*/res/ansible/services.yml")):
+        _load_services_from(svc_file, managed)
 
     return managed
+
+
+def _collect_compose_files(src: Path, base_dir: Path, paths: set[str]) -> None:
+    """Parse a services YAML and collect compose file paths into *paths*."""
+    if yaml is None:
+        return
+    try:
+        with open(src) as f:
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            return
+        for info in data.get("compose_services", {}).values():
+            cf = info.get("compose_file", "") if isinstance(info, dict) else ""
+            if cf:
+                resolved = (base_dir / cf).resolve()
+                paths.add(str(resolved))
+    except (OSError, yaml.YAMLError):
+        pass
+
+
+def get_declared_compose_files() -> set[str]:
+    """Return absolute compose file paths from all services.yml declarations."""
+    paths: set[str] = set()
+    root = _find_workspace_root()
+    if not root:
+        return paths
+
+    root_inv = root / "ansible" / "inventory" / "host_vars" / "localhost.yml"
+    if root_inv.exists():
+        _collect_compose_files(root_inv, root, paths)
+    for project in sorted((root / "projects").iterdir()):
+        svc = project / "res" / "ansible" / "services.yml"
+        if svc.exists():
+            _collect_compose_files(svc, project, paths)
+
+    return paths
 
 
 def _parse_systemd_details(details_raw: str) -> SystemdDetails:

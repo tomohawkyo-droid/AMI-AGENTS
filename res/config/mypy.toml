@@ -165,3 +165,88 @@ ignore_missing_imports = true
 module = ["hvac", "hvac.*"]
 ignore_missing_imports = true
 
+# FastAPI - installed per-project, not in global venv
+[[tool.mypy.overrides]]
+module = ["fastapi", "fastapi.*"]
+ignore_missing_imports = true
+
+# Prefect - workflow orchestration, installed per-project
+[[tool.mypy.overrides]]
+module = ["prefect", "prefect.*"]
+ignore_missing_imports = true
+
+# httpx - async HTTP client
+[[tool.mypy.overrides]]
+module = ["httpx", "httpx.*"]
+ignore_missing_imports = true
+
+# aiohttp - async HTTP client/server
+[[tool.mypy.overrides]]
+module = ["aiohttp", "aiohttp.*"]
+ignore_missing_imports = true
+
+# pandas - data manipulation (use pandas-stubs when available)
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*"]
+ignore_missing_imports = true
+
+# tabulate - table formatting
+[[tool.mypy.overrides]]
+module = "tabulate"
+ignore_missing_imports = true
+
+# SQLAlchemy - ORM/database toolkit
+[[tool.mypy.overrides]]
+module = ["sqlalchemy", "sqlalchemy.*"]
+ignore_missing_imports = true
+
+# bcrypt + PyJWT - auth dependencies
+[[tool.mypy.overrides]]
+module = ["bcrypt", "jwt", "jwt.*"]
+ignore_missing_imports = true
+
+# Pydantic - strict mode handles typing, ignore stubs
+[[tool.mypy.overrides]]
+module = ["pydantic", "pydantic.*"]
+ignore_missing_imports = true
+
+# Loguru - structured logging
+[[tool.mypy.overrides]]
+module = "loguru"
+ignore_missing_imports = true
+
+# Intel IPEX - optional CPU optimization
+[[tool.mypy.overrides]]
+module = "intel_extension_for_pytorch"
+ignore_missing_imports = true
+
+# Modules subclassing torch.nn.Module (Any when torch stubs missing)
+[[tool.mypy.overrides]]
+module = [
+    "src.models.*",
+    "src.training.loss",
+    "src.data.processing.loader",
+    "src.types.data",
+]
+disallow_subclassing_any = false
+disallow_untyped_decorators = false
+
+# FastAPI/Prefect decorators produce untyped wrappers when stubs unavailable
+[[tool.mypy.overrides]]
+module = [
+    "src.delivery.api.*",
+    "src.core.tasks",
+]
+disallow_untyped_decorators = false
+
+# Functions returning library types that resolve to Any
+[[tool.mypy.overrides]]
+module = [
+    "src.core.security",
+    "src.utils.device",
+    "src.evaluation.autoregressive",
+    "src.training.trainer",
+    "src.data.execution.worker",
+]
+warn_return_any = false
+
