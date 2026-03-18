@@ -155,16 +155,9 @@ clean: ## Clean build artifacts
 dev: install install-hooks ## Install for development with code quality tools and hooks
 
 .PHONY: install-hooks
-install-hooks: ## Install pre-commit and pre-push hooks
-	@echo "🔗 Installing pre-commit hooks..."
-	.boot-linux/bin/uv run pre-commit install
-	.boot-linux/bin/uv run pre-commit install --hook-type pre-push
-	@# Inject auto-staging before pre-commit's stash mechanism
-	@if [ -f .git/hooks/pre-commit ] && ! grep -q 'Auto-stage' .git/hooks/pre-commit; then \
-		sed -i '/^if \[ -x "$$INSTALL_PYTHON" \]/i # Auto-stage all files before pre-commit stashes\ngit add -A\n' .git/hooks/pre-commit; \
-		echo "✅ Injected auto-staging into .git/hooks/pre-commit"; \
-	fi
-	@echo "✅ Pre-commit and pre-push hooks installed"
+install-hooks: ensure-ci ## Install native git hooks (no pre-commit dependency)
+	@bash projects/AMI-CI/scripts/cleanup-precommit 2>/dev/null || true
+	bash projects/AMI-CI/scripts/generate-hooks
 
 # --- Quality & Test ---
 
@@ -187,10 +180,13 @@ type-check: ## Run type checker
 .PHONY: check
 check: lint type-check test ## Run all checks (lint, type-check, test)
 
-.PHONY: pre-commit
-pre-commit: ## Run pre-commit hooks on all files
-	@echo "🔍 Running pre-commit hooks on all files..."
-	.boot-linux/bin/uv run pre-commit run --all-files
+.PHONY: check-hooks
+check-hooks: ensure-ci ## Preview generated hooks (dry-run)
+	bash projects/AMI-CI/scripts/generate-hooks --dry-run
+
+.PHONY: cleanup-precommit
+cleanup-precommit: ## Remove pre-commit package and cache
+	bash projects/AMI-CI/scripts/cleanup-precommit
 
 .PHONY: dead-code
 dead-code: ## Run AST-based dead code analysis

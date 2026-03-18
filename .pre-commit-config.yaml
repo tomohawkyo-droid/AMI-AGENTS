@@ -25,7 +25,7 @@ repos:
         language: system
       - id: check-dependency-versions
         name: Check Dependency Versions (strict pinning + latest)
-        entry: uv run python -m ami.ci.check_dependency_versions pyproject.toml projects/AMI-PORTAL/package.json projects/AMI-DATAOPS/res/docker/docker-compose.yml
+        entry: uv run python -m ami.ci.check_dependency_versions pyproject.toml
         language: system
         pass_filenames: false
         files: (pyproject\.toml|package\.json|docker-compose\.ya?ml|Dockerfile)$
@@ -59,6 +59,11 @@ repos:
         args: [ --config-file, res/config/mypy.toml, --exclude, projects/, ami ]
         files: \.py$
         exclude: ^projects/
+      - id: check-commit-message
+        name: Check Commit Message Format
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_commit_message \"$1\"' --"
+        language: system
+        stages: [commit-msg]
       - id: block-coauthored
         name: Block Co-authored Commits
         entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_block_coauthored \"$1\"' --"
@@ -66,6 +71,12 @@ repos:
         stages: [commit-msg]
   - repo: local
     hooks:
+      - id: block-coauthored-history
+        name: Block Commits with Blocked Patterns (full history scan)
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_block_coauthored_history'"
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
       - id: verify-coverage
         name: Verify Test Coverage (Unit >90%, Integration >75%)
         entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_verify_coverage'"
