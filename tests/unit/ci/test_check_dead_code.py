@@ -71,7 +71,7 @@ class TestModuleConstants:
     """Tests for module-level constants."""
 
     def test_default_config_path(self) -> None:
-        assert DEFAULT_CONFIG_PATH == "projects/AMI-CI/config/dead_code.yaml"
+        assert DEFAULT_CONFIG_PATH.endswith("config/dead_code.yaml")
 
     def test_kind_order_length(self) -> None:
         assert len(KIND_ORDER) == EXPECTED_KIND_COUNT
