@@ -1,11 +1,4 @@
-"""
-Bootstrap component definitions with detection and version checking.
-
-Each component defines:
-- How to detect if it's installed
-- How to get its version
-- How to install it
-"""
+"""Bootstrap component definitions with detection and version checking."""
 
 import json
 import re
@@ -33,23 +26,17 @@ class ComponentType(Enum):
 
 
 class ComponentStatus(BaseModel):
-    """Status of a component."""
-
     installed: bool
     version: str | None = None
     path: str | None = None
 
 
 class GroupComponents(BaseModel):
-    """Components organized under a group name."""
-
     group: str
     components: list["Component"] = []
 
 
 class Component(BaseModel):
-    """A bootstrap component with detection capabilities."""
-
     name: str
     label: str
     description: str
@@ -308,6 +295,28 @@ DEV_TOOLS = [
         version_cmd=[".boot-linux/bin/sd", "--version"],
         version_pattern=r"sd (\d+\.\d+\.\d+)",
     ),
+    Component(
+        name="gh",
+        label="GitHub CLI",
+        description="GitHub API client",
+        type=ComponentType.SCRIPT,
+        group="Development Tools",
+        script="bootstrap_gh.sh",
+        detect_path=".boot-linux/bin/gh",
+        version_cmd=[".boot-linux/bin/gh", "--version"],
+        version_pattern=r"gh version (\d+\.\d+\.\d+)",
+    ),
+    Component(
+        name="huggingface",
+        label="HuggingFace CLI",
+        description="HuggingFace Hub client",
+        type=ComponentType.SCRIPT,
+        group="Development Tools",
+        script="bootstrap_hf.sh",
+        detect_path=".boot-linux/python-env/bin/hf",
+        version_cmd=[".boot-linux/python-env/bin/hf", "version"],
+        version_pattern=r"(\d+\.\d+\.\d+)",
+    ),
 ]
 
 # Security & Networking
@@ -484,10 +493,7 @@ GROUPS = [
 
 
 def get_components_by_group() -> list[GroupComponents]:
-    """Get components organized by group.
-
-    Returns list of GroupComponents, one per group.
-    """
+    """Get components organized by group."""
     groups_map = {g: GroupComponents(group=g, components=[]) for g in GROUPS}
     for comp in ALL_COMPONENTS:
         if comp.group in groups_map:

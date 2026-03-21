@@ -102,10 +102,11 @@ disallow_untyped_calls = false
 
 # NO CHEATING FOR OUR OWN CODE. Fix the types.
 
-# Technical Analysis library - no type stubs available
+# rust-ta PyO3 bindings — compiled .so with no py.typed marker
 [[tool.mypy.overrides]]
-module = "ta.*"
+module = ["rust_ta", "rust_ta.*"]
 ignore_missing_imports = true
+follow_untyped_imports = true
 
 # MLflow - incomplete type stubs, dynamic API
 [[tool.mypy.overrides]]
