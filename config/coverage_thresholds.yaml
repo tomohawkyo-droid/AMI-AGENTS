@@ -2,7 +2,7 @@
 
 unit:
   path: tests/unit
-  min_coverage: 89
+  min_coverage: 90
   source_path: ami
   runner: uv run python -m pytest
 

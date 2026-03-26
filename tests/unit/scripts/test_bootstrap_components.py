@@ -394,3 +394,61 @@ class TestGroups:
             "Miscellaneous",
         ]
         assert expected == GROUPS
+
+
+class TestComponentVersionParsing:
+    """Tests for version parsing edge cases."""
+
+    def test_get_version_from_cmd_no_cmd(self):
+        """Test returns None when no version_cmd set."""
+        comp = Component(
+            name="t",
+            label="t",
+            description="t",
+            type=ComponentType.SCRIPT,
+            group="t",
+        )
+        assert comp._get_version_from_cmd() is None
+
+    @patch("ami.scripts.bootstrap_components.subprocess.run")
+    def test_get_version_from_cmd_timeout(self, mock_run):
+        """Test returns None on timeout."""
+        mock_run.side_effect = subprocess.TimeoutExpired("cmd", 5)
+        comp = Component(
+            name="t",
+            label="t",
+            description="t",
+            type=ComponentType.SCRIPT,
+            group="t",
+            version_cmd=["test", "--version"],
+        )
+        assert comp._get_version_from_cmd() is None
+
+    @patch("ami.scripts.bootstrap_components.subprocess.run")
+    def test_get_version_from_cmd_success(self, mock_run):
+        """Test extracts version from successful command."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="test v1.2.3", stderr="")
+        comp = Component(
+            name="t",
+            label="t",
+            description="t",
+            type=ComponentType.SCRIPT,
+            group="t",
+            version_cmd=["test", "--version"],
+            version_pattern=r"v(\d+\.\d+\.\d+)",
+        )
+        assert comp._get_version_from_cmd() == "1.2.3"
+
+    @patch("ami.scripts.bootstrap_components.subprocess.run")
+    def test_get_version_from_cmd_nonzero_exit(self, mock_run):
+        """Test returns None on non-zero exit."""
+        mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="err")
+        comp = Component(
+            name="t",
+            label="t",
+            description="t",
+            type=ComponentType.SCRIPT,
+            group="t",
+            version_cmd=["test", "--version"],
+        )
+        assert comp._get_version_from_cmd() is None

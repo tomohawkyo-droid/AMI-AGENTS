@@ -19,13 +19,17 @@ from ami.cli_components.status import (
     _get_restart_icon,
     _parse_port_mapping,
     _parse_systemd_details,
+    _print_footer,
+    _print_header,
+    _print_service_entry,
     format_bytes,
     format_ports,
     get_visual_width,
     parse_size_to_bytes,
     run_cmd,
 )
-from ami.types.status import PortMapping
+from ami.cli_components.status_systemd import SystemdService
+from ami.types.status import PortMapping, ServiceDisplayInfo
 
 EXPECTED_ASCII_WIDTH = 5
 EXPECTED_ANSI_STRIPPED_WIDTH = 5
@@ -318,3 +322,42 @@ class TestConstants:
         assert "ami-" in SYSTEMD_PREFIXES
         assert "postgres" in SYSTEMD_PREFIXES
         assert "traefik" in SYSTEMD_PREFIXES
+
+
+class TestStatusOutput:
+    """Tests for status display output functions."""
+
+    def test_print_header(self, capsys):
+        """Test header prints without error."""
+        _print_header()
+        out = capsys.readouterr().out
+        assert "STATUS REPORT" in out
+
+    def test_print_footer(self, capsys):
+        """Test footer prints without error."""
+        _print_footer()
+        out = capsys.readouterr().out
+        assert len(out) > 0
+
+    def test_print_service_entry(self, capsys):
+        """Test service entry prints key fields."""
+        svc = SystemdService(
+            name="ami-test",
+            active="active",
+            sub="running",
+            enabled="enabled",
+            restart="always",
+            pid="123",
+            path="/etc/systemd/user/ami-test.service",
+            scope="user",
+        )
+        info = ServiceDisplayInfo(
+            row_type="simple",
+            row_details=[],
+            ports_str="8080:80",
+            child_items=[],
+        )
+        _print_service_entry(svc, info, [], [])
+        out = capsys.readouterr().out
+        assert "ami-test" in out
+        assert "8080:80" in out

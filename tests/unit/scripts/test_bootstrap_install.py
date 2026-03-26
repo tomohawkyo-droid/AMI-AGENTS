@@ -233,3 +233,38 @@ class TestInstallComponents:
 
         assert len(result_calls) == 1
         assert result_calls[0].success is True
+
+
+class TestInstallEdgeCases:
+    """Tests for install edge cases."""
+
+    @patch("ami.scripts.bootstrap_install.subprocess.run")
+    def test_run_script_oserror(self, mock_run):
+        """Test run_bootstrap_script handles OSError."""
+        mock_run.side_effect = OSError("exec failed")
+        result = run_bootstrap_script("fail.sh")
+        assert result is False
+
+    def test_install_uv_type_returns_true(self):
+        """Test UV type components always return True."""
+        comp = Component(
+            name="uv_pkg",
+            label="UV Pkg",
+            description="test",
+            type=ComponentType.UV,
+            group="Test",
+        )
+        result = install_component(comp)
+        assert result is True
+
+    def test_install_script_no_script(self):
+        """Test script type with no script returns False."""
+        comp = Component(
+            name="bad",
+            label="Bad",
+            description="test",
+            type=ComponentType.SCRIPT,
+            group="Test",
+        )
+        result = install_component(comp)
+        assert result is False
