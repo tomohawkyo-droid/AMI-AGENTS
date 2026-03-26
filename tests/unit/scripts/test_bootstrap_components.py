@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from ami.scripts.bootstrap_components import (
+from ami.scripts.bootstrap_component_defs import (
     AI_AGENTS,
     ALL_COMPONENTS,
     CONTAINERS,
@@ -15,11 +15,13 @@ from ami.scripts.bootstrap_components import (
     MATRIX,
     MISC,
     SECURITY,
+    get_component_by_name,
+    get_components_by_group,
+)
+from ami.scripts.bootstrap_components import (
     Component,
     ComponentStatus,
     ComponentType,
-    get_component_by_name,
-    get_components_by_group,
 )
 
 EXPECTED_GROUP_COUNT = 8

@@ -133,7 +133,10 @@ class BackupConfig:
 
         auth_method = os.getenv("GDRIVE_AUTH_METHOD", "oauth")
         if auth_method not in cls.VALID_AUTH_METHODS:
-            msg = "invalid auth method"
+            msg = (
+                f"Invalid GDRIVE_AUTH_METHOD='{auth_method}'. "
+                f"Must be one of: {', '.join(cls.VALID_AUTH_METHODS)}"
+            )
             raise BackupConfigError(msg)
 
         config.auth_method = auth_method
@@ -154,7 +157,11 @@ class BackupConfig:
         """Configure service account impersonation authentication."""
         service_account_email = os.getenv("GDRIVE_SERVICE_ACCOUNT_EMAIL")
         if not service_account_email:
-            msg = "GDRIVE_SERVICE_ACCOUNT_EMAIL required"
+            msg = (
+                "GDRIVE_SERVICE_ACCOUNT_EMAIL is not set.\n"
+                "Add to your .env file: "
+                "GDRIVE_SERVICE_ACCOUNT_EMAIL=my-sa@project.iam.gserviceaccount.com"
+            )
             raise BackupConfigError(msg)
 
         self.service_account_email = service_account_email
@@ -164,9 +171,16 @@ class BackupConfig:
         logger.info(f"  Service Account: {service_account_email}")
 
         if not self.gcloud_path:
-            logger.error("  ❌ gcloud CLI not found!")
-            logger.error("  Install with: ./scripts/install_gcloud.sh")
-            msg = "gcloud CLI required"
+            logger.error("gcloud CLI not found on this system.")
+            logger.error("Install options:")
+            logger.error(
+                "  Project-local: ./.boot-linux/bin/ami-gcloud (run bootstrap first)"
+            )
+            logger.error("  System-wide:   https://cloud.google.com/sdk/docs/install")
+            msg = (
+                "gcloud CLI is required for service account impersonation"
+                " but was not found"
+            )
             raise BackupConfigError(msg)
 
         self._log_gcloud_status()
@@ -181,15 +195,22 @@ class BackupConfig:
             logger.info("  ✓ Application Default Credentials are valid")
         else:
             logger.warning(
-                "  ⚠️  Application Default Credentials may be expired or invalid"
+                "  ⚠️  Application Default Credentials are expired or invalid"
             )
-            logger.info("  To refresh: ami-gcloud auth application-default login")
+            logger.warning("  To refresh, run one of:")
+            logger.warning("    ami-gcloud auth application-default login")
+            logger.warning("    gcloud auth application-default login")
 
     def _configure_key_auth(self, root_dir: Path) -> None:
         """Configure service account key file authentication."""
         credentials_file = os.getenv("GDRIVE_CREDENTIALS_FILE")
         if not credentials_file:
-            msg = "GDRIVE_CREDENTIALS_FILE required"
+            msg = (
+                "GDRIVE_CREDENTIALS_FILE is not set.\n"
+                "Add to your .env file: "
+                "GDRIVE_CREDENTIALS_FILE=/path/to/service-account-key.json\n"
+                "To create a key: https://console.cloud.google.com/iam-admin/serviceaccounts"
+            )
             raise BackupConfigError(msg)
 
         credentials_path = Path(credentials_file)
@@ -197,7 +218,10 @@ class BackupConfig:
             credentials_path = root_dir / credentials_path
 
         if not credentials_path.exists():
-            msg = "credentials file not found"
+            msg = (
+                f"Service account key file not found at: {credentials_path}\n"
+                "Check GDRIVE_CREDENTIALS_FILE in your .env"
+            )
             raise BackupConfigError(msg)
 
         self.credentials_file = str(credentials_path)

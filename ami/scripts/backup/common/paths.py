@@ -20,12 +20,16 @@ def setup_sys_path() -> None:
 
 
 def find_gcloud() -> str | None:
-    """Find gcloud CLI binary (local or system)."""
+    """Find gcloud CLI binary (bootstrap symlink, local SDK, or system)."""
     root = get_project_root()
 
-    # Check for local installation first
-    local_gcloud = root / ".gcloud" / "google-cloud-sdk" / "bin" / "gcloud"
+    # Check bootstrap symlink first
+    boot_gcloud = root / ".boot-linux" / "bin" / "ami-gcloud"
+    if boot_gcloud.exists():
+        return str(boot_gcloud)
 
+    # Check for local SDK installation
+    local_gcloud = root / ".gcloud" / "google-cloud-sdk" / "bin" / "gcloud"
     if local_gcloud.exists():
         return str(local_gcloud)
 

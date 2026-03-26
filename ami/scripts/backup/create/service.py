@@ -7,11 +7,13 @@ Main business logic for backup operations.
 import asyncio
 from pathlib import Path
 
+from google.auth.exceptions import RefreshError, TransportError
+from googleapiclient.errors import HttpError
 from loguru import logger
 from pydantic import BaseModel
 
 from ami.scripts.backup.backup_config import BackupConfig
-from ami.scripts.backup.backup_exceptions import UploadError
+from ami.scripts.backup.backup_exceptions import BackupError, UploadError
 from ami.scripts.backup.common.auth import AuthenticationManager
 from ami.scripts.backup.common.constants import DEFAULT_BACKUP_NAME
 from ami.scripts.backup.common.paths import find_gcloud
@@ -69,6 +71,15 @@ class BackupService:
         # Update auth manager with new config
         self.auth_manager.update_config(config)
 
+        # Pre-flight: validate credentials before spending time archiving
+        logger.info("Validating credentials...")
+        try:
+            self.auth_manager.get_credentials()
+        except Exception as e:
+            msg = f"Credential check failed before archiving: {e}"
+            raise BackupError(msg) from e
+        logger.info("✓ Credentials valid")
+
         # Use CWD as output directory to avoid polluting source
         output_dir = Path.cwd()
         backup_name = options.output_filename or DEFAULT_BACKUP_NAME
@@ -105,13 +116,14 @@ class BackupService:
 
     def _is_auth_error(self, error: UploadError) -> bool:
         """Check if an upload error is authentication-related."""
-        error_str = str(error).lower()
-        return (
-            "reauthentication" in error_str
-            or "authenticated" in error_str
-            or ("credentials" in error_str and "impersonated" not in error_str)
-            or "invalid_grant" in error_str
-        )
+        cause: BaseException | None = error.__cause__
+        while cause is not None:
+            if isinstance(cause, HttpError) and cause.resp.status in (401, 403):
+                return True
+            if isinstance(cause, (RefreshError, TransportError)):
+                return True
+            cause = getattr(cause, "__cause__", None)
+        return False
 
     async def _handle_upload_error(
         self, error: UploadError, zip_path: Path, config: BackupConfig, retry_auth: bool
@@ -121,13 +133,20 @@ class BackupService:
             raise error
 
         logger.warning(f"Authentication error detected: {error}")
-        logger.info("Attempting to refresh credentials...")
 
-        if not await self._refresh_adc_credentials():
-            logger.error("Failed to refresh credentials.")
-            raise error
+        if config.auth_method == "oauth":
+            logger.info("Attempting to re-authenticate via OAuth...")
+            # Force re-creation of the auth provider to trigger a fresh OAuth flow
+            self.auth_manager.update_config(config)
+        else:
+            logger.info("Attempting to refresh ADC credentials...")
+            if not await self._refresh_adc_credentials():
+                logger.error("Failed to refresh credentials.")
+                raise error
 
-        logger.info("Credentials refreshed successfully, retrying upload...")
+        # Reset cached service so next call uses fresh credentials
+        self.uploader._service = None
+        logger.info("Retrying upload with refreshed credentials...")
         return await self.uploader.upload_to_gdrive(zip_path, config)
 
     async def setup_auth(self) -> int:

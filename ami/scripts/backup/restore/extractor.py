@@ -13,6 +13,7 @@ from pathlib import Path
 
 import zstandard as zstd
 from loguru import logger
+from tqdm import tqdm
 
 from ami.scripts.backup.backup_exceptions import ArchiveError
 
@@ -81,12 +82,32 @@ def _prune_child_paths(paths: list[Path]) -> list[Path]:
     return final_paths
 
 
-def _run_extraction_pipeline(zstd_cmd: list[str], tar_cmd: list[str]) -> None:
-    """Run zstd | tar extraction pipeline and handle errors."""
-    logger.info(f"Starting extraction pipe: {' '.join(zstd_cmd)} | {' '.join(tar_cmd)}")
+EXTRACT_CHUNK_SIZE = 65536  # 64 KB
 
+
+def _close_stdin_safely(proc: subprocess.Popen[bytes]) -> None:
+    """Close process stdin, ignoring errors from broken pipes."""
+    if proc.stdin is not None:
+        try:
+            proc.stdin.close()
+        except (BrokenPipeError, OSError, ValueError):
+            proc.stdin = None
+            return
+        proc.stdin = None
+
+
+def _run_extraction_pipeline(
+    archive_path: Path, zstd_bin: str, tar_cmd: list[str]
+) -> None:
+    """Run zstd | tar extraction pipeline with tqdm progress.
+
+    Feeds the archive through Python via zstd stdin so we can track bytes read.
+    """
+    archive_size = archive_path.stat().st_size
+
+    zstd_cmd = [zstd_bin, "-dc", "-T0"]
     zstd_proc = subprocess.Popen(
-        zstd_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        zstd_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     tar_proc = subprocess.Popen(
         tar_cmd,
@@ -97,6 +118,22 @@ def _run_extraction_pipeline(zstd_cmd: list[str], tar_cmd: list[str]) -> None:
 
     if zstd_proc.stdout:
         zstd_proc.stdout.close()
+
+    assert zstd_proc.stdin is not None
+    with (
+        open(archive_path, "rb") as fh,
+        tqdm(total=archive_size, unit="B", unit_scale=True, desc="Extracting") as pbar,
+    ):
+        try:
+            while True:
+                chunk = fh.read(EXTRACT_CHUNK_SIZE)
+                if not chunk:
+                    break
+                zstd_proc.stdin.write(chunk)
+                pbar.update(len(chunk))
+        except (BrokenPipeError, OSError):
+            pass
+    _close_stdin_safely(zstd_proc)
 
     _t_out, t_err = tar_proc.communicate()
     _z_out, z_err = zstd_proc.communicate()
@@ -144,8 +181,7 @@ def _extract_specific_paths_sync(
     try:
         dest.mkdir(parents=True, exist_ok=True)
 
-        zstd_bin = _get_zstd_binary()
-        zstd_cmd = [str(zstd_bin), "-dc", str(archive_path)]
+        zstd_bin = str(_get_zstd_binary())
         tar_cmd = ["tar", "-xf", "-", "-C", str(dest)]
 
         if paths:
@@ -153,7 +189,7 @@ def _extract_specific_paths_sync(
             logger.debug(f"Pruned paths from {len(paths)} to {len(final_paths)}")
             tar_cmd += [str(p) for p in final_paths]
 
-        _run_extraction_pipeline(zstd_cmd, tar_cmd)
+        _run_extraction_pipeline(archive_path, zstd_bin, tar_cmd)
 
         count = "all" if paths is None else len(paths)
         logger.info(f"Successfully extracted {count} items to {dest}")

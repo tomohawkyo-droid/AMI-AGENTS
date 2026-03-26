@@ -1,6 +1,5 @@
 """Unit tests for the backup uploader module (create/uploader.py)."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -43,7 +42,9 @@ class TestBackupUploader:
     @pytest.mark.asyncio
     @patch("ami.scripts.backup.create.uploader.MediaFileUpload")
     @patch("ami.scripts.backup.create.uploader.build")
-    async def test_upload_to_gdrive_new_file(self, mock_build, mock_media_upload):
+    async def test_upload_to_gdrive_new_file(
+        self, mock_build, mock_media_upload, tmp_path
+    ):
         """Test uploading a file that doesn't already exist."""
         # Setup mocks
         mock_auth_manager = MagicMock()
@@ -78,7 +79,8 @@ class TestBackupUploader:
         uploader = BackupUploader(mock_auth_manager)
         config = MagicMock()
         config.folder_id = "test_folder_id"
-        zip_path = Path("/tmp/test-archive.tar.zst")
+        zip_path = tmp_path / "test-archive.tar.zst"
+        zip_path.write_bytes(b"fake archive data")
 
         # Perform upload
         file_id = await uploader.upload_to_gdrive(zip_path, config)
@@ -91,7 +93,7 @@ class TestBackupUploader:
     @patch("ami.scripts.backup.create.uploader.MediaFileUpload")
     @patch("ami.scripts.backup.create.uploader.build")
     async def test_upload_to_gdrive_existing_file_update(
-        self, mock_build, mock_media_upload
+        self, mock_build, mock_media_upload, tmp_path
     ):
         """Test uploading when a file with same name exists.
 
@@ -131,7 +133,8 @@ class TestBackupUploader:
         uploader = BackupUploader(mock_auth_manager)
         config = MagicMock()
         config.folder_id = "test_folder_id"
-        zip_path = Path("/tmp/test-archive.tar.zst")
+        zip_path = tmp_path / "test-archive.tar.zst"
+        zip_path.write_bytes(b"fake archive data")
 
         # Perform upload
         file_id = await uploader.upload_to_gdrive(zip_path, config)
@@ -144,7 +147,9 @@ class TestBackupUploader:
     @pytest.mark.asyncio
     @patch("ami.scripts.backup.create.uploader.MediaFileUpload")
     @patch("ami.scripts.backup.create.uploader.build")
-    async def test_upload_to_gdrive_error_handling(self, mock_build, mock_media_upload):
+    async def test_upload_to_gdrive_error_handling(
+        self, mock_build, mock_media_upload, tmp_path
+    ):
         """Test that upload handles errors properly."""
         # Setup mocks
         mock_auth_manager = MagicMock()
@@ -171,7 +176,8 @@ class TestBackupUploader:
         uploader = BackupUploader(mock_auth_manager)
         config = MagicMock()
         config.folder_id = "test_folder_id"
-        zip_path = Path("/tmp/test-archive.tar.zst")
+        zip_path = tmp_path / "test-archive.tar.zst"
+        zip_path.write_bytes(b"fake archive data")
 
         # Should raise UploadError
         with pytest.raises(UploadError, match="Upload failed:"):
@@ -181,7 +187,7 @@ class TestBackupUploader:
     @patch("ami.scripts.backup.create.uploader.MediaFileUpload")
     @patch("ami.scripts.backup.create.uploader.build")
     async def test_upload_to_gdrive_no_file_id_returned(
-        self, mock_build, mock_media_upload
+        self, mock_build, mock_media_upload, tmp_path
     ):
         """Test that upload raises error when no file ID is returned."""
         # Setup mocks
@@ -212,7 +218,8 @@ class TestBackupUploader:
         uploader = BackupUploader(mock_auth_manager)
         config = MagicMock()
         config.folder_id = "test_folder_id"
-        zip_path = Path("/tmp/test-archive.tar.zst")
+        zip_path = tmp_path / "test-archive.tar.zst"
+        zip_path.write_bytes(b"fake archive data")
 
         # Should raise UploadError when no file ID is returned
         with pytest.raises(

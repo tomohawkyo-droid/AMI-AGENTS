@@ -11,6 +11,7 @@ from typing import Protocol, TypedDict, cast
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from loguru import logger
+from tqdm import tqdm
 
 from ami.scripts.backup.backup_config import BackupConfig
 from ami.scripts.backup.common.auth import AuthenticationManager
@@ -163,7 +164,7 @@ class DriveRestoreClient:
 
             name = file_metadata.get("name", "Unknown")
             size = file_metadata.get("size", "Unknown")
-            logger.info(f"Downloading file: {name} ({size} bytes)")
+            total = int(str(size)) if size != "Unknown" else None
 
             # Create destination directory if it doesn't exist
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -174,12 +175,15 @@ class DriveRestoreClient:
             with open(destination, "wb") as fh:
                 downloader = MediaIoBaseDownload(fh, request)
                 done = False
-                while done is False:
-                    status, done = downloader.next_chunk()
-                    if status:
-                        logger.info(f"Download {int(status.progress() * 100)}%.")
-
-            logger.info(f"Download completed: {destination}")
+                with tqdm(
+                    total=total, unit="B", unit_scale=True, desc=f"Downloading {name}"
+                ) as pbar:
+                    while done is False:
+                        status, done = downloader.next_chunk()
+                        if status and total:
+                            pbar.update(int(status.progress() * total) - pbar.n)
+                    if total:
+                        pbar.update(pbar.total - pbar.n)
         except Exception as e:
             logger.error(f"Download from Google Drive failed: {e}")
             return False

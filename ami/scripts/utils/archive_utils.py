@@ -4,18 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
+import os
 from datetime import datetime
 from pathlib import Path
 
 import zstandard as zstd
-from loguru import logger
+from tqdm import tqdm
 
 # tar exit codes
 TAR_FATAL_ERROR = 2  # Fatal error exit code
 
 CHUNK_SIZE = 65536  # 64 KB
-LOG_INTERVAL_BYTES = 10 * 1024 * 1024  # Log every 10 MB
-BYTES_PER_MB = 1024 * 1024
 
 
 class ArchiveError(Exception):
@@ -76,24 +75,18 @@ async def _stream_to_zstd(proc: asyncio.subprocess.Process, archive_path: Path) 
         msg = "Process has no stdout"
         raise ArchiveError(msg)
 
-    cctx = zstd.ZstdCompressor(level=3)
-    bytes_read = 0
-    last_logged = 0
-    with open(archive_path, "wb") as fout, cctx.stream_writer(fout) as compressor:
+    cctx = zstd.ZstdCompressor(level=3, threads=os.cpu_count() or 1)
+    with (
+        open(archive_path, "wb") as fout,
+        cctx.stream_writer(fout) as compressor,
+        tqdm(unit="B", unit_scale=True, desc="Compressing") as pbar,
+    ):
         while True:
             chunk = await proc.stdout.read(CHUNK_SIZE)
             if not chunk:
                 break
             compressor.write(chunk)
-            bytes_read += len(chunk)
-            if bytes_read - last_logged >= LOG_INTERVAL_BYTES:
-                mb = bytes_read / BYTES_PER_MB
-                logger.info(f"  Archiving: {mb:.0f} MB processed...")
-                last_logged = bytes_read
-
-    if bytes_read > 0:
-        mb = bytes_read / BYTES_PER_MB
-        logger.info(f"  Archiving complete: {mb:.1f} MB processed")
+            pbar.update(len(chunk))
 
 
 async def create_archive(

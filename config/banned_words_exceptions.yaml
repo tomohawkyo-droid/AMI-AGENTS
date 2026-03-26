@@ -6,6 +6,8 @@ exceptions:
   - pattern: '\b(Dict|Tuple|dict|tuple|frozenset)\['
     paths: ['scripts/ci/', 'types/common.py']
 
+
+
   # subprocess interface files need Mapping for Popen env parameter
   - pattern: '\b(Mapping|Sequence|MutableMapping|MutableSequence|Iterable|Iterator)\['
     paths: ['utils/process.py', 'cli/process_utils.py']

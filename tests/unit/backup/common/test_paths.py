@@ -50,7 +50,7 @@ class TestPaths:
     @patch("ami.scripts.backup.common.paths.get_project_root")
     @patch("pathlib.Path.exists")
     def test_find_gcloud_local(self, mock_exists, mock_get_root):
-        """Test finding local gcloud binary."""
+        """Test finding bootstrap ami-gcloud symlink first."""
         mock_root = Path("/fake/root")
         mock_get_root.return_value = mock_root
 
@@ -58,7 +58,7 @@ class TestPaths:
         mock_exists.return_value = True
 
         result = paths.find_gcloud()
-        assert "/fake/root/.gcloud/google-cloud-sdk/bin/gcloud" in str(result)
+        assert "/fake/root/.boot-linux/bin/ami-gcloud" in str(result)
 
     @patch("ami.scripts.backup.common.paths.get_project_root")
     @patch("shutil.which")

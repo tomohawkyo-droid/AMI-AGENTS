@@ -11,11 +11,10 @@ from typing import Any, Protocol, cast
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from loguru import logger
+from tqdm import tqdm
 
 from ami.scripts.backup.common.auth import AuthenticationManager
 from ami.types.common import DriveRevisionInfo, DriveRevisionListResponse
-
-DOWNLOAD_PROGRESS_MULTIPLIER = 100
 
 
 class DriveRevisionRequest(Protocol):
@@ -120,7 +119,11 @@ class RevisionsClient:
             return revisions
 
     async def download_revision(
-        self, file_id: str, revision_id: str, destination: Path
+        self,
+        file_id: str,
+        revision_id: str,
+        destination: Path,
+        file_size: int | None = None,
     ) -> bool:
         """Download a specific revision of a file.
 
@@ -128,6 +131,7 @@ class RevisionsClient:
             file_id: Google Drive file ID
             revision_id: Revision ID to download
             destination: Local path to save the file
+            file_size: Optional file size in bytes for progress bar
 
         Returns:
             True if download was successful
@@ -144,11 +148,18 @@ class RevisionsClient:
                 with open(destination, "wb") as fh:
                     downloader = MediaIoBaseDownload(fh, request)
                     done = False
-                    while done is False:
-                        status, done = downloader.next_chunk()
-                        if status:
-                            pct = int(status.progress() * DOWNLOAD_PROGRESS_MULTIPLIER)
-                            logger.info(f"Download {pct}%.")
+                    with tqdm(
+                        total=file_size,
+                        unit="B",
+                        unit_scale=True,
+                        desc="Downloading revision",
+                    ) as pbar:
+                        while done is False:
+                            status, done = downloader.next_chunk()
+                            if status and file_size:
+                                pbar.update(int(status.progress() * file_size) - pbar.n)
+                        if file_size:
+                            pbar.update(pbar.total - pbar.n)
                 return True
 
             result = await asyncio.get_event_loop().run_in_executor(None, _do_download)

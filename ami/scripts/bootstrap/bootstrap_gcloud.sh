@@ -139,6 +139,12 @@ else
     exit 1
 fi
 
+# Create ami-gcloud symlink in .boot-linux/bin/
+BIN_DIR="$ROOT_DIR/.boot-linux/bin"
+mkdir -p "$BIN_DIR"
+ln -sf "../../.gcloud/google-cloud-sdk/bin/gcloud" "$BIN_DIR/ami-gcloud"
+echo "Symlink: $BIN_DIR/ami-gcloud -> $GCLOUD_BIN"
+
 echo
 echo "================================"
 echo "Next Steps:"

@@ -39,10 +39,22 @@ ensure-ci: ## Auto-clone AMI-CI if missing
 		echo "✅ AMI-CI cloned to projects/AMI-CI"; \
 	fi
 
+.PHONY: ensure-dataops
+ensure-dataops: ## Auto-clone AMI-DATAOPS if missing
+	@if [ ! -f "projects/AMI-DATAOPS/pyproject.toml" ]; then \
+		echo "📦 AMI-DATAOPS not found — cloning..."; \
+		git clone git@github.com:Independent-AI-Labs/AMI-DATAOPS.git projects/AMI-DATAOPS; \
+		echo "✅ AMI-DATAOPS cloned to projects/AMI-DATAOPS"; \
+	fi
+
 .PHONY: sync-package
-sync-package: bootstrap-core ensure-ci ## Sync package dependencies via uv
+sync-package: bootstrap-core ensure-ci ensure-dataops ## Sync package dependencies via uv
 	@echo "🔧 Syncing ami-agents..."
 	.boot-linux/bin/uv sync --extra dev
+	@if [ -f "projects/AMI-DATAOPS/pyproject.toml" ]; then \
+		echo "🔧 Installing ami-dataops (editable)..."; \
+		.boot-linux/bin/uv pip install -e projects/AMI-DATAOPS; \
+	fi
 	@echo "✅ Package 'ami-agents' installed with dev dependencies"
 
 # --- Component Targets ---

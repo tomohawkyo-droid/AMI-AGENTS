@@ -81,11 +81,11 @@ class TestExtractSpecificPathsSync:
 
         assert result is True
         mock_pipeline.assert_called_once()
-        # Verify the pipeline was called with correct commands
+        # Verify the pipeline was called with correct args
         call_args = mock_pipeline.call_args[0]
-        zstd_cmd, tar_cmd = call_args
-        assert "/usr/bin/zstd" in zstd_cmd[0]
-        assert "-dc" in zstd_cmd
+        called_archive_path, called_zstd_bin, tar_cmd = call_args
+        assert called_archive_path == archive_path
+        assert "/usr/bin/zstd" in called_zstd_bin
         assert "tar" in tar_cmd[0]
         assert str(dest) in tar_cmd
 
@@ -123,7 +123,7 @@ class TestExtractSpecificPathsSync:
 
         assert result is True
         call_args = mock_pipeline.call_args[0]
-        _zstd_cmd, tar_cmd = call_args
+        _archive_path, _zstd_bin, tar_cmd = call_args
         # When paths is None, tar_cmd should NOT have specific paths appended
         assert tar_cmd == ["tar", "-xf", "-", "-C", "/tmp/dest"]
 
@@ -154,11 +154,16 @@ class TestExtractionPipeline:
     """Tests for _run_extraction_pipeline."""
 
     @patch("ami.scripts.backup.restore.extractor.subprocess.Popen")
-    def test_run_extraction_pipeline_success(self, mock_popen):
+    def test_run_extraction_pipeline_success(self, mock_popen, tmp_path):
         """Test successful extraction pipeline."""
+        # Create a fake archive file
+        archive = tmp_path / "archive.tar.zst"
+        archive.write_bytes(b"fake archive data")
+
         # Setup zstd process mock
         mock_zstd_proc = MagicMock()
         mock_zstd_proc.stdout = MagicMock()
+        mock_zstd_proc.stdin = MagicMock()
         mock_zstd_proc.communicate.return_value = (b"", b"")
         mock_zstd_proc.returncode = 0
 
@@ -169,18 +174,24 @@ class TestExtractionPipeline:
 
         mock_popen.side_effect = [mock_zstd_proc, mock_tar_proc]
 
-        zstd_cmd = ["/usr/bin/zstd", "-dc", "/tmp/archive.tar.zst"]
         tar_cmd = ["tar", "-xf", "-", "-C", "/tmp/dest"]
 
         # Should not raise
-        extractor._run_extraction_pipeline(zstd_cmd, tar_cmd)
+        extractor._run_extraction_pipeline(archive, "/usr/bin/zstd", tar_cmd)
+
+        # Verify zstd was called with multi-core flag
+        zstd_call_args = mock_popen.call_args_list[0][0][0]
+        assert "-T0" in zstd_call_args
 
     @patch("ami.scripts.backup.restore.extractor.subprocess.Popen")
-    def test_run_extraction_pipeline_zstd_fails(self, mock_popen):
+    def test_run_extraction_pipeline_zstd_fails(self, mock_popen, tmp_path):
         """Test extraction pipeline when zstd fails."""
+        archive = tmp_path / "archive.tar.zst"
+        archive.write_bytes(b"fake archive data")
 
         mock_zstd_proc = MagicMock()
         mock_zstd_proc.stdout = MagicMock()
+        mock_zstd_proc.stdin = MagicMock()
         mock_zstd_proc.communicate.return_value = (b"", b"Decompression failed")
         mock_zstd_proc.returncode = 1
 
@@ -190,20 +201,22 @@ class TestExtractionPipeline:
 
         mock_popen.side_effect = [mock_zstd_proc, mock_tar_proc]
 
-        zstd_cmd = ["/usr/bin/zstd", "-dc", "/tmp/archive.tar.zst"]
         tar_cmd = ["tar", "-xf", "-", "-C", "/tmp/dest"]
 
         with pytest.raises(ArchiveError) as exc_info:
-            extractor._run_extraction_pipeline(zstd_cmd, tar_cmd)
+            extractor._run_extraction_pipeline(archive, "/usr/bin/zstd", tar_cmd)
 
         assert "Decompression failed" in str(exc_info.value)
 
     @patch("ami.scripts.backup.restore.extractor.subprocess.Popen")
-    def test_run_extraction_pipeline_tar_fails_with_error(self, mock_popen):
+    def test_run_extraction_pipeline_tar_fails_with_error(self, mock_popen, tmp_path):
         """Test extraction pipeline when tar fails with error."""
+        archive = tmp_path / "archive.tar.zst"
+        archive.write_bytes(b"fake archive data")
 
         mock_zstd_proc = MagicMock()
         mock_zstd_proc.stdout = MagicMock()
+        mock_zstd_proc.stdin = MagicMock()
         mock_zstd_proc.communicate.return_value = (b"", b"")
         mock_zstd_proc.returncode = 0
 
@@ -213,19 +226,22 @@ class TestExtractionPipeline:
 
         mock_popen.side_effect = [mock_zstd_proc, mock_tar_proc]
 
-        zstd_cmd = ["/usr/bin/zstd", "-dc", "/tmp/archive.tar.zst"]
         tar_cmd = ["tar", "-xf", "-", "-C", "/tmp/dest"]
 
         with pytest.raises(ArchiveError) as exc_info:
-            extractor._run_extraction_pipeline(zstd_cmd, tar_cmd)
+            extractor._run_extraction_pipeline(archive, "/usr/bin/zstd", tar_cmd)
 
         assert "Extraction failed" in str(exc_info.value)
 
     @patch("ami.scripts.backup.restore.extractor.subprocess.Popen")
-    def test_run_extraction_pipeline_tar_warns(self, mock_popen):
+    def test_run_extraction_pipeline_tar_warns(self, mock_popen, tmp_path):
         """Test extraction pipeline when tar has warnings but succeeds."""
+        archive = tmp_path / "archive.tar.zst"
+        archive.write_bytes(b"fake archive data")
+
         mock_zstd_proc = MagicMock()
         mock_zstd_proc.stdout = MagicMock()
+        mock_zstd_proc.stdin = MagicMock()
         mock_zstd_proc.communicate.return_value = (b"", b"")
         mock_zstd_proc.returncode = 0
 
@@ -238,11 +254,10 @@ class TestExtractionPipeline:
 
         mock_popen.side_effect = [mock_zstd_proc, mock_tar_proc]
 
-        zstd_cmd = ["/usr/bin/zstd", "-dc", "/tmp/archive.tar.zst"]
         tar_cmd = ["tar", "-xf", "-", "-C", "/tmp/dest"]
 
         # Should not raise for warnings only
-        extractor._run_extraction_pipeline(zstd_cmd, tar_cmd)
+        extractor._run_extraction_pipeline(archive, "/usr/bin/zstd", tar_cmd)
 
     def test_raise_decompression_error(self):
         """Test _raise_decompression_error raises ArchiveError."""

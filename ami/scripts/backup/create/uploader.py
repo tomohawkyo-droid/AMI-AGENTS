@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, NamedTuple, Protocol, cast
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from loguru import logger
+from tqdm import tqdm
 
 from ami.scripts.backup.backup_config import BackupConfig
 from ami.scripts.backup.backup_exceptions import UploadError
@@ -87,14 +88,19 @@ class BackupUploader:
             )
         return self._service
 
-    def _chunked_upload(self, request: DriveRequest) -> DriveFileResponse:
-        """Execute resumable upload with progress logging."""
+    def _chunked_upload(
+        self, request: DriveRequest, total_size: int
+    ) -> DriveFileResponse:
+        """Execute resumable upload with tqdm progress bar."""
         response = None
-        while response is None:
-            status, response = request.next_chunk()
-            if status:
-                pct = int(status.progress() * 100)
-                logger.info(f"  Upload progress: {pct}%")
+        with tqdm(
+            total=total_size, unit="B", unit_scale=True, desc="Uploading"
+        ) as pbar:
+            while response is None:
+                status, response = request.next_chunk()
+                if status:
+                    pbar.update(int(status.progress() * total_size) - pbar.n)
+            pbar.update(pbar.total - pbar.n)  # ensure 100%
         return response
 
     async def _search_existing_file(
@@ -162,6 +168,7 @@ class BackupUploader:
                 mimetype="application/zstd",
                 resumable=True,
             )
+            total_size = zip_path.stat().st_size
 
             if existing_file_id:
                 file = await asyncio.get_event_loop().run_in_executor(
@@ -172,7 +179,8 @@ class BackupUploader:
                             media_body=media,
                             fields="id,name,webViewLink",
                             supportsAllDrives=True,
-                        )
+                        ),
+                        total_size,
                     ),
                 )
             else:
@@ -184,7 +192,8 @@ class BackupUploader:
                             media_body=media,
                             fields="id,name,webViewLink",
                             supportsAllDrives=True,
-                        )
+                        ),
+                        total_size,
                     ),
                 )
 

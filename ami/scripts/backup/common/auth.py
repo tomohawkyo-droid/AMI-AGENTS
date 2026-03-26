@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Protocol, cast
 
 import google.auth
+import google.auth.exceptions
 from google.auth import impersonated_credentials
 from google.auth.credentials import Credentials as GoogleAuthCredentials
 from google.auth.transport.requests import Request
@@ -39,7 +40,12 @@ class ImpersonationCredentialsProvider:
     def get_credentials(self) -> GoogleAuthCredentials:
         """Get impersonated credentials."""
         if not self.config.service_account_email:
-            msg = "GDRIVE_SERVICE_ACCOUNT_EMAIL env var required for impersonation"
+            msg = (
+                "GDRIVE_SERVICE_ACCOUNT_EMAIL is not set.\n"
+                "Add to your .env file: "
+                "GDRIVE_SERVICE_ACCOUNT_EMAIL="
+                "my-sa@project.iam.gserviceaccount.com"
+            )
             raise BackupConfigError(msg)
 
         try:
@@ -61,8 +67,45 @@ class ImpersonationCredentialsProvider:
             # Explicitly refresh to test if impersonation works
             request = Request()
             credentials.refresh(request)
+        except google.auth.exceptions.DefaultCredentialsError as e:
+            msg = (
+                "Service account impersonation failed: "
+                "no Application Default Credentials found.\n"
+                "Fix: Run 'gcloud auth application-default login' "
+                "(or 'ami-gcloud auth application-default login')\n"
+                "Docs: https://cloud.google.com/docs/authentication/"
+                "application-default-credentials"
+            )
+            raise BackupError(msg) from e
+        except google.auth.exceptions.RefreshError as e:
+            if "invalid_grant" in str(e).lower():
+                msg = (
+                    "Service account impersonation failed: "
+                    "ADC token expired or revoked.\n"
+                    "Fix: Run 'gcloud auth application-default login' "
+                    "to re-authenticate."
+                )
+            else:
+                msg = (
+                    "Service account impersonation failed: "
+                    "could not refresh credentials.\n"
+                    f"Check that '{self.config.service_account_email}' "
+                    "exists and your account has the "
+                    "'Service Account Token Creator' role on it.\n"
+                    f"Details: {e}"
+                )
+            raise BackupError(msg) from e
         except Exception as e:
-            msg = f"Service account impersonation failed: {e}"
+            msg = (
+                f"Service account impersonation failed: {e}\n"
+                "Possible fixes:\n"
+                "  1. Run 'gcloud auth application-default login'\n"
+                "  2. Verify service account email: "
+                f"{self.config.service_account_email}\n"
+                "  3. Ensure your user has "
+                "'Service Account Token Creator' role "
+                "on the service account"
+            )
             raise BackupError(msg) from e
         else:
             return credentials
@@ -77,12 +120,22 @@ class ServiceAccountCredentialsProvider:
     def get_credentials(self) -> GoogleAuthCredentials:
         """Get service account credentials from file."""
         if not self.config.credentials_file:
-            msg = "GDRIVE_CREDENTIALS_FILE env var required for key auth"
+            msg = (
+                "GDRIVE_CREDENTIALS_FILE is not set.\n"
+                "Add to your .env file: "
+                "GDRIVE_CREDENTIALS_FILE="
+                "/path/to/service-account-key.json\n"
+                "To create a key: https://console.cloud.google.com/iam-admin/serviceaccounts"
+            )
             raise BackupConfigError(msg)
 
         credentials_file_path = Path(self.config.credentials_file)
         if not credentials_file_path.exists():
-            msg = f"Credentials file not found: {credentials_file_path}"
+            msg = (
+                f"Service account key file not found at: {credentials_file_path}\n"
+                "Check that GDRIVE_CREDENTIALS_FILE in your .env "
+                "points to the correct path."
+            )
             raise BackupError(msg)
 
         return cast(
@@ -125,7 +178,16 @@ class OAuthCredentialsProvider:
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 # Refresh the token
-                creds.refresh(Request())
+                try:
+                    creds.refresh(Request())
+                except google.auth.exceptions.RefreshError as e:
+                    msg = (
+                        f"OAuth token refresh failed: {e}\n"
+                        "Your saved token may be expired or revoked.\n"
+                        "Fix: Run 'ami-gcloud auth application-default login' "
+                        "to re-authenticate."
+                    )
+                    raise BackupError(msg) from e
             else:
                 # Check if credentials.json exists for the OAuth flow
                 credentials_json_path = self.config.root_dir / "credentials.json"
@@ -136,7 +198,19 @@ class OAuthCredentialsProvider:
                     credentials_json_path = project_root / "credentials.json"
 
                 if not credentials_json_path.exists():
-                    msg = f"credentials.json not found at {credentials_json_path}"
+                    msg = (
+                        "OAuth client secrets file not found at: "
+                        f"{credentials_json_path}\n"
+                        "This file contains your Google Cloud OAuth "
+                        "client ID for first-time auth.\n"
+                        "To obtain it:\n"
+                        "  1. Go to https://console.cloud.google.com/"
+                        "apis/credentials\n"
+                        "  2. Create an OAuth 2.0 Client ID "
+                        "(Desktop application type)\n"
+                        "  3. Download the JSON and save it as "
+                        "'credentials.json' in your project root"
+                    )
                     raise BackupError(msg)
 
                 # Use Local Server Flow (OOB is deprecated)

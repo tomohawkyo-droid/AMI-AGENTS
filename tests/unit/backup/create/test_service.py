@@ -4,9 +4,19 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from google.auth.exceptions import RefreshError
+from googleapiclient.errors import HttpError
 
-from ami.scripts.backup.backup_exceptions import UploadError
+from ami.scripts.backup.backup_exceptions import BackupError, UploadError
 from ami.scripts.backup.create.service import BackupOptions, BackupService
+
+
+def _make_auth_upload_error() -> UploadError:
+    """Create an UploadError with a RefreshError cause (simulates auth failure)."""
+    cause = RefreshError("reauthentication needed")
+    err = UploadError("Authentication required: reauthentication needed")
+    err.__cause__ = cause
+    return err
 
 
 class TestBackupService:
@@ -110,9 +120,9 @@ class TestBackupService:
 
         mock_cwd.return_value = Path("/tmp/test")
 
-        # First call raises UploadError, second succeeds
+        # First call raises UploadError with auth cause, second succeeds
         mock_uploader.upload_to_gdrive.side_effect = [
-            UploadError("Authentication required: reauthentication needed"),
+            _make_auth_upload_error(),
             "test_file_id_456",
         ]
 
@@ -172,46 +182,84 @@ class TestBackupService:
         with pytest.raises(UploadError):
             await service.run_backup(options)
 
-    def test_is_auth_error_reauthentication(self):
-        """Test _is_auth_error detects reauthentication errors."""
+    @pytest.mark.asyncio
+    @patch("ami.scripts.backup.create.service.BackupConfig")
+    @patch("ami.scripts.backup.create.service.create_zip_archive")
+    @patch("pathlib.Path.cwd")
+    async def test_run_backup_fails_fast_on_bad_credentials(
+        self,
+        mock_cwd,
+        mock_archiver,
+        mock_config_class,
+    ):
+        """Test backup fails immediately on invalid credentials."""
+        mock_uploader = AsyncMock()
+        mock_auth_manager = MagicMock()
+        mock_auth_manager.get_credentials.side_effect = RefreshError("token expired")
+
+        mock_config = MagicMock()
+        mock_config_class.load.return_value = mock_config
+        mock_cwd.return_value = Path("/tmp/test")
+
+        service = BackupService(uploader=mock_uploader, auth_manager=mock_auth_manager)
+        options = BackupOptions(keep_local=False, retry_auth=True)
+
+        with pytest.raises(BackupError, match="Credential check failed"):
+            await service.run_backup(options)
+
+        # Archive should never have been created
+        mock_archiver.assert_not_called()
+
+    def test_is_auth_error_refresh_error(self):
+        """Test _is_auth_error detects RefreshError in cause chain."""
         service = BackupService(MagicMock(), MagicMock())
-        error = UploadError("reauthentication required")
+        error = UploadError("Upload failed")
+        error.__cause__ = RefreshError("reauthentication required")
 
         assert service._is_auth_error(error) is True
 
-    def test_is_auth_error_authenticated(self):
-        """Test _is_auth_error detects authenticated errors."""
+    def test_is_auth_error_http_401(self):
+        """Test _is_auth_error detects HTTP 401 errors."""
         service = BackupService(MagicMock(), MagicMock())
-        error = UploadError("Not authenticated")
+        http_err = HttpError(MagicMock(status=401), b"Unauthorized")
+        error = UploadError("Upload failed")
+        error.__cause__ = http_err
 
         assert service._is_auth_error(error) is True
 
-    def test_is_auth_error_credentials(self):
-        """Test _is_auth_error detects credentials errors."""
+    def test_is_auth_error_http_403(self):
+        """Test _is_auth_error detects HTTP 403 errors."""
         service = BackupService(MagicMock(), MagicMock())
-        error = UploadError("Invalid credentials")
+        http_err = HttpError(MagicMock(status=403), b"Forbidden")
+        error = UploadError("Upload failed")
+        error.__cause__ = http_err
 
         assert service._is_auth_error(error) is True
 
-    def test_is_auth_error_invalid_grant(self):
-        """Test _is_auth_error detects invalid_grant errors."""
+    def test_is_auth_error_nested_cause(self):
+        """Test _is_auth_error walks nested __cause__ chain."""
         service = BackupService(MagicMock(), MagicMock())
-        error = UploadError("Error: invalid_grant")
+        inner = RefreshError("invalid_grant")
+        middle = RuntimeError("wrapped")
+        middle.__cause__ = inner
+        error = UploadError("Upload failed")
+        error.__cause__ = middle
 
         assert service._is_auth_error(error) is True
 
-    def test_is_auth_error_impersonated_credentials_not_auth_error(self):
-        """Test _is_auth_error ignores impersonated credentials errors."""
+    def test_is_auth_error_other_error(self):
+        """Test _is_auth_error returns False for non-auth errors."""
         service = BackupService(MagicMock(), MagicMock())
-        # impersonated credentials errors should not trigger retry
-        error = UploadError("impersonated credentials failed")
+        error = UploadError("Network timeout")
 
         assert service._is_auth_error(error) is False
 
-    def test_is_auth_error_other_error(self):
-        """Test _is_auth_error returns False for other errors."""
+    def test_is_auth_error_http_500_not_auth(self):
+        """Test _is_auth_error returns False for HTTP 500."""
         service = BackupService(MagicMock(), MagicMock())
-        error = UploadError("Network timeout")
+        http_err = HttpError(MagicMock(status=500), b"Server Error")
+        error = UploadError("Upload failed")
+        error.__cause__ = http_err
 
         assert service._is_auth_error(error) is False
 

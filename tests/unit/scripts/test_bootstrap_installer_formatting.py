@@ -166,10 +166,8 @@ class TestFormatComponentDescription:
 class TestScanComponents:
     """Tests for scan_components function."""
 
-    @patch(
-        "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
-    )
-    @patch("ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", ["Test"])
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.get_components_by_group")
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.GROUPS", ["Test"])
     def test_scans_all_components(self, mock_get_groups, capsys) -> None:
         """Test scans all components and returns status list."""
         comp = Component(
@@ -193,10 +191,8 @@ class TestScanComponents:
             assert test_status is not None
             assert test_status.installed is True
 
-    @patch(
-        "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
-    )
-    @patch("ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", [])
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.get_components_by_group")
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.GROUPS", [])
     def test_handles_empty_groups(self, mock_get_groups, capsys) -> None:
         """Test handles empty groups."""
         mock_get_groups.return_value = []
@@ -209,12 +205,8 @@ class TestScanComponents:
 class TestBuildMenuItems:
     """Tests for build_menu_items function."""
 
-    @patch(
-        "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
-    )
-    @patch(
-        "ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", ["TestGroup"]
-    )
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.get_components_by_group")
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.GROUPS", ["TestGroup"])
     def test_builds_menu_with_headers(self, mock_get_groups) -> None:
         """Test builds menu items with group headers."""
         comp = Component(
@@ -241,12 +233,8 @@ class TestBuildMenuItems:
         assert items[1].id == "test"
         assert preselected == set()
 
-    @patch(
-        "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
-    )
-    @patch(
-        "ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", ["TestGroup"]
-    )
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.get_components_by_group")
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.GROUPS", ["TestGroup"])
     def test_installed_components_in_skippable(self, mock_get_groups) -> None:
         """Test installed components are in skippable_ids."""
         comp = Component(
@@ -267,10 +255,8 @@ class TestBuildMenuItems:
 
         assert "test" in result.skippable_ids
 
-    @patch(
-        "ami.scripts.bootstrap_installer._bootstrap_components.get_components_by_group"
-    )
-    @patch("ami.scripts.bootstrap_installer._bootstrap_components.GROUPS", ["Empty"])
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.get_components_by_group")
+    @patch("ami.scripts.bootstrap_installer._bootstrap_defs.GROUPS", ["Empty"])
     def test_skips_empty_groups(self, mock_get_groups) -> None:
         """Test skips empty groups."""
         mock_get_groups.return_value = [GroupComponents(group="Empty", components=[])]

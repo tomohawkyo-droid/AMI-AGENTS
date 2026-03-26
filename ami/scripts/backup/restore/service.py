@@ -110,6 +110,14 @@ class BackupRestoreService:
         Returns:
             True if successful, False otherwise
         """
+        # Pre-flight: validate credentials before downloading
+        logger.info("Validating credentials...")
+        try:
+            self.auth_manager.get_credentials()
+        except Exception as e:
+            msg = f"Credential check failed: {e}"
+            raise BackupError(msg) from e
+
         # Create restore directory
         restore_path.mkdir(parents=True, exist_ok=True)
 
@@ -263,6 +271,14 @@ class BackupRestoreService:
         logger.info(f"Restoring specific paths from Google Drive backup: {file_id}")
         logger.info(f"Target paths: {[str(p) for p in paths]}")
         logger.info(f"Restoring to: {restore_path.absolute()}")
+
+        # Pre-flight: validate credentials before downloading
+        logger.info("Validating credentials...")
+        try:
+            self.auth_manager.get_credentials()
+        except Exception as e:
+            msg = f"Credential check failed: {e}"
+            raise BackupError(msg) from e
 
         # Create restore directory
         restore_path.mkdir(parents=True, exist_ok=True)

@@ -35,7 +35,7 @@ sys.path.insert(
 )
 sys.path.insert(0, str(Path(__file__).parent))
 
-import ami.scripts.bootstrap_components as _bootstrap_components
+import ami.scripts.bootstrap_component_defs as _bootstrap_defs
 import ami.scripts.bootstrap_install as _bootstrap_install
 from ami.cli_components import dialogs as _dialogs
 from ami.cli_components import menu_selector as _menu
@@ -179,7 +179,7 @@ def scan_components() -> list[NamedComponentStatus]:
     """
     print(f"\n{CYAN}Scanning installed components...{RESET}")
 
-    groups = _bootstrap_components.get_components_by_group()
+    groups = _bootstrap_defs.get_components_by_group()
     statuses: list[NamedComponentStatus] = []
 
     total = sum(len(g.components) for g in groups)
@@ -218,7 +218,7 @@ def build_menu_items(
     Returns:
         MenuBuildResult with menu_items, preselected_ids, and skippable_ids
     """
-    groups = _bootstrap_components.get_components_by_group()
+    groups = _bootstrap_defs.get_components_by_group()
     menu_items: list[DialogItem] = []
     preselected: set[str] = set()
     skippable: set[str] = set()  # IDs of installed components
@@ -368,7 +368,7 @@ def _run_from_defaults(defaults_file: Path) -> int:
     # Resolve component names to Component objects
     components: list[Component] = []
     for name in component_names:
-        comp = _bootstrap_components.get_component_by_name(name)
+        comp = _bootstrap_defs.get_component_by_name(name)
         if comp:
             components.append(comp)
         else:

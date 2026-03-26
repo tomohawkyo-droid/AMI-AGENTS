@@ -28,7 +28,7 @@ class TestImpersonationCredentialsProvider:
         with pytest.raises(BackupConfigError) as exc_info:
             provider.get_credentials()
 
-        assert "GDRIVE_SERVICE_ACCOUNT_EMAIL env var required" in str(exc_info.value)
+        assert "GDRIVE_SERVICE_ACCOUNT_EMAIL is not set" in str(exc_info.value)
 
     @patch("ami.scripts.backup.common.auth.Request")
     @patch("ami.scripts.backup.common.auth.impersonated_credentials.Credentials")
@@ -82,7 +82,7 @@ class TestServiceAccountCredentialsProvider:
         with pytest.raises(BackupConfigError) as exc_info:
             provider.get_credentials()
 
-        assert "GDRIVE_CREDENTIALS_FILE env var required" in str(exc_info.value)
+        assert "GDRIVE_CREDENTIALS_FILE is not set" in str(exc_info.value)
 
     def test_raises_error_when_file_not_exists(self, tmp_path: Path) -> None:
         """Test raises error when credentials file doesn't exist."""
@@ -94,7 +94,7 @@ class TestServiceAccountCredentialsProvider:
         with pytest.raises(BackupError) as exc_info:
             provider.get_credentials()
 
-        assert "Credentials file not found" in str(exc_info.value)
+        assert "Service account key file not found" in str(exc_info.value)
 
     @patch(
         "ami.scripts.backup.common.auth.ServiceAccountCredentials.from_service_account_file"
@@ -183,7 +183,7 @@ class TestOAuthCredentialsProvider:
         with pytest.raises(BackupError) as exc_info:
             provider.get_credentials()
 
-        assert "credentials.json not found" in str(exc_info.value)
+        assert "OAuth client secrets file not found" in str(exc_info.value)
 
     @patch(
         "ami.scripts.backup.common.auth.get_project_root",
