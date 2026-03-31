@@ -60,6 +60,14 @@ if [[ "$cmd" == "push" ]]; then
         [[ "$arg" == "--force" || "$arg" == "-f" ]] && block "git push --force"
         [[ "$arg" == "--force-with-lease" ]] && block "git push --force-with-lease"
     done
+    # Block background pushes — pre-push hooks don't run reliably in background.
+    # /proc/self/stat field 5 = pgrp (process group), field 8 = tpgid (terminal foreground group).
+    # When a terminal exists (tpgid > 0) but pgrp != tpgid, the process is backgrounded.
+    # tpgid == -1 means no controlling terminal (e.g. piped/scripted) — hooks still run, so allow.
+    read -r _ _ _ _ _pgrp _ _ _tpgid _ < /proc/self/stat 2>/dev/null || true
+    if [[ -n "${_tpgid:-}" && "$_tpgid" != "-1" && "$_pgrp" != "$_tpgid" ]]; then
+        block "git push from background process (hooks would be bypassed — run in foreground)"
+    fi
 fi
 
 # 3. Block destructive flags globally
