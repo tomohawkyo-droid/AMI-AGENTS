@@ -71,26 +71,29 @@ apt download git git-man 2>/dev/null || {
 mv git_*.deb git.deb
 mv git-man_*.deb git-man.deb
 
-# Extract packages without installing system-wide
+# Extract packages without installing system-wide (use dpkg-deb, always available on Debian/Ubuntu)
 log_info "Extracting Git binaries..."
 
-# Extract git package
-ar x git.deb
+TMPEXT="$(mktemp -d)"
 
-# Extract main git binary
-tar -xf data.tar.* --strip-components=2 -C "${GIT_DIR}" \
-    ./usr/bin/git \
-    2>/dev/null || true
+# Extract git package contents
+dpkg-deb -x git.deb "${TMPEXT}"
 
-# Extract git-core binaries (all git subcommands like git-daemon)
-tar -xf data.tar.* --strip-components=3 -C "${GIT_DIR}/libexec" \
-    ./usr/lib/git-core/ 2>/dev/null || true
+# Copy main git binary
+if [[ -f "${TMPEXT}/usr/bin/git" ]]; then
+    cp "${TMPEXT}/usr/bin/git" "${GIT_DIR}/bin/git"
+fi
 
+# Copy git-core binaries (all git subcommands like git-daemon)
+if [[ -d "${TMPEXT}/usr/lib/git-core" ]]; then
+    cp -a "${TMPEXT}/usr/lib/git-core/"* "${GIT_DIR}/libexec/" 2>/dev/null || true
+fi
+
+rm -rf "${TMPEXT}"
 log_info "✓ Git binaries extracted"
 
 # Clean up
 rm -f "${GIT_DIR}"/*.deb
-rm -f "${GIT_DIR}"/{control.tar.*,data.tar.*,debian-binary}
 
 # Get installed git version
 INSTALLED_VERSION=$("${GIT_DIR}/bin/git" --version 2>&1 | awk '{print $3}')
