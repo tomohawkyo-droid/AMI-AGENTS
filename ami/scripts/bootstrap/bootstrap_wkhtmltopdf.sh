@@ -34,30 +34,11 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
 }
 
-# Extract data.tar from .deb (handles xz, gz, zst compression)
-extract_deb_data() {
-    local dest="$1"
-    if [[ -f data.tar.xz ]]; then
-        tar -xJf data.tar.xz -C "$dest"
-    elif [[ -f data.tar.gz ]]; then
-        tar -xzf data.tar.gz -C "$dest"
-    elif [[ -f data.tar.zst ]]; then
-        # zstd compression - need to decompress first then extract
-        if command -v zstd &> /dev/null; then
-            zstd -d data.tar.zst -o data.tar
-            tar -xf data.tar -C "$dest"
-            rm -f data.tar
-        else
-            log_error "zstd not found. Install with: apt install zstd"
-            exit 1
-        fi
-    elif [[ -f data.tar ]]; then
-        tar -xf data.tar -C "$dest"
-    else
-        log_error "No data.tar found in package"
-        ls -la
-        exit 1
-    fi
+# Extract .deb contents using dpkg-deb (always available on Debian/Ubuntu, handles all compression)
+extract_deb() {
+    local deb_file="$1"
+    local dest="$2"
+    dpkg-deb -x "${deb_file}" "${dest}"
 }
 
 # Check if running on Linux
@@ -103,13 +84,7 @@ fi
 
 # Extract the package
 cd "${WKHTMLTOPDF_DIR}"
-ar x wkhtmltox.deb
-
-# Extract binaries - wkhtmltox puts them in /usr/local/bin/
-extract_deb_data "${WKHTMLTOPDF_DIR}"
-
-# Clean up wkhtmltox extraction artifacts
-rm -f data.tar* control.tar* debian-binary
+extract_deb wkhtmltox.deb "${WKHTMLTOPDF_DIR}"
 
 # Find and move the binary
 if [[ -f "${WKHTMLTOPDF_DIR}/usr/local/bin/wkhtmltopdf" ]]; then
@@ -135,11 +110,10 @@ curl -fL -o "${WKHTMLTOPDF_DIR}/libjpeg.deb" "${LIBJPEG_URL}" || {
     curl -fL -o "${WKHTMLTOPDF_DIR}/libjpeg.deb" "${LIBJPEG_URL}"
 }
 cd "${WKHTMLTOPDF_DIR}"
-ar x libjpeg.deb
-extract_deb_data "${WKHTMLTOPDF_DIR}"
+extract_deb libjpeg.deb "${WKHTMLTOPDF_DIR}"
 mkdir -p "${WKHTMLTOPDF_DIR}/lib"
 mv "${WKHTMLTOPDF_DIR}"/usr/lib/*/libjpeg* "${WKHTMLTOPDF_DIR}/lib/" 2>/dev/null || true
-rm -f libjpeg.deb data.tar* control.tar* debian-binary
+rm -f libjpeg.deb
 rm -rf "${WKHTMLTOPDF_DIR}/usr"
 log_info "libjpeg8 bundled in ${WKHTMLTOPDF_DIR}/lib"
 
@@ -169,9 +143,6 @@ fi
 
 # Clean up
 rm -f "${WKHTMLTOPDF_DIR}/wkhtmltox.deb"
-rm -f "${WKHTMLTOPDF_DIR}"/*.tar.*
-rm -f "${WKHTMLTOPDF_DIR}"/control.tar.*
-rm -f "${WKHTMLTOPDF_DIR}"/debian-binary
 
 # Verify installation
 log_info "Verifying wkhtmltopdf installation"

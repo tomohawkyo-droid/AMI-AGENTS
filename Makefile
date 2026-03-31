@@ -1,4 +1,5 @@
 # Makefile for AMI Agents
+SHELL := /bin/bash
 
 # Default target
 .PHONY: help
@@ -10,26 +11,32 @@ help: ## Show this help message
 
 # --- Main Installation Flow ---
 
+INSTALL_LOG := install-$(shell date +%Y%m%d-%H%M%S).log
+
 .PHONY: install
 install: ## Install AMI Agents in editable mode with all setup
-	@echo "🚀 Installing AMI Agents..."
-	$(MAKE) sync-package
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-bootstrap
-	$(MAKE) install-shell
-	@echo "✨ Installation complete!"
-	@bash ami/scripts/shell/shell-setup --welcome
+	@exec > >(tee -a "$(INSTALL_LOG)") 2>&1; \
+	echo "🚀 Installing AMI Agents..."; \
+	echo "📝 Log: $(INSTALL_LOG)"; \
+	$(MAKE) sync-package && \
+	$(MAKE) setup-config && \
+	$(MAKE) register-extensions && \
+	$(MAKE) install-bootstrap && \
+	$(MAKE) install-shell && \
+	echo "✨ Installation complete!" && \
+	bash ami/scripts/shell/shell-setup --welcome
 
 .PHONY: install-ci
 install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
-	@echo "🚀 Installing AMI Agents (CI mode)..."
-	$(MAKE) sync-package
-	$(MAKE) setup-config
-	$(MAKE) register-extensions
-	$(MAKE) install-bootstrap-ci
-	$(MAKE) install-shell
-	@echo "✨ Installation complete (CI mode)!"
+	@exec > >(tee -a "$(INSTALL_LOG)") 2>&1; \
+	echo "🚀 Installing AMI Agents (CI mode)..."; \
+	echo "📝 Log: $(INSTALL_LOG)"; \
+	$(MAKE) sync-package && \
+	$(MAKE) setup-config && \
+	$(MAKE) register-extensions && \
+	$(MAKE) install-bootstrap-ci && \
+	$(MAKE) install-shell && \
+	echo "✨ Installation complete (CI mode)!"
 
 .PHONY: ensure-ci
 ensure-ci: ## Auto-clone AMI-CI if missing

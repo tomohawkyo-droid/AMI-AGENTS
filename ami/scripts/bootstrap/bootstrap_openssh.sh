@@ -75,27 +75,25 @@ apt download openssh-server openssh-client 2>/dev/null || {
 mv openssh-server_*.deb openssh-server.deb
 mv openssh-client_*.deb openssh-client.deb
 
-# Extract packages without installing system-wide
+# Extract packages without installing system-wide (use dpkg-deb, always available on Debian/Ubuntu)
 log_info "Extracting OpenSSH binaries..."
-cd "${OPENSSH_DIR}"
-ar x openssh-server.deb
-tar -xf data.tar.* -C "${OPENSSH_DIR}" --strip-components=3 ./usr/sbin/sshd
 
-ar x openssh-client.deb
-tar -xf data.tar.* -C "${OPENSSH_DIR}" --strip-components=3 \
-    ./usr/bin/ssh \
-    ./usr/bin/ssh-keygen \
-    ./usr/bin/scp \
-    ./usr/bin/sftp 2>/dev/null || true
+TMPEXT="$(mktemp -d)"
 
-# Move binaries to correct locations
-mv "${OPENSSH_DIR}/sshd" "${OPENSSH_DIR}/sbin/"
+# Extract server package
+dpkg-deb -x openssh-server.deb "${TMPEXT}"
+[[ -f "${TMPEXT}/usr/sbin/sshd" ]] && cp "${TMPEXT}/usr/sbin/sshd" "${OPENSSH_DIR}/sbin/"
+
+# Extract client package
+dpkg-deb -x openssh-client.deb "${TMPEXT}"
 mkdir -p "${OPENSSH_DIR}/bin"
 for bin in ssh ssh-keygen scp sftp; do
-    if [[ -f "${OPENSSH_DIR}/${bin}" ]]; then
-        mv "${OPENSSH_DIR}/${bin}" "${OPENSSH_DIR}/bin/"
+    if [[ -f "${TMPEXT}/usr/bin/${bin}" ]]; then
+        cp "${TMPEXT}/usr/bin/${bin}" "${OPENSSH_DIR}/bin/"
     fi
 done
+
+rm -rf "${TMPEXT}"
 
 log_info "✓ OpenSSH binaries extracted"
 
@@ -225,7 +223,6 @@ ln -sf "${OPENSSH_DIR}/bin/sftp" "${BIN_DIR}/sftp"
 
 # Clean up
 rm -f "${OPENSSH_DIR}"/*.deb
-rm -f "${OPENSSH_DIR}"/{control.tar.*,data.tar.*,debian-binary}
 
 # Get installed OpenSSH version
 INSTALLED_VERSION=$("${OPENSSH_DIR}/sbin/sshd" -V 2>&1 | head -n1 | awk '{print $1}')

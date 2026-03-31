@@ -41,20 +41,22 @@ if ! apt download openssl 2>/dev/null; then
 fi
 
 log_info "Extracting..."
-ar x openssl_*.deb
-tar -xf data.tar.*
+TMPEXT="$(mktemp -d)"
+dpkg-deb -x openssl_*.deb "${TMPEXT}"
 
 # Find and move binary
-if [[ -f "./usr/bin/openssl" ]]; then
-    mv "./usr/bin/openssl" "${BIN_DIR}/openssl"
+if [[ -f "${TMPEXT}/usr/bin/openssl" ]]; then
+    cp "${TMPEXT}/usr/bin/openssl" "${BIN_DIR}/openssl"
     chmod +x "${BIN_DIR}/openssl"
     log_info "✓ Installed to ${BIN_DIR}/openssl"
 else
     log_error "Could not find openssl binary in package."
+    rm -rf "${TMPEXT}"
     exit 1
 fi
 
 # Cleanup
+rm -rf "${TMPEXT}"
 cd "${PROJECT_ROOT}"
 rm -rf "${OPENSSL_DIR}"
 

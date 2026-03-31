@@ -66,27 +66,21 @@ else
     fi
 
     log_info "Extracting OpenVPN binary..."
-    # Extract deb (it's a multi-stage process: ar, then tar for data.tar.xz)
-    ar x openvpn.deb
-    
-    # Locate data.tar.* (could be .xz, .gz, or .zst)
-    DATA_TAR=$(ls data.tar.*)
-    
-    # Extract only the openvpn binary
-    # We try both common locations: /usr/sbin and /sbin
-    mkdir -p bin_extract
-    tar -xf "$DATA_TAR" -C bin_extract
-    
-    if [ -f bin_extract/usr/sbin/openvpn ]; then
-        mv bin_extract/usr/sbin/openvpn "${OPENVPN_DIR}/sbin/openvpn"
-    elif [ -f bin_extract/sbin/openvpn ]; then
-        mv bin_extract/sbin/openvpn "${OPENVPN_DIR}/sbin/openvpn"
+    # Use dpkg-deb (always available on Debian/Ubuntu, handles all compression formats)
+    TMPEXT="$(mktemp -d)"
+    dpkg-deb -x openvpn.deb "${TMPEXT}"
+
+    if [ -f "${TMPEXT}/usr/sbin/openvpn" ]; then
+        mv "${TMPEXT}/usr/sbin/openvpn" "${OPENVPN_DIR}/sbin/openvpn"
+    elif [ -f "${TMPEXT}/sbin/openvpn" ]; then
+        mv "${TMPEXT}/sbin/openvpn" "${OPENVPN_DIR}/sbin/openvpn"
     else
         log_error "Could not find openvpn binary in package"
-        find bin_extract -name openvpn
+        find "${TMPEXT}" -name openvpn
+        rm -rf "${TMPEXT}"
         exit 1
     fi
-    rm -rf bin_extract
+    rm -rf "${TMPEXT}"
 
     # Create symlink in .boot-linux/bin
     ln -sf "${OPENVPN_DIR}/sbin/openvpn" "${VENV_DIR}/bin/openvpn"
