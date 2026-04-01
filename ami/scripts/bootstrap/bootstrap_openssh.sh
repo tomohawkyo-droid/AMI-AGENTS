@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # OpenSSH Bootstrap Script for AMI-ORCHESTRATOR
-# Downloads OpenSSH portable static build for venv installation
-# Runs on non-privileged port (2222) for git-only access
+# Downloads OpenSSH and all shared library dependencies into a self-contained directory.
+# Binaries are wrapped with LD_LIBRARY_PATH so they work on WSL and minimal installs.
+# Runs on non-privileged port (2222) for git-only access.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Script is in ami/scripts/bootstrap/, project root is 3 levels up
@@ -57,13 +58,12 @@ esac
 log_info "Bootstrapping OpenSSH for ${ARCH} on port ${SSH_PORT}"
 
 # Create OpenSSH directory structure
-mkdir -p "${OPENSSH_DIR}"/{bin,sbin,etc/ssh,var/empty,var/run}
+mkdir -p "${OPENSSH_DIR}"/{bin,sbin,lib,etc/ssh,var/empty,var/run}
 
-# Download OpenSSH packages using apt
-# This gets us pre-built binaries for the current system without needing to compile
+# ---------------------------------------------------------------------------
+# Download OpenSSH packages
+# ---------------------------------------------------------------------------
 log_info "Downloading OpenSSH packages..."
-
-# Use apt download to get the correct packages for this system
 cd "${OPENSSH_DIR}"
 apt download openssh-server openssh-client 2>/dev/null || {
     log_error "Failed to download OpenSSH packages"
@@ -75,7 +75,9 @@ apt download openssh-server openssh-client 2>/dev/null || {
 mv openssh-server_*.deb openssh-server.deb
 mv openssh-client_*.deb openssh-client.deb
 
-# Extract packages without installing system-wide (use dpkg-deb, always available on Debian/Ubuntu)
+# ---------------------------------------------------------------------------
+# Extract binaries
+# ---------------------------------------------------------------------------
 log_info "Extracting OpenSSH binaries..."
 
 TMPEXT="$(mktemp -d)"
@@ -94,15 +96,84 @@ for bin in ssh ssh-keygen scp sftp; do
 done
 
 rm -rf "${TMPEXT}"
+rm -f "${OPENSSH_DIR}"/*.deb
 
-log_info "✓ OpenSSH binaries extracted"
+log_info "OpenSSH binaries extracted"
 
-# Generate host keys
+# ---------------------------------------------------------------------------
+# Bundle shared library dependencies
+# All .so files are copied into OPENSSH_DIR/lib so the binaries are
+# self-contained and work on WSL / minimal installs without system libs.
+# ---------------------------------------------------------------------------
+log_info "Bundling shared library dependencies..."
+
+# Known runtime dependencies for openssh-server and openssh-client.
+# These are small (~2-3 MB total) and always bundled so the binaries
+# work regardless of what the host system has installed.
+OPENSSH_LIB_DEPS=(
+    libcrypt1
+    libaudit1
+    libpam0g
+    libselinux1
+    libwrap0
+    libgssapi-krb5-2
+    libkrb5-3
+    libcom-err2
+    libk5crypto3
+    libkrb5support0
+    libkeyutils1
+    libpcre2-8-0
+    zlib1g
+    libssl3t64
+)
+
+LIBTMP="$(mktemp -d)"
+cd "${LIBTMP}"
+for pkg in "${OPENSSH_LIB_DEPS[@]}"; do
+    apt download "$pkg" 2>/dev/null || log_warn "Could not download $pkg (may not be needed on this system)"
+done
+
+# Extract all .so files into OPENSSH_DIR/lib
+for deb in *.deb; do
+    [[ -f "$deb" ]] || continue
+    dpkg-deb -x "$deb" "${LIBTMP}/extract"
+    find "${LIBTMP}/extract" -name '*.so*' -exec cp --update=none {} "${OPENSSH_DIR}/lib/" \;
+    rm -rf "${LIBTMP}/extract"
+done
+rm -rf "${LIBTMP}"
+
+LIB_COUNT="$(find "${OPENSSH_DIR}/lib" -name '*.so*' | wc -l)"
+log_info "Bundled ${LIB_COUNT} shared libraries into ${OPENSSH_DIR}/lib/"
+
+# ---------------------------------------------------------------------------
+# Verify binaries work with bundled libraries
+# ---------------------------------------------------------------------------
+export LD_LIBRARY_PATH="${OPENSSH_DIR}/lib:${LD_LIBRARY_PATH:-}"
+
+if ! "${OPENSSH_DIR}/bin/ssh" -V 2>&1 | head -n1; then
+    log_error "ssh binary failed to execute with bundled libraries"
+    log_error "Missing libraries:"
+    ldd "${OPENSSH_DIR}/bin/ssh" 2>&1 | grep "not found" || true
+    exit 1
+fi
+log_info "Binaries verified with bundled libraries"
+
+# ---------------------------------------------------------------------------
+# Generate host keys (explicit per-type, not ssh-keygen -A)
+# ---------------------------------------------------------------------------
 log_info "Generating SSH host keys..."
-export PATH="${OPENSSH_DIR}/bin:$PATH"
-ssh-keygen -A -f "${OPENSSH_DIR}"
+KEYGEN="${OPENSSH_DIR}/bin/ssh-keygen"
+for ktype in rsa ecdsa ed25519; do
+    keyfile="${OPENSSH_DIR}/etc/ssh/ssh_host_${ktype}_key"
+    if [[ ! -f "$keyfile" ]]; then
+        "$KEYGEN" -t "$ktype" -f "$keyfile" -N "" -q
+        log_info "  Generated ${ktype} host key"
+    fi
+done
 
+# ---------------------------------------------------------------------------
 # Create sshd_config
+# ---------------------------------------------------------------------------
 log_info "Creating sshd configuration..."
 cat > "${OPENSSH_DIR}/etc/sshd_config" <<EOF
 # AMI-ORCHESTRATOR OpenSSH Server Configuration
@@ -147,9 +218,11 @@ StrictModes no
 Subsystem sftp internal-sftp
 EOF
 
-log_info "✓ Created ${OPENSSH_DIR}/etc/sshd_config"
+log_info "Created ${OPENSSH_DIR}/etc/sshd_config"
 
-# Create startup script
+# ---------------------------------------------------------------------------
+# Create sshd-venv startup script (with LD_LIBRARY_PATH)
+# ---------------------------------------------------------------------------
 log_info "Creating startup script..."
 mkdir -p "${BIN_DIR}"
 cat > "${BIN_DIR}/sshd-venv" <<EOFSCRIPT
@@ -158,6 +231,7 @@ set -euo pipefail
 
 # OpenSSH startup script in .boot-linux/bin
 OPENSSH_DIR="${OPENSSH_DIR}"
+export LD_LIBRARY_PATH="\${OPENSSH_DIR}/lib:\${LD_LIBRARY_PATH:-}"
 SSHD_BIN="\${OPENSSH_DIR}/sbin/sshd"
 SSHD_CONFIG="\${OPENSSH_DIR}/etc/sshd_config"
 PID_FILE="\${OPENSSH_DIR}/var/run/sshd.pid"
@@ -174,16 +248,35 @@ case "\${1:-}" in
             echo "sshd is already running (PID: \$(cat "\${PID_FILE}"))"
             exit 0
         fi
-        echo "Starting sshd on port \$(grep "^Port" "\${SSHD_CONFIG}" | awk '{print \$2}')..."
+        # Verify sshd binary can execute and config is valid
+        if ! "\${SSHD_BIN}" -t -f "\${SSHD_CONFIG}" 2>"\${OPENSSH_DIR}/var/run/sshd.log"; then
+            echo "Error: sshd config test failed. Check \${OPENSSH_DIR}/var/run/sshd.log" >&2
+            if command -v ldd &>/dev/null; then
+                MISSING=\$(ldd "\${SSHD_BIN}" 2>&1 | grep "not found" || true)
+                if [[ -n "\${MISSING}" ]]; then
+                    echo "Missing shared libraries:" >&2
+                    echo "\${MISSING}" >&2
+                fi
+            fi
+            exit 1
+        fi
+        PORT=\$(grep "^Port" "\${SSHD_CONFIG}" | awk '{print \$2}')
+        echo "Starting sshd on port \${PORT}..."
         "\${SSHD_BIN}" -f "\${SSHD_CONFIG}" -E "\${OPENSSH_DIR}/var/run/sshd.log"
-        echo "✓ sshd started"
+        sleep 0.5
+        if [[ -f "\${PID_FILE}" ]] && kill -0 "\$(cat "\${PID_FILE}")" 2>/dev/null; then
+            echo "sshd started (PID: \$(cat "\${PID_FILE}"))"
+        else
+            echo "Error: sshd failed to start. Check \${OPENSSH_DIR}/var/run/sshd.log" >&2
+            exit 1
+        fi
         ;;
     stop)
         if [[ -f "\${PID_FILE}" ]]; then
             echo "Stopping sshd (PID: \$(cat "\${PID_FILE}"))"
             kill "\$(cat "\${PID_FILE}")"
             rm -f "\${PID_FILE}"
-            echo "✓ sshd stopped"
+            echo "sshd stopped"
         else
             echo "sshd is not running"
         fi
@@ -212,25 +305,43 @@ esac
 EOFSCRIPT
 
 chmod +x "${BIN_DIR}/sshd-venv"
-log_info "✓ Created ${BIN_DIR}/sshd-venv"
+log_info "Created ${BIN_DIR}/sshd-venv"
 
-# Create symbolic links for consistency
-ln -sf "${OPENSSH_DIR}/sbin/sshd" "${BIN_DIR}/sshd"
-ln -sf "${OPENSSH_DIR}/bin/ssh" "${BIN_DIR}/ssh"
-ln -sf "${OPENSSH_DIR}/bin/ssh-keygen" "${BIN_DIR}/ssh-keygen"
-ln -sf "${OPENSSH_DIR}/bin/scp" "${BIN_DIR}/scp"
-ln -sf "${OPENSSH_DIR}/bin/sftp" "${BIN_DIR}/sftp"
+# ---------------------------------------------------------------------------
+# Create LD_LIBRARY_PATH wrapper scripts (not raw symlinks)
+# ---------------------------------------------------------------------------
+for cmd in ssh ssh-keygen scp sftp; do
+    cat > "${BIN_DIR}/${cmd}" <<WRAPPER
+#!/bin/bash
+export LD_LIBRARY_PATH="${OPENSSH_DIR}/lib:\${LD_LIBRARY_PATH:-}"
+exec "${OPENSSH_DIR}/bin/${cmd}" "\$@"
+WRAPPER
+    chmod +x "${BIN_DIR}/${cmd}"
+done
 
-# Clean up
-rm -f "${OPENSSH_DIR}"/*.deb
+cat > "${BIN_DIR}/sshd" <<WRAPPER
+#!/bin/bash
+export LD_LIBRARY_PATH="${OPENSSH_DIR}/lib:\${LD_LIBRARY_PATH:-}"
+exec "${OPENSSH_DIR}/sbin/sshd" "\$@"
+WRAPPER
+chmod +x "${BIN_DIR}/sshd"
 
-# Get installed OpenSSH version
-INSTALLED_VERSION=$("${OPENSSH_DIR}/sbin/sshd" -V 2>&1 | head -n1 | awk '{print $1}')
+# ---------------------------------------------------------------------------
+# Final verification
+# ---------------------------------------------------------------------------
+INSTALLED_VERSION="$("${OPENSSH_DIR}/sbin/sshd" -V 2>&1 | head -n1 || true)"
+if [[ -z "$INSTALLED_VERSION" ]]; then
+    log_error "sshd binary failed to execute after bundling"
+    log_error "Missing libraries:"
+    ldd "${OPENSSH_DIR}/sbin/sshd" 2>&1 | grep "not found" || true
+    exit 1
+fi
 
 log_info "OpenSSH bootstrap complete!"
 log_info "Installed components:"
 log_info "  - ${INSTALLED_VERSION}"
 log_info "  - SSH server port: ${SSH_PORT}"
+log_info "  - Bundled libs: ${OPENSSH_DIR}/lib/ (${LIB_COUNT} files)"
 log_info "  - Configuration: ${OPENSSH_DIR}/etc/sshd_config"
 log_info "  - Authorized keys: ${OPENSSH_DIR}/etc/authorized_keys"
 log_info ""
