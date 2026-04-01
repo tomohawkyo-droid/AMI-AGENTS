@@ -12,7 +12,7 @@ if [[ "$1" == "-i" || "$1" == "--install" ]]; then
 fi
 
 # Define the local venv python path
-VENV_PYTHON="/home/ami/AMI-AGENTS/.venv/bin/python"
+VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python"
 
 if [[ ! -f "$VENV_PYTHON" ]]; then
     echo "CRITICAL: Local venv python not found at $VENV_PYTHON" >&2
