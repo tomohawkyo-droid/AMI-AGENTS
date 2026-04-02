@@ -91,21 +91,19 @@ ami/
 
 ## Monorepo
 
-The `projects/` directory contains sub-projects with shared CI infrastructure:
+The `projects/` directory contains sub-projects with shared CI infrastructure. These will be made available as FOSS or on demand in the coming months. Contact us at **independentailabs@gmail.com**.
 
 | Project | Description |
 |---------|-------------|
-| **AMI-CI** | CI/CD framework, hook generation, check library |
-| **AMI-PORTAL** | Web portal application |
-| **AMI-TRADING** | Trading system |
-| **AMI-DATAOPS** | Data operations framework |
-| **AMI-STREAMS** | Stream processing |
-| **AMI-SRP** | Strategic resource planning |
-| **AMI-FOLD** | Compute platform |
-| **AMI-BROWSER** | Browser automation |
-| **RUST-TRADING** | Rust trading engine |
-| **RUST-HTTUI** | Rust HTTP TUI client |
-| **ZK-PORTAL** | Zero-knowledge portal |
+| [**AMI-CI**](https://github.com/Independent-AI-Labs/AMI-CI) | Universal code quality enforcement for monorepos. Two-layer shell + Python architecture enforcing 50+ patterns, native git hook generation, dead code detection, and dependency version pinning — no pre-commit runtime needed |
+| **AMI-PORTAL** | Next.js 15 web workspace with agent orchestration, tabbed file browsing, multi-format rendering (HTML, Markdown, LaTeX), DOM automation via element highlighting, NextAuth + DataOps gateway integration |
+| **AMI-TRADING** | Container-first ML time-series forecasting with 8 transformer architectures (Informer, Autoformer, FEDformer, iTransformer, MoE), 10 composable data transforms, 6 hardware backends, distributed task orchestration via PostgreSQL, MLflow tracking, and React/Vite dashboard with TradingView charts |
+| **AMI-DATAOPS** | Data operations toolkit deploying 9 services (PostgreSQL/pgvector, Redis, Dgraph, MongoDB, Prometheus, OpenBao, Keycloak, Vaultwarden, SearXNG) via Ansible + Docker Compose + systemd. Field-level encryption, PII auto-detection, DENY-first ACLs |
+| **AMI-STREAMS** | Real-time communication infrastructure: Synapse homeserver, Element Web, Matrix Authentication Service, LiveKit SFU for WebRTC, Traefik reverse proxy, Cloudflare Tunnel. Roadmap: RTMP ingest, HLS/DASH output, edge distribution, P2P swarming |
+| **AMI-SRP** | Strategic Resource Planning — unified command center for the AMI ecosystem. Planned: 3D WebGPU globe, ops center, graph explorer, ontology layer, NATS event backbone, CQRS data fusion engine, and full integration of all AMI subsystems |
+| **AMI-BROWSER** | Production Chromium automation with security-first JS execution, anti-detection (stealth, fingerprint randomization), isolated profiles, and 11 MCP tool families: navigation, DOM inspection, content extraction, screenshots, validated JS execution, SearXNG search, React DevTools |
+| **RUST-TRADING** | Rust ecosystem: **rust-ta** — zero-copy streaming technical analysis (20+ indicators, 8-339x over Python, SIMD optimized); **rust-zk-provider** — autonomous ZK privacy pool node for Solana with multi-wallet orchestration, FROST threshold signing, and full EU/US compliance (MiCA, AMLR, eIDAS 2.0, FATF, OFAC) |
+| **ZK-PORTAL** | Next.js 16 landing page and early-backer portal for ZK Pool Protocol on Solana. Dark-mode design system, KYC via Sumsub, credit card pre-orders via Ramp Network, SAFT signing, portfolio dashboard with vesting, referral system. EU MiCA small offering exemption |
 
 ---
 
