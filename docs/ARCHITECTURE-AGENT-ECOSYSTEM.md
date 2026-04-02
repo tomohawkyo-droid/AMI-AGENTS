@@ -157,14 +157,14 @@ graph TD
 
 ## Repo-Level Requirements Index
 
-| Requirement Document | Repo | Path |
-|---------------------|------|------|
-| Agent Container Isolation | AMI-AGENTS | `docs/requirements/REQUIREMENTS-AGENT-CONTAINERS.md` |
-| Chat Agent Security Profile | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-AGENT-PROFILE.md` |
-| Chat Backend (Gateway + A2A) | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-BACKEND.md` |
-| Chat UI (Sidebar) | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-UI.md` |
-| Task Engine (TODO/Planning) | AMI-SRP | `docs/requirements/REQUIREMENTS-TASK-ENGINE.md` |
-| This document | AMI-AGENTS | `docs/ARCHITECTURE-AGENT-ECOSYSTEM.md` |
+| Requirement Document | Spec Location | Implementation Repo | Path |
+|---------------------|---------------|---------------------|------|
+| Agent Container Isolation | AMI-AGENTS | AMI-AGENTS | `docs/requirements/REQUIREMENTS-AGENT-CONTAINERS.md` |
+| Chat Agent Security Profile | AMI-TRADING | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-AGENT-PROFILE.md` |
+| Chat Backend (Gateway + A2A) | AMI-TRADING | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-BACKEND.md` |
+| Chat UI (Sidebar) | AMI-TRADING | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-UI.md` |
+| Task Engine (TODO/Planning) | AMI-SRP | AMI-SRP | `docs/requirements/REQUIREMENTS-TASK-ENGINE.md` |
+| This document | AMI-AGENTS | — | `docs/ARCHITECTURE-AGENT-ECOSYSTEM.md` |
 
 ---
 

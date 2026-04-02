@@ -105,12 +105,6 @@ extensions:
     category: dev
     features: --file-id, --latest-local, --local-path
 
-  - name: ami-check-storage
-    binary: ami/scripts/bin/check_storage.py
-    description: Storage validation and monitoring
-    category: dev
-    features: disk, memory, alerts
-
   # ==========================================================================
   # AI Coding Agents (REQUIRE HUMAN SUPERVISION)
   # ==========================================================================

@@ -123,15 +123,7 @@ make install-ci       # Non-interactive CI mode (uses install-defaults.yaml)
 make dev              # Full install + pre-commit hooks
 ```
 
-### Hardware-Accelerated Variants
-
-| Hardware | Command | Notes |
-|----------|---------|-------|
-| CPU (Generic) | `make install-cpu` | Default for all platforms |
-| NVIDIA GPU | `make install-cuda` | CUDA 12.1+ required |
-| AMD GPU | `make install-rocm` | ROCm 6.4+ required |
-| Apple Silicon | `make install-mps` | Metal Performance Shaders |
-| Intel GPU | `make install-intel-xpu` | Intel XPU extensions |
+Hardware-accelerated PyTorch variants (CPU, CUDA, ROCm, MPS, Intel XPU) are selected during `make install-bootstrap` via the interactive component installer.
 
 ### Node.js Agents
 
@@ -294,7 +286,7 @@ Available components (24+ tools):
 
 - **Core**: `ami-agent`, `ami`, `ami-run`, `ami-repo`, `ami-pwd`, `ami-transcripts`
 - **Enterprise**: `ami-mail`, `ami-chat`, `ami-synadm`, `ami-kcadm`, `ami-browser`
-- **Development**: `ami-backup`, `ami-restore`, `ami-check-storage`
+- **Development**: `ami-backup`, `ami-restore`
 - **Agents** (require supervision): `ami-claude`, `ami-gemini`, `ami-qwen`
 
 ```bash
