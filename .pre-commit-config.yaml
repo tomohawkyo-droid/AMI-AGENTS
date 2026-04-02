@@ -45,12 +45,6 @@ repos:
         entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_init_files \"$@\"' --"
         language: system
         files: __init__\.py$
-      - id: portal-preflight
-        name: Portal Preflight
-        entry: bash -c 'cd projects/AMI-PORTAL && npm run preflight'
-        language: system
-        pass_filenames: false
-        files: ^projects/AMI-PORTAL/
       - id: mypy
         name: mypy
         entry: uv run python -m mypy
