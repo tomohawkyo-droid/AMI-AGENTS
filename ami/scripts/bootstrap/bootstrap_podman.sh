@@ -149,6 +149,7 @@ if ! command -v slirp4netns &> /dev/null; then
     fi
 else
     log_info "✓ slirp4netns found at $(command -v slirp4netns)"
+fi
 
 # Check for iptables (required by netavark)
 if ! command -v iptables &> /dev/null; then
@@ -163,7 +164,6 @@ if ! command -v iptables &> /dev/null; then
     fi
 else
     log_info "✓ iptables found at $(command -v iptables)"
-fi
 fi
 
 # AppArmor profile for rootless Podman (Ubuntu 24.04+)
