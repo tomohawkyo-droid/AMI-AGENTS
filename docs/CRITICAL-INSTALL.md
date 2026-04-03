@@ -80,7 +80,7 @@ We have two divergent implementations for installing AI agents. The Python boots
 ## 7. Hardcoded Infrastructure (ami_mail.py)
 **File:** `ami/scripts/bin/ami_mail.py`
 **The Failure:**
-SMTP host (`192.168.50.66`), port (`2526`), and sender address were hardcoded directly in the source code.
+SMTP host (`localhost`), port (`2526`), and sender address were hardcoded directly in the source code.
 **The Consequence:**
 The mail tool only works on a specific local network and fails immediately in any other environment (CI, Cloud, or different local subnet). This is a portability and security violation.
 **The Fix:**

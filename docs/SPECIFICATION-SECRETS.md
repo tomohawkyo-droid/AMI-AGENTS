@@ -24,8 +24,8 @@ services:
       - "8200:8200"
     environment:
       BAO_ADDR: "http://127.0.0.1:8200"
-      BAO_API_ADDR: "http://192.168.50.66:8200"
-      BAO_CLUSTER_ADDR: "http://192.168.50.66:8201"
+      BAO_API_ADDR: "http://localhost:8200"
+      BAO_CLUSTER_ADDR: "http://localhost:8201"
     volumes:
       - openbao_data:/var/lib/openbao/data
       - ./openbao/config.hcl:/etc/openbao.d/config.hcl:ro
@@ -67,8 +67,8 @@ listener "tcp" {
 }
 
 # API and cluster addresses
-api_addr     = "http://192.168.50.66:8200"
-cluster_addr = "http://192.168.50.66:8201"
+api_addr     = "http://localhost:8200"
+cluster_addr = "http://localhost:8201"
 
 # UI
 ui = true
@@ -92,8 +92,8 @@ max_lease_ttl     = "24h"
 
 | Service | Address | Port | Access |
 |---------|---------|------|--------|
-| OpenBao API | `192.168.50.66` | `8200` | Application backends only (NFR-1.9) |
-| OpenBao Cluster | `192.168.50.66` | `8201` | Inter-node (future HA) |
+| OpenBao API | `localhost` | `8200` | Application backends only (NFR-1.9) |
+| OpenBao Cluster | `localhost` | `8201` | Inter-node (future HA) |
 | Health Check | `/v1/sys/health` | `8200` | Monitoring |
 | Metrics | `/v1/sys/metrics` | `8200` | Prometheus (authenticated) |
 
@@ -365,8 +365,8 @@ bao auth enable jwt
 
 # Configure with Keycloak JWKS
 bao write auth/jwt/config \
-  jwks_url="http://192.168.50.66:8082/realms/ami/protocol/openid-connect/certs" \
-  bound_issuer="http://192.168.50.66:8082/realms/ami" \
+  jwks_url="http://localhost:8082/realms/ami/protocol/openid-connect/certs" \
+  bound_issuer="http://localhost:8082/realms/ami" \
   default_role="portal-user"
 ```
 
@@ -820,7 +820,7 @@ bao secrets enable -path=platform/database database
 # Configure PostgreSQL connection
 bao write platform/database/config/ami-portal-db \
   plugin_name=postgresql-database-plugin \
-  connection_url="postgresql://{{username}}:{{password}}@192.168.50.66:5432/ami_portal" \
+  connection_url="postgresql://{{username}}:{{password}}@localhost:5432/ami_portal" \
   allowed_roles="app-readonly,app-readwrite" \
   username="openbao_admin" \
   password="<admin-password>"

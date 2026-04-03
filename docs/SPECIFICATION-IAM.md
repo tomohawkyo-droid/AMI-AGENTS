@@ -24,7 +24,7 @@ This specification is split into four domain-specific documents. Each translates
 - Configuration examples use actual deployment values where known; placeholders use `<angle-brackets>`
 - HCL blocks are OpenBao policy syntax
 - JSON blocks are Keycloak realm export format
-- All ports, paths, and addresses reflect the current network topology (LAN: `192.168.50.66`)
+- All ports, paths, and addresses reflect the current network topology (LAN: `localhost`)
 
 ## Product Versions
 

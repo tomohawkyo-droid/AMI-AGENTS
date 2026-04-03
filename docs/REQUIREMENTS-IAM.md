@@ -22,9 +22,9 @@ The goal is to consolidate into a single IAM stack that provides:
 
 | Component | Role | Deployed At |
 |-----------|------|-------------|
-| **Keycloak** | Identity Provider — SSO, user management, identity brokering, RBAC | `192.168.50.66:8082` |
+| **Keycloak** | Identity Provider — SSO, user management, identity brokering, RBAC | `localhost:8082` |
 | **OpenBao** | Secrets Engine — KV secrets, dynamic credentials, transit encryption, PKI | TBD |
-| **AMI-PORTAL** | Unified UI — account management, admin panels, secrets browser | `192.168.50.66:3000` |
+| **AMI-PORTAL** | Unified UI — account management, admin panels, secrets browser | `localhost:3000` |
 
 ### 2.1 What Keycloak Owns
 

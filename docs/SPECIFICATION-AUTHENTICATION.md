@@ -61,12 +61,12 @@ volumes:
 
 | Service | Address | Port | Protocol |
 |---------|---------|------|----------|
-| Keycloak HTTP | `192.168.50.66` | `8082` | HTTP (TLS terminated at reverse proxy) |
-| Keycloak Management | `192.168.50.66` | `9082` | HTTP (health/metrics) |
+| Keycloak HTTP | `localhost` | `8082` | HTTP (TLS terminated at reverse proxy) |
+| Keycloak Management | `localhost` | `9082` | HTTP (health/metrics) |
 | PostgreSQL (KC) | `keycloak-db` (container) | `5432` | TCP |
-| OIDC Issuer URL | `http://192.168.50.66:8082/realms/ami` | — | — |
-| JWKS Endpoint | `http://192.168.50.66:8082/realms/ami/protocol/openid-connect/certs` | — | — |
-| Admin Console | `http://192.168.50.66:8082/admin/` | — | — |
+| OIDC Issuer URL | `http://localhost:8082/realms/ami` | — | — |
+| JWKS Endpoint | `http://localhost:8082/realms/ami/protocol/openid-connect/certs` | — | — |
+| Admin Console | `http://localhost:8082/admin/` | — | — |
 
 > **NFR-1.9**: The Admin Console (`/admin`) MUST be restricted to the management network. In production, reverse proxy rules MUST block `/admin/*` from public access.
 
@@ -302,7 +302,7 @@ Keycloak 26 configures security headers at the realm level:
 ```json
 {
   "browserSecurityHeaders": {
-    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self' https://192.168.50.66:3000; object-src 'none';",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self' https://localhost:3000; object-src 'none';",
     "contentSecurityPolicyReportOnly": "",
     "xContentTypeOptions": "nosniff",
     "xRobotsTag": "none",
@@ -538,7 +538,7 @@ After all mappers are configured, a Keycloak-issued access token for an authenti
 {
   "exp": 1709337600,
   "iat": 1709337300,
-  "iss": "http://192.168.50.66:8082/realms/ami",
+  "iss": "http://localhost:8082/realms/ami",
   "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "aud": ["ami-portal", "ami-trading"],
   "azp": "ami-portal",
@@ -587,11 +587,11 @@ The Portal is a **confidential** OIDC client with service account enabled for Ke
   "directAccessGrantsEnabled": false,
   "serviceAccountsEnabled": true,
   "redirectUris": [
-    "https://192.168.50.66:3000/api/auth/callback/keycloak",
+    "https://localhost:3000/api/auth/callback/keycloak",
     "http://localhost:3000/api/auth/callback/keycloak"
   ],
   "webOrigins": [
-    "https://192.168.50.66:3000",
+    "https://localhost:3000",
     "http://localhost:3000"
   ],
   "defaultClientScopes": ["openid", "profile", "email", "roles"],
@@ -599,8 +599,8 @@ The Portal is a **confidential** OIDC client with service account enabled for Ke
   "attributes": {
     "pkce.code.challenge.method": "S256",
     "backchannel.logout.session.required": "true",
-    "backchannel.logout.url": "https://192.168.50.66:3000/api/auth/backchannel-logout",
-    "post.logout.redirect.uris": "https://192.168.50.66:3000",
+    "backchannel.logout.url": "https://localhost:3000/api/auth/backchannel-logout",
+    "post.logout.redirect.uris": "https://localhost:3000",
     "access.token.lifespan": "300"
   }
 }
@@ -636,11 +636,11 @@ These are assigned by the bootstrap script (`scripts/bootstrap-keycloak.sh`).
   "serviceAccountsEnabled": true,
   "redirectUris": [
     "http://localhost:8080/api/v1/auth/callback",
-    "http://192.168.50.66:8080/api/v1/auth/callback"
+    "http://localhost:8080/api/v1/auth/callback"
   ],
   "webOrigins": [
     "http://localhost:8080",
-    "http://192.168.50.66:8080"
+    "http://localhost:8080"
   ],
   "defaultClientScopes": ["openid", "profile", "email", "roles"],
   "attributes": {
@@ -666,8 +666,8 @@ Trading validates Keycloak JWTs directly using the JWKS endpoint. Environment va
 
 | Variable | Value |
 |----------|-------|
-| `OIDC_ISSUER` | `http://192.168.50.66:8082/realms/ami` |
-| `OIDC_JWKS_URI` | `http://192.168.50.66:8082/realms/ami/protocol/openid-connect/certs` |
+| `OIDC_ISSUER` | `http://localhost:8082/realms/ami` |
+| `OIDC_JWKS_URI` | `http://localhost:8082/realms/ami/protocol/openid-connect/certs` |
 | `OIDC_AUDIENCE` | `ami-trading` |
 | `OIDC_CLIENT_ID` | `ami-trading` |
 | `OIDC_CLIENT_SECRET` | Stored in OpenBao (target), currently in `.env` |
@@ -884,7 +884,7 @@ Keycloak                           Portal                    Trading
 **Logout token claims:**
 ```json
 {
-  "iss": "http://192.168.50.66:8082/realms/ami",
+  "iss": "http://localhost:8082/realms/ami",
   "sub": "user-uuid",
   "aud": "ami-portal",
   "iat": 1709337600,
@@ -1015,9 +1015,9 @@ session.user = {
 |----------|----------|---------|
 | `KEYCLOAK_CLIENT_ID` | Yes | `ami-portal` |
 | `KEYCLOAK_CLIENT_SECRET` | Yes | `<from-bootstrap>` |
-| `KEYCLOAK_ISSUER` | Yes | `http://192.168.50.66:8082/realms/ami` |
+| `KEYCLOAK_ISSUER` | Yes | `http://localhost:8082/realms/ami` |
 | `AUTH_SECRET` | Yes | Base64 random value (NextAuth JWT signing) |
-| `NEXTAUTH_URL` | Yes | `https://192.168.50.66:3000` |
+| `NEXTAUTH_URL` | Yes | `https://localhost:3000` |
 | `AUTH_TRUST_HOST` | No | `true` (trust X-Forwarded headers) |
 | `AMI_GUEST_EMAIL` | No | `guest@ami.local` |
 | `AMI_GUEST_NAME` | No | `Guest AMI Account` |
@@ -1088,7 +1088,7 @@ Synapse delegates authentication to Keycloak via its OIDC provider configuration
 oidc_providers:
   - idp_id: keycloak
     idp_name: "AMI Platform"
-    issuer: "http://192.168.50.66:8082/realms/ami"
+    issuer: "http://localhost:8082/realms/ami"
     client_id: "matrix-synapse"
     client_secret: "<from-openbao>"
     scopes: ["openid", "profile", "email"]
