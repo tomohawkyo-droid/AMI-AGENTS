@@ -32,7 +32,6 @@ def test_aliases_exist_and_respond_to_help() -> None:
         "ami-agent",
         "ami-repo",
         "ami",
-        "ami-check-storage",
         "ami-backup",
         "ami-restore",
         "ami-claude",

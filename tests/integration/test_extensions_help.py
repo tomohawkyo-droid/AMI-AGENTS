@@ -27,7 +27,7 @@ def _find_project_root() -> Path:
 PROJECT_ROOT = _find_project_root()
 EXTENSIONS_YAML = PROJECT_ROOT / "ami" / "config" / "extensions.yaml"
 BIN_DIR = PROJECT_ROOT / ".boot-linux" / "bin"
-VALID_CATEGORIES = frozenset(["core", "enterprise", "dev", "agents"])
+VALID_CATEGORIES = frozenset(["core", "enterprise", "dev", "infra", "docs", "agents"])
 MIN_DESCRIPTION_LENGTH = 5
 
 
