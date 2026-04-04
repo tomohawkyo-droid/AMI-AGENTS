@@ -64,7 +64,7 @@ fi
 
 # Ensure a C linker is available (required by Rust toolchain)
 if ! command -v cc &>/dev/null && ! command -v gcc &>/dev/null; then
-    log_info "No C compiler found — installing build-essential (required by Rust)..."
+    log_info "No C compiler found. Installing build-essential (required by Rust)..."
     if command -v sudo &>/dev/null; then
         sudo apt-get update -qq && sudo apt-get install -y build-essential
     else

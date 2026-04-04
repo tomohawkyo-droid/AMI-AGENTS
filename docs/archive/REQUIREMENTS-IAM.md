@@ -1,4 +1,4 @@
-# AMI Identity, Access & Secrets Management — Requirements
+# AMI Identity, Access & Secrets Management: Requirements
 
 **Date:** 2026-03-01
 **Status:** DRAFT
@@ -12,9 +12,9 @@ The AMI ecosystem has **6 independent auth systems** across its services (see [A
 
 The goal is to consolidate into a single IAM stack that provides:
 
-1. **Centralised Account & Login Management** — one identity, one login, all applications
-2. **Credentials Storage & Retrieval** — service accounts and unattended access
-3. **Secrets Management** — per-user, per-team, and per-service secret storage
+1. **Centralised Account & Login Management**: one identity, one login, all applications
+2. **Credentials Storage & Retrieval**: service accounts and unattended access
+3. **Secrets Management**: per-user, per-team, and per-service secret storage
 
 ---
 
@@ -22,9 +22,9 @@ The goal is to consolidate into a single IAM stack that provides:
 
 | Component | Role | Deployed At |
 |-----------|------|-------------|
-| **Keycloak** | Identity Provider — SSO, user management, identity brokering, RBAC | `192.168.50.66:8082` |
-| **OpenBao** | Secrets Engine — KV secrets, dynamic credentials, transit encryption, PKI | TBD |
-| **AMI-PORTAL** | Unified UI — account management, admin panels, secrets browser | `192.168.50.66:3000` |
+| **Keycloak** | Identity Provider: SSO, user management, identity brokering, RBAC | `192.168.50.66:8082` |
+| **OpenBao** | Secrets Engine: KV secrets, dynamic credentials, transit encryption, PKI | TBD |
+| **AMI-PORTAL** | Unified UI: account management, admin panels, secrets browser | `192.168.50.66:3000` |
 
 ### 2.1 What Keycloak Owns
 
@@ -48,7 +48,7 @@ The goal is to consolidate into a single IAM stack that provides:
 
 ### 2.3 What OpenBao Owns
 
-- Secret storage (KV v2 — versioned, soft-delete, metadata)
+- Secret storage (KV v2: versioned, soft-delete, metadata)
 - Dynamic credential generation (database, cloud, SSH)
 - Encryption as a service (transit engine)
 - PKI / certificate authority
@@ -65,7 +65,7 @@ The goal is to consolidate into a single IAM stack that provides:
 - Keycloak groups/roles map to OpenBao policies via external identity groups
 - Users authenticate once via Keycloak; portal presents the Keycloak JWT to OpenBao's JWT auth method server-side to obtain a scoped OpenBao token
 - Service accounts authenticate to OpenBao via AppRole (machine identity) or JWT (Keycloak service account token)
-- Keycloak token claims (`groups`, `realm_access.roles`) drive OpenBao policy resolution — claim mappers in Keycloak MUST be configured to emit these
+- Keycloak token claims (`groups`, `realm_access.roles`) drive OpenBao policy resolution. Claim mappers in Keycloak MUST be configured to emit these
 
 ---
 
@@ -78,10 +78,10 @@ The goal is to consolidate into a single IAM stack that provides:
 | ID | Requirement |
 |----|-------------|
 | FR-1.1 | All AMI applications (Portal, Trading, Streams) MUST authenticate against Keycloak as the sole OIDC provider |
-| FR-1.2 | A user authenticated in one application MUST NOT be prompted to log in again when accessing another (redirect-based OIDC flow — Keycloak session cookie on Keycloak's domain enables seamless re-auth, NOT cross-domain cookie sharing) |
+| FR-1.2 | A user authenticated in one application MUST NOT be prompted to log in again when accessing another (redirect-based OIDC flow; Keycloak session cookie on Keycloak's domain enables seamless re-auth, NOT cross-domain cookie sharing) |
 | FR-1.3 | Logout from any application MUST terminate the Keycloak session via OIDC Back-Channel Logout |
 | FR-1.4 | Each application MUST register a backchannel logout URL with Keycloak and handle logout tokens to invalidate local sessions |
-| FR-1.5 | SSO works via redirect-based OIDC flows — each service independently validates tokens with Keycloak; cross-domain SSO does NOT rely on shared cookies |
+| FR-1.5 | SSO works via redirect-based OIDC flows. Each service independently validates tokens with Keycloak; cross-domain SSO does NOT rely on shared cookies |
 
 #### FR-2: Session Management
 
@@ -372,7 +372,7 @@ The `resolvePermissions()` function MUST accept both legacy and new role names. 
 |----|-------------|
 | FR-6.1 | Minimum password length: 12 characters |
 | FR-6.2 | Passwords MUST be checked against a breached password list (Keycloak password policy: `notCompromised`) |
-| FR-6.3 | No forced periodic rotation (per NIST 800-63B) — rotate only on suspected compromise |
+| FR-6.3 | No forced periodic rotation (per NIST 800-63B); rotate only on suspected compromise |
 | FR-6.4 | Password history: prevent reuse of last 5 passwords |
 | FR-6.5 | Keycloak's password blacklist policy MUST be enabled |
 
@@ -438,7 +438,7 @@ The `resolvePermissions()` function MUST accept both legacy and new role names. 
 |----|-------------|
 | FR-12.1 | Each authenticated user MUST have an isolated secret namespace in OpenBao: `secret/data/users/<entity-id>/*` |
 | FR-12.2 | Users MUST be able to create, read, update, and delete secrets in their namespace via the portal UI |
-| FR-12.3 | Secret versioning MUST be supported (KV v2 — view history, rollback, soft-delete) |
+| FR-12.3 | Secret versioning MUST be supported (KV v2: view history, rollback, soft-delete) |
 | FR-12.4 | Users MUST NOT be able to access other users' secret namespaces |
 | FR-12.5 | Policy enforcement MUST use identity-templated policies (no per-user policy creation) |
 
@@ -460,7 +460,7 @@ The `resolvePermissions()` function MUST accept both legacy and new role names. 
 | FR-14.3 | Copy-to-clipboard MUST be supported (using Clipboard API, NOT innerHTML) |
 | FR-14.4 | Version history MUST be viewable per secret |
 | FR-14.5 | Admins MUST be able to browse all secret paths they have policy access to |
-| FR-14.6 | Secret values MUST be treated as untrusted input — React JSX escaping handles rendering; no `dangerouslySetInnerHTML` |
+| FR-14.6 | Secret values MUST be treated as untrusted input. React JSX escaping handles rendering; no `dangerouslySetInnerHTML` |
 | FR-14.7 | Rate limiting MUST be applied to secret read/write API routes to prevent enumeration attacks |
 
 ---
@@ -472,7 +472,7 @@ The `resolvePermissions()` function MUST accept both legacy and new role names. 
 | ID | Requirement |
 |----|-------------|
 | NFR-1.1 | All inter-service communication MUST use TLS |
-| NFR-1.2 | OpenBao MUST be auto-unsealed — manual unseal is not acceptable for production |
+| NFR-1.2 | OpenBao MUST be auto-unsealed. Manual unseal is not acceptable for production |
 | NFR-1.3 | The OpenBao root token MUST be revoked after initial setup; emergency access MUST use `operator generate-root` with Shamir key holders |
 | NFR-1.4 | All secret access MUST be logged to an immutable audit trail (OpenBao file audit backend, exported to central logging) |
 | NFR-1.5 | Secrets in transit between portal and OpenBao MUST never be logged or cached client-side |
@@ -487,7 +487,7 @@ The `resolvePermissions()` function MUST accept both legacy and new role names. 
 |----|-------------|
 | NFR-2.1 | Keycloak access token lifetime: 5 minutes |
 | NFR-2.2 | Keycloak refresh token lifetime: aligned with SSO session idle timeout (30 minutes), with rotation enabled |
-| NFR-2.3 | OpenBao token TTL: 5 minutes (matching Keycloak access token), renewable — portal re-obtains on each request cycle using the current Keycloak JWT |
+| NFR-2.3 | OpenBao token TTL: 5 minutes (matching Keycloak access token), renewable. The portal re-obtains on each request cycle using the current Keycloak JWT |
 | NFR-2.4 | When a Keycloak session is revoked (admin termination or backchannel logout), the corresponding OpenBao token MUST NOT remain valid beyond its short TTL |
 | NFR-2.5 | Refresh tokens MUST be stored server-side only (encrypted in NextAuth session or server-side store), NEVER in browser-accessible cookies or localStorage |
 | NFR-2.6 | The portal's OpenBao token MUST be stored server-side only (in-memory or encrypted server-side session), NEVER sent to the browser |
@@ -509,7 +509,7 @@ The `resolvePermissions()` function MUST accept both legacy and new role names. 
 | NFR-4.1 | Keycloak database MUST be backed up daily (realm config, users, credentials, signing keys) |
 | NFR-4.2 | OpenBao MUST be backed up via Raft snapshots (if using Raft backend) or storage backend snapshots, daily minimum |
 | NFR-4.3 | Backup restore procedure MUST be tested and documented |
-| NFR-4.4 | OpenBao unseal keys (Shamir shares) MUST be escrowed securely — minimum 3-of-5 split, stored in separate physical/logical locations |
+| NFR-4.4 | OpenBao unseal keys (Shamir shares) MUST be escrowed securely, with a minimum 3-of-5 split stored in separate physical/logical locations |
 | NFR-4.5 | Recovery Time Objective (RTO): 1 hour for Keycloak, 1 hour for OpenBao |
 | NFR-4.6 | Recovery Point Objective (RPO): 24 hours (daily backup) |
 
@@ -601,7 +601,7 @@ The portal backend acts as a proxy between the browser and OpenBao:
 4. OpenBao token policies are determined by external group mappings (Keycloak groups → OpenBao external groups → policies)
 5. Portal stores the OpenBao token server-side (in-memory, per-session), NEVER sends it to the browser
 6. Portal API routes proxy secret operations to OpenBao using the user's scoped token
-7. Secret values are never stored in the portal — read-through only
+7. Secret values are never stored in the portal (read-through only)
 8. OpenBao token has short TTL (5 min) matching Keycloak access token; portal re-obtains as needed
 
 ### 5.2 OpenBao Namespace Hierarchy
@@ -844,7 +844,7 @@ The bootstrap script creates one such policy per Keycloak group and maps it via 
 ### 5.4 OpenBao Auth Methods
 
 ```
-auth/oidc/       (OIDC via Keycloak — for humans)
+auth/oidc/       (OIDC via Keycloak, for humans)
   role: platform-admin
     bound_claims: {"realm_access.roles": "platform-admin"}
     token_policies: [platform-admin]
@@ -853,7 +853,7 @@ auth/oidc/       (OIDC via Keycloak — for humans)
     claim_mappings: {"tenant_id": "tenant_id"}
     token_policies: []  (resolved via identity groups)
 
-auth/approle/    (AppRole — for services)
+auth/approle/    (AppRole, for services)
   role: svc-platform-core
     secret_id_num_uses: 1
     secret_id_ttl: 600
@@ -1012,7 +1012,7 @@ The `make bootstrap-keycloak` process MUST be extended (or a new `make bootstrap
 | 3 | Create/upgrade the `ami-portal` client (confidential, service account enabled) |
 | 4 | Configure protocol mappers on `ami-portal` client (`groups`, `realm_access.roles`) |
 | 5 | Assign realm-management roles to the service account (including `manage-identity-providers`) |
-| 6 | Create all social IdPs — enabled if credentials provided via env vars, disabled otherwise |
+| 6 | Create all social IdPs, enabled if credentials provided via env vars, disabled otherwise |
 | 7 | Create realm roles: `platform-superadmin` (composite), `platform-admin` (composite), `platform-operator` (leaf). Keep legacy `admin`/`editor`/`viewer`/`guest` as aliases during migration |
 | 8 | Create `ami-portal` client roles: `org-admin`, `team-lead`, `developer`, `member`, `viewer`, `guest` |
 | 8a | Create default groups mapped to roles (e.g., `/platform-ops` → `platform-operator`) |
@@ -1078,7 +1078,7 @@ All steps MUST be idempotent.
 
 | Check | Method |
 |-------|--------|
-| **SSO** | Log in to Portal, access Trading API — no second login prompt |
+| **SSO** | Log in to Portal, access Trading API. No second login prompt |
 | **Single logout** | Log out from Portal, verify Trading session is terminated via backchannel |
 | **IdPs listed** | Open drawer → Add Account → verify Google/GitHub/etc. listed |
 | **Personal secrets CRUD** | Create secret via portal, read it back, verify isolation |
@@ -1088,7 +1088,7 @@ All steps MUST be idempotent.
 | **Service account auth** | Service authenticates via AppRole, reads secret from its namespace |
 | **Dynamic credentials** | Request dynamic DB creds, verify auto-expiry after lease TTL |
 | **Audit trail** | Every secret read/write logged in OpenBao audit |
-| **Bootstrap idempotent** | Run `make bootstrap-iam` twice — no errors, no duplicates |
+| **Bootstrap idempotent** | Run `make bootstrap-iam` twice. No errors, no duplicates |
 | **MFA enforcement** | Admin role requires TOTP on login; viewer role does not |
 | **Brute force lockout** | 5 failed logins → account locked for 15 minutes |
 | **Password policy** | Reject passwords under 12 chars, reject compromised passwords |
@@ -1097,7 +1097,7 @@ All steps MUST be idempotent.
 | **Secret UI XSS** | Store secret value containing `<script>`, verify it renders as text |
 | **CSRF protection** | Replay a secret write request without CSRF token, verify 403 |
 | **Org isolation** | `org-admin` of org A cannot read secrets in org B namespace |
-| **Escalation guard** | `org-admin` cannot assign `platform-admin` role — API returns 403 |
+| **Escalation guard** | `org-admin` cannot assign `platform-admin` role; API returns 403 |
 | **Role assignment ceiling** | `team-lead` can assign `developer` but not `org-admin` |
 | **Service account isolation** | `svc-tenant-app--acme-corp` cannot read `globex-inc` secrets |
 | **Legacy role compat** | User with legacy `editor` role resolves to `developer` permissions |
@@ -1128,5 +1128,5 @@ All steps MUST be idempotent.
 5. **AMI-TRADING migration timeline**: Can Trading tolerate a flag day cutover, or does it need dual-auth during migration?
 6. **Domain architecture**: Will all services share a domain (subdomains) or remain on separate origins? Affects CORS configuration for OIDC callbacks.
 7. **Log aggregation**: ELK, Loki+Grafana, or something else? Needed before Phase 4 alerting.
-8. ~~**Multi-tenancy**~~: Addressed — Keycloak Organizations (v26+) and OpenBao namespaces are included in the permission model (see FR-5.5 and sections 5.2/5.5.1).
+8. ~~**Multi-tenancy**~~: Addressed. Keycloak Organizations (v26+) and OpenBao namespaces are included in the permission model (see FR-5.5 and sections 5.2/5.5.1).
 9. **Just-In-Time (JIT) access**: Should admin-level OpenBao access be time-limited with approval workflows, or is static role assignment acceptable?

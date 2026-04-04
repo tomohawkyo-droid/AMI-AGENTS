@@ -6,7 +6,7 @@ The hook validation pipeline replaces the original guard system with a configura
 
 ## Implementation Status
 
-### Phase 1 (v3.0.0) — COMPLETE
+### Phase 1 (v3.0.0): COMPLETE
 
 | Requirement | Status | Implementation |
 |---|---|---|
@@ -20,7 +20,7 @@ The hook validation pipeline replaces the original guard system with a configura
 | REQ-HOOK-012: Integrate policy loading | DONE | PolicyEngine loads deny, allow, sensitive, communication patterns |
 | REQ-HOOK-013: Update bootloader agent | DONE | `execute_shell()` dispatches PRE_BASH + PRE_EDIT hooks |
 
-### Phase 2 — NOT IMPLEMENTED
+### Phase 2: NOT IMPLEMENTED
 
 | Requirement | Status | Notes |
 |---|---|---|

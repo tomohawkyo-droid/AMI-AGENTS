@@ -2,7 +2,7 @@
 
 **Document Version:** 1.0
 **Classification:** Technical Specification
-**Domain:** Authentication & Identity -- Code Migration
+**Domain:** Authentication & Identity: Code Migration
 **Last Updated:** February 2026
 **Prerequisite Reading:** [SPEC-AUTH-OIDC-PROVIDER.md](SPEC-AUTH-OIDC-PROVIDER.md)
 
@@ -100,7 +100,7 @@ Complete file listing of `base/backend/opsec/` with line counts and external dep
 
 ## 3. Migration Disposition
 
-### 3.1. COPY -- Direct Copy with Minimal Changes
+### 3.1. COPY: Direct Copy with Minimal Changes
 
 #### `auth/exceptions.py` (55 lines) -> `backend/auth/exceptions.py`
 
@@ -111,16 +111,16 @@ Complete file listing of `base/backend/opsec/` with line counts and external dep
 **Changes**: None. The file imports only `from __future__ import annotations` and stdlib.
 
 **Source classes**:
-- `AuthProviderError` -- base class with `error_code`, `message`, `details`
-- `InvalidCredentialsError` -- `error_code = "invalid_credentials"`
-- `ProviderConfigurationError` -- `error_code = "invalid_config"`
-- `ProviderCommunicationError` -- `error_code = "connectivity_failed"`
-- `ProviderRateLimitError` -- `error_code = "rate_limited"`
-- `ProviderConsentError` -- `error_code = "consent_required"`
+- `AuthProviderError`: base class with `error_code`, `message`, `details`
+- `InvalidCredentialsError`: `error_code = "invalid_credentials"`
+- `ProviderConfigurationError`: `error_code = "invalid_config"`
+- `ProviderCommunicationError`: `error_code = "connectivity_failed"`
+- `ProviderRateLimitError`: `error_code = "rate_limited"`
+- `ProviderConsentError`: `error_code = "consent_required"`
 
 ---
 
-### 3.2. MIGRATE -- Adapt with Modifications
+### 3.2. MIGRATE: Adapt with Modifications
 
 #### `crypto/jwt_utils.py` JWTManager (lines 18-253) -> `backend/crypto/jwt_manager.py`
 
@@ -138,9 +138,9 @@ Complete file listing of `base/backend/opsec/` with line counts and external dep
 | 6 | Remove `get_token_expiry` and `is_token_expired` (lines 211-253) | Not needed; PyJWT handles expiry validation |
 
 **Preserved unchanged**:
-- `generate_rsa_keys()` static method (lines 63-92) -- RSA 2048-bit key generation
-- `create_token()` core logic (lines 94-134) -- JWT creation with HS256/RS256
-- `verify_token()` core logic (lines 136-183) -- JWT verification
+- `generate_rsa_keys()` static method (lines 63-92): RSA 2048-bit key generation
+- `create_token()` core logic (lines 94-134): JWT creation with HS256/RS256
+- `verify_token()` core logic (lines 136-183): JWT verification
 
 #### `crypto/encryption.py` TokenEncryption (lines 15-96) -> `backend/crypto/encryption.py`
 
@@ -180,28 +180,28 @@ Complete file listing of `base/backend/opsec/` with line counts and external dep
 
 ---
 
-### 3.3. REWRITE -- Same Semantics, New Persistence
+### 3.3. REWRITE: Same Semantics, New Persistence
 
 #### `auth/auth_service.py` (268 lines) -> `backend/auth/service.py`
 
 **Action**: Rewrite. Keep the public method signatures; replace internals.
 
 **Current dependencies to remove**:
-- `from base.backend.dataops.models.security import SecurityContext` -- replace with simple function args
-- `from base.backend.dataops.models.user import AuthProvider, AuthProviderType, User` -- replace with SQLAlchemy models
-- `from base.backend.opsec.auth import repository` -- replace with new `db/repository.py`
-- `from base.backend.opsec.auth.provider_registry import ...` -- replace with local registry
+- `from base.backend.dataops.models.security import SecurityContext` (replace with simple function args)
+- `from base.backend.dataops.models.user import AuthProvider, AuthProviderType, User` (replace with SQLAlchemy models)
+- `from base.backend.opsec.auth import repository` (replace with new `db/repository.py`)
+- `from base.backend.opsec.auth.provider_registry import ...` (replace with local registry)
 
 **Methods to preserve (with new implementation)**:
-- `authenticate_user(email, password)` -- verify credentials, return user
-- `get_user_by_email(email)` -- lookup user by email
-- `get_user_by_id(user_id)` -- lookup user by ID
-- `ensure_user(user_data)` -- upsert user record
-- `record_successful_login(user)` -- update login_count and last_login
+- `authenticate_user(email, password)`: verify credentials, return user
+- `get_user_by_email(email)`: lookup user by email
+- `get_user_by_id(user_id)`: lookup user by ID
+- `ensure_user(user_data)`: upsert user record
+- `record_successful_login(user)`: update login_count and last_login
 
 **Methods to drop**:
-- `_system_context()` -- SecurityContext pattern removed
-- Provider-specific authenticate/refresh/revoke -- handled by OIDC flows
+- `_system_context()`: SecurityContext pattern removed
+- Provider-specific authenticate/refresh/revoke, handled by OIDC flows
 
 #### `auth/repository.py` (150 lines) -> `backend/db/repository.py`
 
@@ -242,7 +242,7 @@ The `SecurityContext` parameter is removed in all functions. Access control is h
 **Action**: Rewrite and simplify from ~428 lines to ~80 lines.
 
 **What to keep** (business logic):
-- `COMMON_PASSWORDS` set (lines 34-50) -- weak password blocklist
+- `COMMON_PASSWORDS` set (lines 34-50): weak password blocklist
 - Password strength validation rules (lines 86-150):
   - Minimum length (8 characters)
   - Must contain uppercase, lowercase, digit, special character
@@ -251,12 +251,12 @@ The `SecurityContext` parameter is removed in all functions. Access control is h
 
 **What to drop**:
 - `UnifiedCRUD` integration (lines 22-23): `_crud = UnifiedCRUD()`
-- `PasswordRecord` model usage -- replace with simple bcrypt hash string
-- `PasswordResetToken` management -- OIDC handles password reset differently
-- `PasswordPolicy` Pydantic model -- inline the policy rules
-- `PasswordStrength` enum -- simplify to bool pass/fail
-- History-based validation (lines 200-250) -- requires `PasswordRecord` CRUD
-- PBKDF2/scrypt fallback chains -- standardize on bcrypt only
+- `PasswordRecord` model usage (replace with simple bcrypt hash string)
+- `PasswordResetToken` management (OIDC handles password reset differently)
+- `PasswordPolicy` Pydantic model (inline the policy rules)
+- `PasswordStrength` enum (simplify to bool pass/fail)
+- History-based validation (lines 200-250), requires `PasswordRecord` CRUD
+- PBKDF2/scrypt fallback chains (standardize on bcrypt only)
 
 **Target implementation**:
 ```python
@@ -285,16 +285,16 @@ def validate_password_strength(password: str, email: str = "") -> list[str]:
 
 ---
 
-### 3.4. PARTIAL -- Selective Migration
+### 3.4. PARTIAL: Selective Migration
 
 #### `auth/provider_adapters.py` (318 lines) -> `backend/auth/provider_adapters.py`
 
 **Action**: Migrate the `ProviderBootstrap` Pydantic model and `OAuthProviderAdapter` class. Drop `SshProviderAdapter` and `ApiKeyProviderAdapter`.
 
 **What to keep**:
-- `ProviderAdapter` ABC (lines 1-30) -- interface definition
-- `ProviderBootstrap` Pydantic model (~20 lines) -- authentication result container
-- `OAuthProviderAdapter` class (lines ~60-180) -- OAuth flow logic
+- `ProviderAdapter` ABC (lines 1-30): interface definition
+- `ProviderBootstrap` Pydantic model (~20 lines): authentication result container
+- `OAuthProviderAdapter` class (lines ~60-180): OAuth flow logic
 
 **What to change**:
 - Replace `aiohttp` with `httpx` for HTTP calls
@@ -302,12 +302,12 @@ def validate_password_strength(password: str, email: str = "") -> list[str]:
 - Remove `SecretStr` token handling (tokens stored in DB, not in-memory)
 
 **What to drop**:
-- `SshProviderAdapter` (~60 lines) -- SSH auth irrelevant for OIDC
-- `ApiKeyProviderAdapter` (~50 lines) -- API key auth not needed
+- `SshProviderAdapter` (~60 lines): SSH auth irrelevant for OIDC
+- `ApiKeyProviderAdapter` (~50 lines): API key auth not needed
 
 ---
 
-### 3.5. SKIP -- Not Migrated
+### 3.5. SKIP: Not Migrated
 
 | Module | Lines | Reason |
 |---|---|---|
@@ -406,8 +406,8 @@ This is orthogonal to the core OIDC provider and can be added after the base flo
 
 When ready:
 
-1. Create `backend/mfa/totp.py` -- migrate TOTP logic from `mfa_facade.py:24-100`
-2. Create `backend/mfa/backup_codes.py` -- migrate backup code logic from `mfa_facade.py:100-197`
+1. Create `backend/mfa/totp.py`, migrating TOTP logic from `mfa_facade.py:24-100`
+2. Create `backend/mfa/backup_codes.py`, migrating backup code logic from `mfa_facade.py:100-197`
 3. Add `mfa_devices` and `backup_codes` tables to `db/models.py`
 4. Wire into the OIDC authorize flow:
    - After password verification, check if user has MFA devices
@@ -484,9 +484,9 @@ After migration is complete and all consumers are using the OIDC provider:
 
 After all migration steps are complete:
 
-1. **No imports from base/opsec**: Grep `projects/AMI-AUTH/backend/` for `from base.` -- must return zero results
-2. **No UnifiedCRUD usage**: Grep for `UnifiedCRUD`, `get_crud`, `SecurityContext` -- must return zero results
-3. **No aiohttp usage**: Grep for `aiohttp` -- must return zero results (replaced by httpx)
+1. **No imports from base/opsec**: Grep `projects/AMI-AUTH/backend/` for `from base.`. Must return zero results.
+2. **No UnifiedCRUD usage**: Grep for `UnifiedCRUD`, `get_crud`, `SecurityContext`. Must return zero results.
+3. **No aiohttp usage**: Grep for `aiohttp`. Must return zero results (replaced by httpx).
 4. **All tests pass**: `uv run pytest projects/AMI-AUTH/tests/ -v` with 90%+ unit coverage
 5. **Pre-push hooks pass**: ruff format, ruff lint, mypy, banned words, file length
 6. **DataOps contract**: TypeScript `DataOpsClient` works against the Python service

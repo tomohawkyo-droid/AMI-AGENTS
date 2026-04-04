@@ -21,6 +21,8 @@ declare -A CATEGORY_COLORS=(
     ["core"]="$GOLD"
     ["enterprise"]="$CYAN"
     ["dev"]="$PINK"
+    ["infra"]="$PURPLE"
+    ["docs"]="$BLUE"
     ["agents"]="$RED"
 )
 
@@ -28,6 +30,8 @@ declare -A CATEGORY_ICONS=(
     ["core"]="🟡"
     ["enterprise"]="🌐"
     ["dev"]="🌸"
+    ["infra"]="🔧"
+    ["docs"]="📄"
     ["agents"]="🤖"
 )
 
@@ -35,11 +39,13 @@ declare -A CATEGORY_TITLES=(
     ["core"]="Core Execution & Management"
     ["enterprise"]="Enterprise Services"
     ["dev"]="Development Tools"
+    ["infra"]="Infrastructure & Networking"
+    ["docs"]="Document Production"
     ["agents"]="AI Coding Agents (REQUIRE HUMAN SUPERVISION)"
 )
 
 # Category display order
-CATEGORY_ORDER=("core" "enterprise" "dev" "agents")
+CATEGORY_ORDER=("core" "enterprise" "dev" "infra" "docs" "agents")
 
 # Define quiet mode echo function
 _ami_echo() {
@@ -169,6 +175,8 @@ _load_extension_metadata() {
     declare -ga EXT_CORE=()
     declare -ga EXT_ENTERPRISE=()
     declare -ga EXT_DEV=()
+    declare -ga EXT_INFRA=()
+    declare -ga EXT_DOCS=()
     declare -ga EXT_AGENTS=()
 
     while IFS='|' read -r name desc category binary features hidden container; do
@@ -185,6 +193,8 @@ _load_extension_metadata() {
             core)       EXT_CORE+=("$name") ;;
             enterprise) EXT_ENTERPRISE+=("$name") ;;
             dev)        EXT_DEV+=("$name") ;;
+            infra)      EXT_INFRA+=("$name") ;;
+            docs)       EXT_DOCS+=("$name") ;;
             agents)     EXT_AGENTS+=("$name") ;;
         esac
     done < <(_parse_extensions_yaml)

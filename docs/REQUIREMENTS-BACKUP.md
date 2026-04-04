@@ -51,9 +51,9 @@ The current backup system (`ami/scripts/backup/`) requires Google Drive OAuth or
 - **REQ-BAK-042**: System shall support explicit mode override via CLI flag (`--mode`)
 - **REQ-BAK-043**: System shall not require Google Drive credentials when operating in rsync or archive mode
 - **REQ-BAK-044**: Backup targets shall be configurable via environment variables:
-  - `AMI_BACKUP_MOUNT` — local mount path (default: `/media/backup`)
-  - `AMI_BACKUP_REMOTE` — network target (e.g., `rsync://nas:8873/backup` or `user@host:/backup`)
-  - `BACKUP_MAX_SNAPSHOTS` — retention limit (default: 10)
+  - `AMI_BACKUP_MOUNT`: local mount path (default: `/media/backup`)
+  - `AMI_BACKUP_REMOTE`: network target (e.g., `rsync://nas:8873/backup` or `user@host:/backup`)
+  - `BACKUP_MAX_SNAPSHOTS`: retention limit (default: 10)
 - **REQ-BAK-045**: System shall validate that at least one backup target is reachable before starting the backup
 
 ### 6. Progress & Reporting
@@ -118,7 +118,7 @@ The current backup system (`ami/scripts/backup/`) requires Google Drive OAuth or
 - Existing `.env` configurations shall continue to work without modification
 
 ### Filesystem Constraints
-- Hard-link snapshots require the backup drive to support hard links (ext4, xfs, btrfs — not FAT32/NTFS)
+- Hard-link snapshots require the backup drive to support hard links (ext4, xfs, btrfs, but not FAT32/NTFS)
 - Network targets via rsync protocol do not use hard-link deduplication (server-side dedup is the server's responsibility)
 - SSH targets support hard-links only if the remote filesystem supports them
 
@@ -148,10 +148,10 @@ The current backup system (`ami/scripts/backup/`) requires Google Drive OAuth or
 ## Dependencies
 
 ### Internal
-- `ami/scripts/backup/` — existing backup system
-- `ami/scripts/backup/common/constants.py` — exclusion patterns, mount points
-- `ami/scripts/bootstrap/` — bootstrap script system
-- `ami/scripts/bootstrap_components.py` — component registry
+- `ami/scripts/backup/`: existing backup system
+- `ami/scripts/backup/common/constants.py`: exclusion patterns, mount points
+- `ami/scripts/bootstrap/`: bootstrap script system
+- `ami/scripts/bootstrap_components.py`: component registry
 
 ### External
 - `rsync` (bootstrapped binary, no system dependency)

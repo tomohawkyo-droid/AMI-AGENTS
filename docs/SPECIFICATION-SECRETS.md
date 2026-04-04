@@ -1,4 +1,4 @@
-# Secrets Management — Technical Specification
+# Secrets Management: Technical Specification
 
 **Date:** 2026-03-01
 **Status:** DRAFT
@@ -49,13 +49,13 @@ volumes:
 
 cluster_name = "ami-openbao"
 
-# Raft integrated storage — single node, no HA for initial deployment
+# Raft integrated storage, single node, no HA for initial deployment
 storage "raft" {
   path    = "/var/lib/openbao/data"
   node_id = "ami-openbao-1"
 }
 
-# TCP listener — TLS disabled initially (behind reverse proxy)
+# TCP listener: TLS disabled initially (behind reverse proxy)
 # Production: enable TLS directly
 listener "tcp" {
   address       = "0.0.0.0:8200"
@@ -73,7 +73,7 @@ cluster_addr = "http://192.168.50.66:8201"
 # UI
 ui = true
 
-# Telemetry — Prometheus scrape endpoint
+# Telemetry: Prometheus scrape endpoint
 telemetry {
   prometheus_retention_time    = "30s"
   disable_hostname             = true
@@ -164,7 +164,7 @@ The unseal OpenBao instance is a minimal install with only the transit engine. I
 Two audit devices MUST be enabled:
 
 ```bash
-# File audit — primary
+# File audit (primary)
 bao audit enable file \
   file_path=/var/log/openbao/audit.log \
   mode=0600 \
@@ -172,7 +172,7 @@ bao audit enable file \
   log_raw=false \
   hmac_accessor=true
 
-# Stdout audit — for Docker log driver → log aggregation
+# Stdout audit: for Docker log driver → log aggregation
 bao audit enable -path=stdout file \
   file_path=stdout \
   format=json \
@@ -247,10 +247,10 @@ bao write platform/transit/keys/token-signing \
 
 API operations:
 ```
-POST /v1/platform/transit/encrypt/portal-data   — encrypt data
-POST /v1/platform/transit/decrypt/portal-data   — decrypt data
-POST /v1/platform/transit/keys/portal-data/rotate — rotate key (old versions kept)
-POST /v1/platform/transit/rewrap/portal-data    — re-encrypt with latest key
+POST /v1/platform/transit/encrypt/portal-data    # encrypt data
+POST /v1/platform/transit/decrypt/portal-data    # decrypt data
+POST /v1/platform/transit/keys/portal-data/rotate # rotate key (old versions kept)
+POST /v1/platform/transit/rewrap/portal-data     # re-encrypt with latest key
 ```
 
 ### 3.3 PKI Engine
@@ -435,7 +435,7 @@ bao write auth/approle/role/svc-platform-core \
   token_policies="svc-platform-core" \
   token_bound_cidrs="192.168.50.0/24"
 
-# CI/CD deployer (single-use SecretIDs — FR-5.7.6)
+# CI/CD deployer (single-use SecretIDs, FR-5.7.6)
 bao write auth/approle/role/svc-cicd-deployer \
   bind_secret_id=true \
   secret_id_num_uses=1 \
@@ -679,9 +679,9 @@ The bootstrap script creates one such policy per Keycloak group and maps it via 
 
 ---
 
-## 7. Portal Secrets UI — API Contract (FR-14)
+## 7. Portal Secrets UI: API Contract (FR-14)
 
-The portal acts as a proxy between the browser and OpenBao. Secret values are **never stored in the portal** — read-through only. The OpenBao token is held server-side (NFR-2.6).
+The portal acts as a proxy between the browser and OpenBao. Secret values are **never stored in the portal**, read-through only. The OpenBao token is held server-side (NFR-2.6).
 
 ### 7.1 API Routes
 
@@ -879,10 +879,10 @@ bao lease revoke <lease-id>
 
 | Database | Plugin | Status |
 |----------|--------|--------|
-| PostgreSQL | `postgresql-database-plugin` | FR-10.4 — primary |
-| MySQL | `mysql-database-plugin` | FR-10.4 — supported |
-| MongoDB | `mongodb-database-plugin` | FR-10.4 — supported |
-| Redis | `redis-database-plugin` | FR-10.4 — supported |
+| PostgreSQL | `postgresql-database-plugin` | FR-10.4, primary |
+| MySQL | `mysql-database-plugin` | FR-10.4, supported |
+| MongoDB | `mongodb-database-plugin` | FR-10.4, supported |
+| Redis | `redis-database-plugin` | FR-10.4, supported |
 
 ---
 
@@ -899,9 +899,9 @@ bao lease revoke <lease-id>
 | FR-10.7 Lease duration 1h/24h | 8.3 | Specified |
 | FR-11.1 CI/CD AppRole with single-use SecretIDs | 5.2 | Specified |
 | FR-11.2 Runtime credential retrieval | 8.2 | Specified |
-| FR-11.3 Migrate .env to OpenBao | — | Deferred to SPEC-OPERATIONS |
+| FR-11.3 Migrate .env to OpenBao | N/A | Deferred to SPEC-OPERATIONS |
 | FR-11.4 Response wrapping for secret delivery | 5.3 | Specified |
-| FR-11.5 SSH certificate signing | — | Future (PKI engine) |
+| FR-11.5 SSH certificate signing | N/A | Future (PKI engine) |
 | FR-12.1 Isolated personal namespace | 4.1 | Specified |
 | FR-12.2 Personal secrets CRUD via portal | 7.1 | Specified |
 | FR-12.3 Secret versioning (KV v2) | 3.1, 7.1 | Specified |

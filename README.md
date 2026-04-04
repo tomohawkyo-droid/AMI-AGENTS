@@ -44,7 +44,7 @@ ami-agent   # or simply: @
 | **MCP Servers** | Model Context Protocol server integration for providers |
 | **Multi-Architecture** | CPU, CUDA, ROCm, Intel XPU, MPS acceleration |
 | **Session Management** | UUID-based conversation continuity with transcript search |
-| **CI Pipeline** | Per-repo native bash git hooks via AMI-CI — framework-agnostic (Python, Rust, Node.js) |
+| **CI Pipeline** | Per-repo native bash git hooks via AMI-CI, framework-agnostic (Python, Rust, Node.js) |
 | **Monorepo** | 11+ sub-projects with shared CI infrastructure |
 
 ---
@@ -95,14 +95,14 @@ The `projects/` directory contains sub-projects with shared CI infrastructure. T
 
 | Project | Description |
 |---------|-------------|
-| [**AMI-CI**](https://github.com/Independent-AI-Labs/AMI-CI) | Universal code quality enforcement for monorepos. Two-layer shell + Python architecture enforcing 50+ patterns, native git hook generation, dead code detection, and dependency version pinning — no pre-commit runtime needed |
+| [**AMI-CI**](https://github.com/Independent-AI-Labs/AMI-CI) | Universal code quality enforcement for monorepos. Two-layer shell + Python architecture enforcing 50+ patterns, native git hook generation, dead code detection, and dependency version pinning (no pre-commit runtime needed) |
 | **AMI-PORTAL** | Next.js 15 web workspace with agent orchestration, tabbed file browsing, multi-format rendering (HTML, Markdown, LaTeX), DOM automation via element highlighting, NextAuth + DataOps gateway integration |
 | **AMI-TRADING** | Container-first ML time-series forecasting with 8 transformer architectures (Informer, Autoformer, FEDformer, iTransformer, MoE), 10 composable data transforms, 6 hardware backends, distributed task orchestration via PostgreSQL, MLflow tracking, and React/Vite dashboard with TradingView charts |
 | **AMI-DATAOPS** | Data operations toolkit deploying 9 services (PostgreSQL/pgvector, Redis, Dgraph, MongoDB, Prometheus, OpenBao, Keycloak, Vaultwarden, SearXNG) via Ansible + Docker Compose + systemd. Field-level encryption, PII auto-detection, DENY-first ACLs |
 | **AMI-STREAMS** | Real-time communication infrastructure: Synapse homeserver, Element Web, Matrix Authentication Service, LiveKit SFU for WebRTC, Traefik reverse proxy, Cloudflare Tunnel. Roadmap: RTMP ingest, HLS/DASH output, edge distribution, P2P swarming |
-| **AMI-SRP** | Strategic Resource Planning — unified command center for the AMI ecosystem. Planned: 3D WebGPU globe, ops center, graph explorer, ontology layer, NATS event backbone, CQRS data fusion engine, and full integration of all AMI subsystems |
+| **AMI-SRP** | Strategic Resource Planning: unified command center for the AMI ecosystem. Planned: 3D WebGPU globe, ops center, graph explorer, ontology layer, NATS event backbone, CQRS data fusion engine, and full integration of all AMI subsystems |
 | **AMI-BROWSER** | Production Chromium automation with security-first JS execution, anti-detection (stealth, fingerprint randomization), isolated profiles, and 11 MCP tool families: navigation, DOM inspection, content extraction, screenshots, validated JS execution, SearXNG search, React DevTools |
-| **RUST-TRADING** | Rust ecosystem: **rust-ta** — zero-copy streaming technical analysis (20+ indicators, 8-339x over Python, SIMD optimized); **rust-zk-provider** — autonomous ZK privacy pool node for Solana with multi-wallet orchestration, FROST threshold signing, and full EU/US compliance (MiCA, AMLR, eIDAS 2.0, FATF, OFAC) |
+| **RUST-TRADING** | Rust ecosystem: **rust-ta**, a zero-copy streaming technical analysis library (20+ indicators, 8-339x over Python, SIMD optimized); **rust-zk-provider**, an autonomous ZK privacy pool node for Solana with multi-wallet orchestration, FROST threshold signing, and full EU/US compliance (MiCA, AMLR, eIDAS 2.0, FATF, OFAC) |
 | **ZK-PORTAL** | Next.js 16 landing page and early-backer portal for ZK Pool Protocol on Solana. Dark-mode design system, KYC via Sumsub, credit card pre-orders via Ramp Network, SAFT signing, portfolio dashboard with vesting, referral system. EU MiCA small offering exemption |
 
 ---
@@ -233,9 +233,9 @@ Security patterns are defined in YAML:
 
 ## CI Pipeline
 
-Each repo manages its own CI via its own `.pre-commit-config.yaml`. [AMI-CI](https://github.com/Independent-AI-Labs/AMI-CI) provides a shared check library (`lib/checks.sh`) and a hook generator (`scripts/generate-hooks`) that produces **native bash git hooks** from the config — no Python pre-commit runtime needed. The same system works across Python, Rust, Node.js, and any framework: each project declares its own linter/formatter/test runner, while AMI-CI provides universal checks (banned words, file length, sensitive files, coverage gates) that apply to all.
+Each repo manages its own CI via its own `.pre-commit-config.yaml`. [AMI-CI](https://github.com/Independent-AI-Labs/AMI-CI) provides a shared check library (`lib/checks.sh`) and a hook generator (`scripts/generate-hooks`) that produces **native bash git hooks** from the config (no Python pre-commit runtime needed). The same system works across Python, Rust, Node.js, and any framework: each project declares its own linter/formatter/test runner, while AMI-CI provides universal checks (banned words, file length, sensitive files, coverage gates) that apply to all.
 
-Coverage verification is framework-agnostic — projects declare their test runner in `config/coverage_thresholds.yaml` and `ci_verify_coverage` pattern-matches the runner (`*pytest*`, `*cargo*`, `*vitest*`) to apply the correct flags.
+Coverage verification is framework-agnostic. Projects declare their test runner in `config/coverage_thresholds.yaml` and `ci_verify_coverage` pattern-matches the runner (`*pytest*`, `*cargo*`, `*vitest*`) to apply the correct flags.
 
 ### This repo's hooks
 

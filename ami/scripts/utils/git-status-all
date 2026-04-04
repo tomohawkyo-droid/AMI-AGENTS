@@ -2,7 +2,7 @@
 # Reports git status for all repositories under projects/
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 PROJECTS_DIR="${PROJECT_ROOT}/projects"
 
@@ -70,7 +70,7 @@ while IFS= read -r git_dir; do
 
         echo -e "${RED}✗${NC} ${BOLD}${repo_name}${NC}  ${CYAN}${branch}${NC}  ${sync}  ${changes}"
     fi
-done < <(find "$PROJECTS_DIR" -name .git -type d 2>/dev/null | sort)
+done < <({ echo "$PROJECT_ROOT/.git"; find "$PROJECTS_DIR" -name .git -type d 2>/dev/null; } | sort)
 
 echo ""
 echo -e "${BOLD}${total_count}${NC} repos: ${GREEN}${clean_count} clean${NC}, ${RED}${dirty_count} dirty${NC}"

@@ -1,4 +1,4 @@
-# AMI Agent Ecosystem — Cross-Repo Architecture
+# AMI Agent Ecosystem: Cross-Repo Architecture
 
 > How containerised AI agents, the gateway, chat UI, task engine, and A2A protocol connect across AMI-AGENTS, AMI-TRADING, and AMI-SRP.
 
@@ -51,7 +51,7 @@ graph TD
 | Component | Repo | Language | Responsibility |
 |-----------|------|----------|----------------|
 | **ami-agent** | AMI-AGENTS | Python | The agent itself (BootloaderAgent, ReAct loop). Runs on host AND inside containers. |
-| **ami-agentd** | AMI-AGENTS | Rust (Axum) | Single binary: CLI (`create/start/stop/sync`) + gateway server (`serve`). Manages containers via podman, proxies A2A to agent UDS, OIDC auth, TLS, interaction logs (SQLite/PG). **Host only** — disabled inside containers (`AMI_CONTAINER=1`). |
+| **ami-agentd** | AMI-AGENTS | Rust (Axum) | Single binary: CLI (`create/start/stop/sync`) + gateway server (`serve`). Manages containers via podman, proxies A2A to agent UDS, OIDC auth, TLS, interaction logs (SQLite/PG). **Host only**, disabled inside containers (`AMI_CONTAINER=1`). |
 | **Agent Container** | AMI-AGENTS | Python (Starlette + BootloaderAgent) | Runs A2A server on UDS. Executes claude/qwen CLI subprocesses. Isolated filesystem, network whitelist. |
 | **Chat Sidebar** | AMI-TRADING | React/TypeScript | Browser UI. Sends POST, receives SSE. Talks to gateway, not agents directly. |
 | **srp-tasks** | AMI-SRP | Rust | TODO/planning task engine. Operational task tracking, NOT execution. State machine + PostgreSQL + NATS. |
@@ -164,7 +164,7 @@ graph TD
 | Chat Backend (Gateway + A2A) | AMI-TRADING | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-BACKEND.md` |
 | Chat UI (Sidebar) | AMI-TRADING | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-UI.md` |
 | Task Engine (TODO/Planning) | AMI-SRP | AMI-SRP | `docs/requirements/REQUIREMENTS-TASK-ENGINE.md` |
-| This document | AMI-AGENTS | — | `docs/ARCHITECTURE-AGENT-ECOSYSTEM.md` |
+| This document | AMI-AGENTS | N/A | `docs/ARCHITECTURE-AGENT-ECOSYSTEM.md` |
 
 ---
 
@@ -177,9 +177,9 @@ graph TD
 | Streaming | SSE (not WebSocket) | A2A-native, supports auth headers, HTTP/3 efficient |
 | ami-agentd | Single Rust binary: CLI + gateway | Container mgmt + A2A proxy in one binary, like `podman` CLI + `podman system service` |
 | Interaction logs | Gateway owns, SRP PostgreSQL | Audit/observability records (NOT srp-tasks which is TODO/planning) |
-| Agent provisioning | `ami-agentd` CLI wrapping `podman` + Podman labels for metadata | No custom registry, no manifest files — `podman ps` IS the registry |
+| Agent provisioning | `ami-agentd` CLI wrapping `podman` + Podman labels for metadata | No custom registry, no manifest files. `podman ps` IS the registry |
 | Container→host sync | `ami-agentd sync` (rsync on demand) | No daemon, no inotifywait, user syncs when needed |
-| Credentials | Bind mount `:ro` | Not rsync — host changes visible immediately, agent can't modify |
+| Credentials | Bind mount `:ro` | Not rsync: host changes visible immediately, agent can't modify |
 | Agent upgrades | In-place npm update | Fast iteration, no image rebuild |
 | Monitoring | systemd journal + CLI | Simple, local-only, no external stack |
 | ami-browser access | `execute_allow` in ScopeOverride | Per-command allowlist, minimal tier system change |

@@ -123,6 +123,6 @@ if [[ -f "$GUARD_SCRIPT" ]]; then
     log_info "✓ Installed git-guard as ${BIN_DIR}/git"
     log_info "  Real git available at: ${BIN_DIR}/real-git"
 else
-    log_warn "Guard script not found at $GUARD_SCRIPT, falling back to direct symlink"
-    ln -sf "../git/bin/git" "${BIN_DIR}/git"
+    log_error "Guard script not found at $GUARD_SCRIPT. Bootstrap is broken."
+    exit 1
 fi

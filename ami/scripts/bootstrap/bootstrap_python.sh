@@ -51,7 +51,7 @@ mkdir -p "${BIN_DIR}"
 # Create venv in subdirectory (not at .boot-linux root)
 "$UV_CMD" venv "${PYTHON_ENV}" --seed
 
-# Symlink to bin/ for compatibility with other scripts
+# Symlink to bin/ so other scripts can find the binary
 ln -sf "${PYTHON_ENV}/bin/python" "${BIN_DIR}/python"
 ln -sf "${PYTHON_ENV}/bin/pip" "${BIN_DIR}/pip"
 

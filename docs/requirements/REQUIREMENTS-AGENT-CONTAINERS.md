@@ -2,28 +2,28 @@
 
 ## Purpose
 
-Run AI coding agents (Claude, Qwen, Gemini) in isolated Podman containers with controlled filesystem access, network whitelisting, and A2A protocol communication. Lean on Podman's native features — labels for metadata, volumes for persistence, network policies for isolation. Minimal custom code.
+Run AI coding agents (Claude, Qwen, Gemini) in isolated Podman containers with controlled filesystem access, network whitelisting, and A2A protocol communication. Lean on Podman's native features: labels for metadata, volumes for persistence, network policies for isolation. Minimal custom code.
 
 ## Naming Convention
 
 | Binary | Role | Where it runs |
 |--------|------|---------------|
 | `ami-agent` | The agent itself (BootloaderAgent, ReAct loop, CLI providers) | Host AND containers |
-| `ami-agentd` | Container manager + A2A gateway. Single Rust binary, two modes. | **Host only** — disabled inside containers |
+| `ami-agentd` | Container manager + A2A gateway. Single Rust binary, two modes. | **Host only** (disabled inside containers) |
 
 `ami-agentd` is a **single Rust (Axum) binary** that serves as both the CLI and the gateway:
-- `ami-agentd create/start/stop/list/sync/...` — CLI commands (run podman, exit)
-- `ami-agentd serve` — starts the A2A gateway server (long-running, port `:8900`)
+- `ami-agentd create/start/stop/list/sync/...`: CLI commands (run podman, exit)
+- `ami-agentd serve`: starts the A2A gateway server (long-running, port `:8900`)
 
 Registered in `extensions.yaml` as an alias to `.boot-linux/bin/ami-agentd` (the compiled Rust binary).
 
 Inside containers, `ami-agentd` MUST exit with: `"ami-agentd is not available inside containers"`. Detection: `AMI_CONTAINER=1` env var (set in Dockerfile).
 
-This mirrors the `podman` model — both a CLI tool and a service (`podman system service`).
+This mirrors the `podman` model, serving as both a CLI tool and a service (`podman system service`).
 
 ## Principles
 
-1. **Podman-native**: use labels, volumes, networks, health checks, inspect — don't reimplement what Podman already does
+1. **Podman-native**: use labels, volumes, networks, health checks, inspect; don't reimplement what Podman already does
 2. **Thin CLI wrapper**: `ami-agentd` generates `podman run` commands from simple flags, nothing more
 3. **Dockerfile template**: one parameterised Dockerfile, build args for provider/tools
 4. **A2A server inside container**: ~100 LOC Python wrapping BootloaderAgent
@@ -263,7 +263,7 @@ ami-agentddiscover                          # podman ps --filter + read agent ca
 ami-agentdsend {name} "message"             # A2A SendMessage via UDS
 ```
 
-`ami-agentdcreate` is the only "smart" command — it:
+`ami-agentdcreate` is the only "smart" command. It:
 1. Builds image if not cached (`podman build --build-arg PROVIDER=...`)
 2. Creates named volumes (`podman volume create`)
 3. Generates the `podman run` command with all labels, volumes, mounts, env vars
@@ -363,7 +363,7 @@ Publishes Agent Card, handles SendMessage/SendStreamingMessage, streams via SSE 
 
 ## 10. Gateway (`ami-agentd serve`)
 
-Started via `ami-agentd serve`. Same Rust binary as the CLI — just a different subcommand that runs long.
+Started via `ami-agentd serve`. Same Rust binary as the CLI, just a different subcommand that runs long.
 
 - Single port `:8900`, TLS termination
 - Multi-issuer OIDC JWT validation
@@ -391,7 +391,7 @@ ami-agentdshell claude-research
 npm update @anthropic-ai/claude-code
 ```
 
-No image rebuild. Volumes preserved. Image drifts from Dockerfile — acceptable for dev. For prod, rebuild: `ami-agentdcreate claude-research --provider claude --rebuild`.
+No image rebuild. Volumes preserved. Image drifts from Dockerfile, which is acceptable for dev. For prod, rebuild: `ami-agentdcreate claude-research --provider claude --rebuild`.
 
 ---
 
@@ -411,17 +411,17 @@ Container logs go to Podman's default log driver (journald). No external monitor
 
 | # | Decision | Choice |
 |---|----------|--------|
-| 1 | Registry | **Podman labels** — no custom filesystem registry |
-| 2 | Credentials | **Bind mount :ro** — not rsync |
-| 3 | Workspace sync | **rsync on demand** — no daemon, no inotifywait |
-| 4 | DNS filtering | **iptables only** — dnsmasq optional for hardened mode |
-| 5 | Inter-agent | **Shared UDS directory** — mount = access |
-| 6 | Remote access | **Gateway (Rust/Axum)** — OIDC, A2A-aware, single port |
-| 7 | Entrypoint | **gosu** — privilege drop after iptables |
-| 8 | Upgrades | **In-place** — npm update inside container |
-| 9 | Monitoring | **podman logs/stats** — journald, no external stack |
-| 10 | Metadata | **Podman labels** — queryable via podman inspect/ps |
-| 11 | Chat protocol | **POST + SSE** — A2A native, no WebSocket |
+| 1 | Registry | **Podman labels**, no custom filesystem registry |
+| 2 | Credentials | **Bind mount :ro**, not rsync |
+| 3 | Workspace sync | **rsync on demand**, no daemon, no inotifywait |
+| 4 | DNS filtering | **iptables only**, dnsmasq optional for hardened mode |
+| 5 | Inter-agent | **Shared UDS directory**, mount = access |
+| 6 | Remote access | **Gateway (Rust/Axum)**, OIDC, A2A-aware, single port |
+| 7 | Entrypoint | **gosu**, privilege drop after iptables |
+| 8 | Upgrades | **In-place**, npm update inside container |
+| 9 | Monitoring | **podman logs/stats**, journald, no external stack |
+| 10 | Metadata | **Podman labels**, queryable via podman inspect/ps |
+| 11 | Chat protocol | **POST + SSE**, A2A native, no WebSocket |
 | 12 | Gateway auth | **Multi-issuer OIDC** |
 
 ## Open Questions

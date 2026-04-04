@@ -215,15 +215,15 @@ Returns a JSON document describing the provider's capabilities:
 
 **Required parameters:**
 - `response_type=code`
-- `client_id` — registered client identifier
-- `redirect_uri` — must match registered URIs for the client
-- `scope` — space-separated, must include `openid`
-- `code_challenge` — Base64url-encoded SHA-256 of the code verifier
+- `client_id`: registered client identifier
+- `redirect_uri`: must match registered URIs for the client
+- `scope`: space-separated, must include `openid`
+- `code_challenge`: Base64url-encoded SHA-256 of the code verifier
 - `code_challenge_method=S256`
-- `state` — opaque value for CSRF protection
+- `state`: opaque value for CSRF protection
 
 **Optional parameters:**
-- `nonce` — for replay protection in id_token
+- `nonce`: for replay protection in id_token
 
 **SPEC-OIDC-002**: PKCE shall be **required** for all authorization requests. Requests without `code_challenge` shall be rejected with `invalid_request`.
 
@@ -337,7 +337,7 @@ The existing TypeScript client (`projects/AMI-AUTH/src/dataops-client.ts`) calls
 
 ### 6.1. Endpoint Contract
 
-These endpoints are **internal** — authenticated by a shared `DATAOPS_INTERNAL_TOKEN` Bearer header, not by OIDC tokens.
+These endpoints are **internal**, authenticated by a shared `DATAOPS_INTERNAL_TOKEN` Bearer header, not by OIDC tokens.
 
 | Endpoint | Method | Request | Response | TS Client Method |
 |---|---|---|---|---|
@@ -539,10 +539,10 @@ server.register_grant(ClientCredentialsGrant)
 
 ### 8.3. What Authlib Does NOT Handle
 
-- User authentication (login form, password verification) -- handled by `backend/auth/service.py`
-- User session management (cookies) -- handled by FastAPI middleware
-- DataOps compatibility endpoints -- custom FastAPI routes
-- RSA key generation and rotation -- handled by `backend/crypto/keys.py`
+- User authentication (login form, password verification): handled by `backend/auth/service.py`
+- User session management (cookies): handled by FastAPI middleware
+- DataOps compatibility endpoints: custom FastAPI routes
+- RSA key generation and rotation: handled by `backend/crypto/keys.py`
 
 ---
 
@@ -865,7 +865,7 @@ See [SPEC-AUTH-BASE-MIGRATION.md](SPEC-AUTH-BASE-MIGRATION.md) Section 5.
 5. `uv run uvicorn backend.main:app --port 8000` starts the service
 6. `curl localhost:8000/.well-known/openid-configuration` returns valid discovery doc
 7. `curl localhost:8000/oauth/jwks` returns valid JWKS
-8. `DATAOPS_AUTH_URL=http://localhost:8000` in Portal env -- DataOpsClient works
+8. `DATAOPS_AUTH_URL=http://localhost:8000` in Portal env: DataOpsClient works
 9. `uv run pytest projects/AMI-AUTH/tests/integration/ -v` passes
 
 ### 13.4. Pre-Push Hook Compliance

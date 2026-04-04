@@ -59,10 +59,10 @@
 
 Exhaustive research confirms: **no off-the-shelf Python library provides polyglot persistence across relational + graph + secrets backends with configurable sync strategies.** The closest options:
 
-- **SQLAlchemy** — relational only (no graph, no vault)
-- **SQErzo** — multi-graph only (Neo4j, RedisGraph, Neptune), no relational
-- **Prisma Python** — multi-relational only, no graph or vault
-- **Tortoise ORM** — async relational only
+- **SQLAlchemy**: relational only (no graph, no vault)
+- **SQErzo**: multi-graph only (Neo4j, RedisGraph, Neptune), no relational
+- **Prisma Python**: multi-relational only, no graph or vault
+- **Tortoise ORM**: async relational only
 
 The custom architecture (BaseDAO → DAOFactory → UnifiedCRUD → SyncStrategy) is the correct pattern. The implementation needs cleanup, not replacement.
 
@@ -332,7 +332,7 @@ flowchart TD
 **Fix**: Merge into a single `UnifiedCRUD` class in `core/unified_crud.py`:
 - Keep from core: DAO caching, UID registry, event loop detection, `_get_dao()` method
 - Keep from services: SyncStrategy integration, SecurityContext parameter, operation logging, `sync_instance()`, `bulk_create()`, `bulk_delete()`
-- Deduplicate: `create()`, `read()`, `update()`, `delete()`, `find()` — merge parameter lists, core logic handles single-storage, services logic wraps for multi-storage
+- Deduplicate: `create()`, `read()`, `update()`, `delete()`, `find()` by merging parameter lists, where core logic handles single-storage and services logic wraps for multi-storage
 
 **SPEC-DAO-001**: There shall be exactly one `UnifiedCRUD` class. Single-storage operations use `config_index=0` (default). Multi-storage operations are triggered when the model's `Meta.storage_configs` contains multiple entries.
 
@@ -341,16 +341,16 @@ flowchart TD
 **Problem**: Factory method signature doesn't match any call site.
 
 ```python
-# factory.py:23 — current signature:
+# factory.py:23, current signature:
 def create(cls, config: StorageConfig, collection_name: str, **kwargs) -> Any:
 
-# base_model.py:138 — call:
+# base_model.py:138, call:
 dao = DAOFactory.create(cls, config)  # Missing collection_name!
 
-# core/unified_crud.py:119 — call:
+# core/unified_crud.py:119, call:
 dao = DAOFactory.create(model_class, config)  # model_class != config
 
-# core/unified_crud.py:363 — call:
+# core/unified_crud.py:363, call:
 dao = DAOFactory.create(model_class, config)  # Same mismatch
 ```
 
@@ -960,11 +960,11 @@ The dataops architecture follows established patterns:
 
 | Pattern | Implementation |
 |---|---|
-| Repository/DAO | `BaseDAO[T]` — one adapter per backend |
-| Abstract Factory | `DAOFactory` — runtime adapter selection via registry |
-| Strategy | `SyncStrategy` — pluggable consistency models |
-| Registry | `DAORegistry` — auto-discovery of adapter classes |
-| Unit of Work | `ExecutionManager` — transaction context |
+| Repository/DAO | `BaseDAO[T]`: one adapter per backend |
+| Abstract Factory | `DAOFactory`: runtime adapter selection via registry |
+| Strategy | `SyncStrategy`: pluggable consistency models |
+| Registry | `DAORegistry`: auto-discovery of adapter classes |
+| Unit of Work | `ExecutionManager`: transaction context |
 
 These are the correct patterns for polyglot persistence. The code needs cleanup, not redesign.
 

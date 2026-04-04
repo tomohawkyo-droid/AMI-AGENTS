@@ -1,4 +1,4 @@
-# Authentication — Technical Specification
+# Authentication: Technical Specification
 
 **Date:** 2026-03-01
 **Status:** DRAFT
@@ -64,9 +64,9 @@ volumes:
 | Keycloak HTTP | `192.168.50.66` | `8082` | HTTP (TLS terminated at reverse proxy) |
 | Keycloak Management | `192.168.50.66` | `9082` | HTTP (health/metrics) |
 | PostgreSQL (KC) | `keycloak-db` (container) | `5432` | TCP |
-| OIDC Issuer URL | `http://192.168.50.66:8082/realms/ami` | — | — |
-| JWKS Endpoint | `http://192.168.50.66:8082/realms/ami/protocol/openid-connect/certs` | — | — |
-| Admin Console | `http://192.168.50.66:8082/admin/` | — | — |
+| OIDC Issuer URL | `http://192.168.50.66:8082/realms/ami` | N/A | N/A |
+| JWKS Endpoint | `http://192.168.50.66:8082/realms/ami/protocol/openid-connect/certs` | N/A | N/A |
+| Admin Console | `http://192.168.50.66:8082/admin/` | N/A | N/A |
 
 > **NFR-1.9**: The Admin Console (`/admin`) MUST be restricted to the management network. In production, reverse proxy rules MUST block `/admin/*` from public access.
 
@@ -411,7 +411,7 @@ Groups:
 
 Group role assignments use Keycloak's group-level role mappings. Users inherit roles from group membership. Adding a user to `/acme-corp/ops-team` automatically grants `ami-portal:team-lead`.
 
-### 3.4 Organizations (Keycloak 26+ — FR-5.5)
+### 3.4 Organizations (Keycloak 26+, FR-5.5)
 
 Multi-tenancy uses Keycloak's native Organizations feature (single realm, not realm-per-tenant):
 
@@ -790,10 +790,10 @@ Browser                    Portal (NextAuth)              Keycloak
 ```
 
 **Key points:**
-- The portal is a confidential client — the token exchange (step 8) uses `client_secret`
+- The portal is a confidential client, so the token exchange (step 8) uses `client_secret`
 - PKCE adds `code_challenge` / `code_verifier` even for confidential clients (defense in depth)
 - NextAuth handles the entire flow automatically via the Keycloak provider
-- If the user has an active Keycloak SSO session, step 4 is skipped (SSO — FR-1.2)
+- If the user has an active Keycloak SSO session, step 4 is skipped (SSO, per FR-1.2)
 
 ### 5.2 Client Credentials Grant (FR-9.2)
 
@@ -836,7 +836,7 @@ Browser                    Portal (NextAuth)
   │ <─────────────────────────   │
 ```
 
-Guest session has no Keycloak session — it exists only in the NextAuth JWT cookie. Guest users receive the `guest` role with `read` permission only.
+Guest session has no Keycloak session; it exists only in the NextAuth JWT cookie. Guest users receive the `guest` role with `read` permission only.
 
 Environment variables:
 - `AMI_GUEST_EMAIL`: Guest email (default: `guest@ami.local`)
@@ -927,7 +927,7 @@ Portal Backend                                  OpenBao
   │ <─────────────────────────────────────────────  │
 ```
 
-The OpenBao token is stored **server-side only** (NFR-2.6) — never sent to the browser. It has a 5-minute TTL matching the Keycloak access token (NFR-2.3). The portal re-obtains it as needed using the current Keycloak JWT.
+The OpenBao token is stored **server-side only** (NFR-2.6) and is never sent to the browser. It has a 5-minute TTL matching the Keycloak access token (NFR-2.3). The portal re-obtains it as needed using the current Keycloak JWT.
 
 ---
 
@@ -957,7 +957,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
     Credentials({
       id: 'guest',
-      // No credentials required — returns guest user
+      // No credentials required; returns guest user
     }),
   ],
   session: { strategy: 'jwt' },
@@ -972,7 +972,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 })
 ```
 
-#### 6.1.1 JWT Callback — Claim Extraction
+#### 6.1.1 JWT Callback: Claim Extraction
 
 On Keycloak sign-in, the JWT callback extracts claims from the OIDC profile:
 
@@ -991,10 +991,10 @@ Role resolution logic:
 2. Extract `resource_access[clientId].roles` (client roles)
 3. Merge and deduplicate
 4. Filter against valid application roles: `['admin', 'editor', 'viewer', 'guest']` (legacy) or new role names
-5. If no valid roles found, assign `admin` as fallback (dev convenience — MUST be removed in production)
+5. If no valid roles found, assign `admin` as fallback (dev convenience; MUST be removed in production)
 6. Store `groups` and `tenant_id` from claims
 
-#### 6.1.2 Session Callback — User Object
+#### 6.1.2 Session Callback: User Object
 
 ```typescript
 session.user = {
@@ -1098,7 +1098,7 @@ oidc_providers:
         display_name_template: "{{ user.name }}"
 ```
 
-### 6.6 Security Headers (Portal — `next.config.ts`)
+### 6.6 Security Headers (Portal, `next.config.ts`)
 
 The portal sets security headers on all responses:
 

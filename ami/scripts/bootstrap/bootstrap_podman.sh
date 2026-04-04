@@ -183,7 +183,7 @@ AAEOF
         fi
     fi
 else
-    log_info "✓ AppArmor userns restriction not active — no profile needed"
+    log_info "AppArmor userns restriction not active, no profile needed"
 fi
 
 # Create venv if it doesn't exist
@@ -288,12 +288,8 @@ if [[ -f "$GUARD_SCRIPT" ]]; then
     log_info "✓ Installed podman-guard as ${VENV_DIR}/bin/podman"
     log_info "  Real podman available at: ${VENV_DIR}/bin/real-podman"
 else
-    log_warn "Guard script not found at $GUARD_SCRIPT, falling back to direct symlink"
-    if [[ -f "${PODMAN_DIR}/usr/local/bin/podman" ]]; then
-        ln -sf "${PODMAN_DIR}/usr/local/bin/podman" "${VENV_DIR}/bin/podman"
-    elif [[ -f "${PODMAN_DIR}/bin/podman" ]]; then
-        ln -sf "${PODMAN_DIR}/bin/podman" "${VENV_DIR}/bin/podman"
-    fi
+    log_error "Guard script not found at $GUARD_SCRIPT. Bootstrap is broken."
+    exit 1
 fi
 
 # Create symlink for rootlessport (required for port forwarding in rootless mode)

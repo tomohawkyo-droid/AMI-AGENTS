@@ -1,4 +1,4 @@
-# Authorization — Technical Specification
+# Authorization: Technical Specification
 
 **Date:** 2026-03-01
 **Status:** DRAFT
@@ -64,11 +64,11 @@ When `NODE_ENV=test && AMI_TEST_BYPASS_AUTH=1`, `requireSession()` returns a tes
 
 | Gap | Impact |
 |-----|--------|
-| Only 8 permissions — too coarse | `admin:accounts` grants full user AND client management as a single permission |
-| No organization scoping | All permissions are global — no tenant isolation |
+| Only 8 permissions, too coarse | `admin:accounts` grants full user AND client management as a single permission |
+| No organization scoping | All permissions are global, no tenant isolation |
 | No escalation guards | An admin can assign any role to any user, including self-elevation |
 | No role assignment ceiling | A viewer could theoretically be made admin by any admin |
-| No explicit deny | Permissions are purely additive — no way to deny specific access |
+| No explicit deny | Permissions are purely additive, no way to deny specific access |
 | `withRole` and `withPermission` overlap | Some routes use role checks, others use permission checks |
 
 ---
@@ -209,15 +209,15 @@ All permissions use `resource:action` format. This maps to Keycloak Authorizatio
 Break-glass role. Maximum 2-3 humans. All 74 permissions granted.
 
 ```typescript
-'platform-superadmin': ['*']  // Wildcard — all permissions
+'platform-superadmin': ['*']  // Wildcard: all permissions
 ```
 
 Unique capabilities (not granted to any other role):
-- `config:realm-keys` — manage signing/encryption keys
-- `secrets:admin:mount` — mount/unmount secrets engines
-- `orgs:create`, `orgs:delete` — create/destroy organizations
-- `audit:configure` — configure audit log retention
-- `users:impersonate` — impersonate users
+- `config:realm-keys`: manage signing/encryption keys
+- `secrets:admin:mount`: mount/unmount secrets engines
+- `orgs:create`, `orgs:delete`: create/destroy organizations
+- `audit:configure`: configure audit log retention
+- `users:impersonate`: impersonate users
 
 #### `platform-admin`
 
@@ -558,7 +558,7 @@ Every API route in the portal with its current guard and required permission:
 
 The permission system migration happens in two phases:
 
-**Phase 1 — Backward Compatible**: Add new `resource:action` permissions to `ROLE_PERMISSIONS` alongside legacy permissions. Both work:
+**Phase 1 (Backward Compatible)**: Add new `resource:action` permissions to `ROLE_PERMISSIONS` alongside legacy permissions. Both work:
 
 ```typescript
 const ROLE_PERMISSIONS: Record<string, readonly Permission[]> = {
@@ -573,7 +573,7 @@ const ROLE_PERMISSIONS: Record<string, readonly Permission[]> = {
 }
 ```
 
-**Phase 2 — Full Migration**: Remove legacy permission names. Update all `withPermission()` calls to use `resource:action` format. Remove legacy roles from `ROLE_PERMISSIONS`.
+**Phase 2 (Full Migration)**: Remove legacy permission names. Update all `withPermission()` calls to use `resource:action` format. Remove legacy roles from `ROLE_PERMISSIONS`.
 
 ---
 
@@ -662,8 +662,8 @@ function hasPermission(roles: string[], permission: Permission): boolean {
 | FR-4.2 Role/group assignment | 5.1 (route matrix) | Specified |
 | FR-4.3 Force password reset | 5.1 (route matrix) | Specified |
 | FR-4.4 Self-service profile | Via Keycloak account console | Deferred to SPEC-AUTH |
-| FR-4.5 User → OpenBao provisioning | — | Deferred to SPEC-SECRETS |
-| FR-4.6 User deprovisioning | — | Deferred to SPEC-SECRETS |
+| FR-4.5 User → OpenBao provisioning | N/A | Deferred to SPEC-SECRETS |
+| FR-4.6 User deprovisioning | N/A | Deferred to SPEC-SECRETS |
 | FR-5.1 Permission format | 2 (resource:action) | Specified |
 | FR-5.2 Atomic permission registry | 2 (74 permissions) | Specified |
 | FR-5.3 Human actor hierarchy | 3.1, 3.2 | Specified |

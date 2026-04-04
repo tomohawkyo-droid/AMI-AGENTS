@@ -53,17 +53,10 @@ else
 
     # Use apt download - this doesn't require sudo
     if ! apt download openvpn 2>/dev/null; then
-        log_warn "apt download failed. Attempting manual download from Ubuntu mirrors..."
-        # Find latest version URL (simplified fallback)
-        # Using a more stable mirror link for Ubuntu Noble
-        URL="http://archive.ubuntu.com/ubuntu/pool/main/o/openvpn/openvpn_2.6.9-1ubuntu4_amd64.deb"
-        [ "$(uname -m)" != "x86_64" ] && URL="http://ports.ubuntu.com/ubuntu-ports/pool/main/o/openvpn/openvpn_2.6.9-1ubuntu4_arm64.deb"
-        
-        log_info "Downloading from: $URL"
-        curl -L -f -o openvpn.deb "$URL" || { log_error "Failed to download OpenVPN package"; exit 1; }
-    else
-        mv openvpn_*.deb openvpn.deb
+        log_error "apt download openvpn failed. Fix apt sources and retry."
+        exit 1
     fi
+    mv openvpn_*.deb openvpn.deb
 
     log_info "Extracting OpenVPN binary..."
     # Use dpkg-deb (always available on Debian/Ubuntu, handles all compression formats)

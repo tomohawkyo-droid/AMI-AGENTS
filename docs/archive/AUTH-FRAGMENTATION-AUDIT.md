@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The AMI ecosystem has **at least 6 independent authentication systems** across its services, with **zero shared identity, zero SSO, and zero token interoperability**. The most damning finding: a comprehensive enterprise-grade auth framework exists in `base/backend/opsec/` (with JWT, OAuth2, MFA, password policies, secrets management, multi-tenancy, audit trails) -- and **nothing uses it**. Instead, AMI-AUTH reimplements OAuth in TypeScript, AMI-TRADING reimplements JWT+bcrypt in Python, and Matrix runs its own auth entirely.
+The AMI ecosystem has **at least 6 independent authentication systems** across its services, with **zero shared identity, zero SSO, and zero token interoperability**. The most damning finding: a comprehensive enterprise-grade auth framework exists in `base/backend/opsec/` (with JWT, OAuth2, MFA, password policies, secrets management, multi-tenancy, audit trails), and **nothing uses it**. Instead, AMI-AUTH reimplements OAuth in TypeScript, AMI-TRADING reimplements JWT+bcrypt in Python, and Matrix runs its own auth entirely.
 
 A user logging into the Portal cannot access the Trading API. A Trading API user cannot access the Portal. Matrix has its own users entirely. Backup scripts use Google OAuth with no relation to any user system.
 
@@ -16,7 +16,7 @@ This document catalogues every auth implementation found.
 
 ---
 
-## 1. AMI-AUTH (@ami/auth) -- TypeScript Library
+## 1. AMI-AUTH (@ami/auth): TypeScript Library
 
 **Location:** `projects/AMI-AUTH/`
 **Type:** NPM library (not a standalone service)
@@ -25,7 +25,7 @@ This document catalogues every auth implementation found.
 
 ### Architecture
 
-AMI-AUTH is a **shared library** that wraps NextAuth.js conventions. It is NOT a running service -- it's imported by Next.js applications at build time.
+AMI-AUTH is a **shared library** that wraps NextAuth.js conventions. It is NOT a running service; it's imported by Next.js applications at build time.
 
 ```
 @ami/auth (library)
@@ -87,15 +87,15 @@ AMI-AUTH is a **shared library** that wraps NextAuth.js conventions. It is NOT a
 ### User Storage
 
 **Primary:** DataOps service (external, accessed via `DATAOPS_AUTH_URL`)
-- `POST /auth/verify` -- Credential verification
-- `GET /auth/users/by-email?email=...` -- User lookup
-- `POST /auth/users` -- User upsert
-- `GET /auth/providers/catalog` -- OAuth provider catalog
+- `POST /auth/verify`: Credential verification
+- `GET /auth/users/by-email?email=...`: User lookup
+- `POST /auth/users`: User upsert
+- `GET /auth/providers/catalog`: OAuth provider catalog
 - Auth: `Authorization: Bearer ${DATAOPS_INTERNAL_TOKEN}`
 
 **Fallback:** Local JSON files
-- `AUTH_CREDENTIALS_FILE` -- Array of user records with scrypt-hashed passwords
-- `AUTH_PROVIDER_CATALOG_FILE` -- OAuth provider definitions
+- `AUTH_CREDENTIALS_FILE`: Array of user records with scrypt-hashed passwords
+- `AUTH_PROVIDER_CATALOG_FILE`: OAuth provider definitions
 
 ### Password Hashing
 
@@ -106,10 +106,10 @@ AMI-AUTH is a **shared library** that wraps NextAuth.js conventions. It is NOT a
 ### Middleware Headers
 
 When a request passes auth, middleware injects:
-- `x-ami-user-id` -- User UUID
-- `x-ami-user-email` -- User email
-- `x-ami-user-roles` -- Comma-separated roles
-- `x-ami-tenant-id` -- Tenant ID (if present)
+- `x-ami-user-id`: User UUID
+- `x-ami-user-email`: User email
+- `x-ami-user-roles`: Comma-separated roles
+- `x-ami-tenant-id`: Tenant ID (if present)
 
 ### Environment Variables
 
@@ -129,7 +129,7 @@ When a request passes auth, middleware injects:
 
 ---
 
-## 2. AMI-PORTAL -- TypeScript/Next.js Application
+## 2. AMI-PORTAL: TypeScript/Next.js Application
 
 **Location:** `projects/AMI-PORTAL/`
 **Type:** Next.js web application
@@ -187,11 +187,11 @@ NEXTAUTH_URL=https://p9q3fjcwcla0.uk
 
 ---
 
-## 3. AMI-TRADING -- Python/FastAPI Application
+## 3. AMI-TRADING: Python/FastAPI Application
 
 **Location:** `projects/AMI-TRADING/`
 **Type:** Python FastAPI web application
-**Auth:** COMPLETELY INDEPENDENT -- zero integration with AMI-AUTH
+**Auth:** COMPLETELY INDEPENDENT, zero integration with AMI-AUTH
 
 ### Architecture
 
@@ -220,10 +220,10 @@ FastAPI app
 ### Endpoints
 
 ```
-POST /api/v1/auth/register    -- Create user (rate: 3/5min per IP)
-POST /api/v1/auth/login       -- Login (rate: 5/1min per IP)
-POST /api/v1/auth/logout      -- Logout (requires auth)
-GET  /api/v1/auth/me          -- Current user (requires auth)
+POST /api/v1/auth/register    # Create user (rate: 3/5min per IP)
+POST /api/v1/auth/login       # Login (rate: 5/1min per IP)
+POST /api/v1/auth/logout      # Logout (requires auth)
+GET  /api/v1/auth/me          # Current user (requires auth)
 ```
 
 ### User Model (SQLAlchemy)
@@ -292,7 +292,7 @@ fastapi==0.128.0 # Web framework with security utilities
 
 ---
 
-## 4. AMI-STREAMS -- Matrix Synapse Homeserver
+## 4. AMI-STREAMS: Matrix Synapse Homeserver
 
 **Location:** `projects/AMI-STREAMS/`
 **Type:** Ansible-deployed Matrix homeserver
@@ -302,7 +302,7 @@ fastapi==0.128.0 # Web framework with security utilities
 
 Configuration in `ansible/inventory/host_vars/mx1.p9q3fjcwcla0.uk/vars.yml`:
 
-1. **Matrix Authentication Service** -- Enabled
+1. **Matrix Authentication Service**: Enabled
    - Password authentication: enabled
    - Account registration: enabled
 
@@ -381,29 +381,29 @@ GDRIVE_SERVICE_ACCOUNT_EMAIL=ami-orchestrator-backup@system-service-475913.iam.g
 
 ---
 
-## 6. RUST-TRADING -- ZK Credentials
+## 6. RUST-TRADING: ZK Credentials
 
 **Location:** `projects/RUST-TRADING/rust-zk-protocol/`
 **Type:** Zero-knowledge proof credential system
 
 ### Credential System
 
-- `crates/zk-sdk/src/credential.rs` -- CredentialManager for Travel Rule compliance
+- `crates/zk-sdk/src/credential.rs`: CredentialManager for Travel Rule compliance
 - Stores/validates credentials by commitment hash
 - Supports beneficiary/originator credentials
 - Physical address verification
 - VASP endpoint configuration
-- Not related to user authentication -- this is regulatory compliance
+- Not related to user authentication (this is regulatory compliance)
 
 ---
 
-## 7. BASE MODULE -- Enterprise Auth Framework (UNUSED)
+## 7. BASE MODULE: Enterprise Auth Framework (UNUSED)
 
 **Location:** `/home/ami/Projects/AMI-ORCHESTRATOR/base/`
-**Type:** Git submodule -- Python package `ami_base`
+**Type:** Git submodule, Python package `ami_base`
 **Status:** Comprehensive enterprise auth framework that **NO PROJECT CURRENTLY USES**
 
-This is the most critical finding. The `base/` submodule contains a fully architected authentication, authorization, and security framework -- with OAuth2, JWT, MFA, password policies, secrets management, multi-tenancy, and audit trails. It appears to have been designed as the shared foundation. Instead, every project reimplemented auth from scratch.
+This is the most critical finding. The `base/` submodule contains a fully architected authentication, authorization, and security framework (with OAuth2, JWT, MFA, password policies, secrets management, multi-tenancy, and audit trails). It appears to have been designed as the shared foundation. Instead, every project reimplemented auth from scratch.
 
 ### 7.1 Auth Service (`backend/opsec/auth/`)
 
@@ -416,16 +416,16 @@ This is the most critical finding. The `base/` submodule contains a fully archit
 | `exceptions.py` | 55 | Auth exception taxonomy (InvalidCredentials, RateLimit, Consent, Config) |
 
 **AuthService** provides:
-- `authenticate_user()` -- OAuth flow initiation
-- `create_auth_provider()` / `revoke_auth_provider()` -- Provider lifecycle
-- `get_user_auth_providers()` -- List linked providers
-- `refresh_provider_token()` -- Token refresh
+- `authenticate_user()`: OAuth flow initiation
+- `create_auth_provider()` / `revoke_auth_provider()`: Provider lifecycle
+- `get_user_auth_providers()`: List linked providers
+- `refresh_provider_token()`: Token refresh
 - Global singleton: `auth_service = AuthService()`
 
 **Provider Adapters**:
-- `OAuthProviderAdapter` -- Full OAuth2 with token exchange, refresh, revocation, user info
-- `ApiKeyProviderAdapter` -- OpenAI (`Authorization: Bearer`), Anthropic (`X-API-Key`), custom
-- `SshProviderAdapter` -- SSH bastion/managed key with host, username, secret_reference
+- `OAuthProviderAdapter`: Full OAuth2 with token exchange, refresh, revocation, user info
+- `ApiKeyProviderAdapter`: OpenAI (`Authorization: Bearer`), Anthropic (`X-API-Key`), custom
+- `SshProviderAdapter`: SSH bastion/managed key with host, username, secret_reference
 
 **ProviderBootstrap** model (normalized auth payload):
 - `access_token`, `refresh_token`, `id_token`, `api_key` (all `SecretStr`)
@@ -462,16 +462,16 @@ This is the most critical finding. The `base/` submodule contains a fully archit
 | `encryption.py` | 205 | Fernet AES-256 token encryption + PBKDF2 key derivation |
 
 **JWTManager**:
-- `create_token()` -- JWT with `iat`, `nbf`, `exp` claims
-- `verify_token()` -- Signature + expiration validation
-- `refresh_token()` -- New token with same claims
-- `generate_rsa_keys()` -- RSA 2048-bit key pair generation
+- `create_token()`: JWT with `iat`, `nbf`, `exp` claims
+- `verify_token()`: Signature + expiration validation
+- `refresh_token()`: New token with same claims
+- `generate_rsa_keys()`: RSA 2048-bit key pair generation
 
 **SessionManager** (JWT-based):
-- `create_session()` -- Session JWT with user_id, email
-- `verify_session()` -- Verify + track last_accessed
-- `revoke_session()` -- Delete from store
-- `cleanup_expired_sessions()` -- 24h default TTL
+- `create_session()`: Session JWT with user_id, email
+- `verify_session()`: Verify + track last_accessed
+- `revoke_session()`: Delete from store
+- `cleanup_expired_sessions()`: 24h default TTL
 - In-memory storage (dict-based)
 
 ### 7.4 Password Management (`backend/opsec/password/`)
@@ -495,7 +495,7 @@ This is the most critical finding. The `base/` submodule contains a fully archit
 | `mfa_facade.py` | 197 | TOTP registration/verification, backup codes |
 
 **MFA Types Supported:**
-- TOTP (Google Authenticator, Authy) -- `pyotp` library
+- TOTP (Google Authenticator, Authy) via `pyotp` library
 - SMS OTP
 - Email OTP
 - WebAuthn (hardware keys: YubiKey)
@@ -541,23 +541,23 @@ apply_bootstrap()      # Apply ProviderBootstrap data
 ```
 
 **Password Models** (`password.py`):
-- `PasswordPolicy` -- Configurable policy with lockout, history, age limits
-- `PasswordRecord` -- Hash storage with Argon2/bcrypt/PBKDF2, status tracking
-- `PasswordResetToken` -- Token with SHA-256 hash, expiry, attempt tracking
+- `PasswordPolicy`: Configurable policy with lockout, history, age limits
+- `PasswordRecord`: Hash storage with Argon2/bcrypt/PBKDF2, status tracking
+- `PasswordResetToken`: Token with SHA-256 hash, expiry, attempt tracking
 
 **MFA Models** (`mfa.py`):
-- `MFADevice` -- Device registration (TOTP secret, WebAuthn credential, phone/email)
-- `MFAVerification` -- Audit record per verification attempt
+- `MFADevice`: Device registration (TOTP secret, WebAuthn credential, phone/email)
+- `MFAVerification`: Audit record per verification attempt
 
 **Security Models** (`security.py`):
-- `SecurityContext` -- user_id, roles, groups, tenant_id, is_admin
-- `ACLEntry` -- Principal-based access control (12 permission types)
-- `DataClassification` -- PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED, TOP_SECRET
-- `Role` -- RoleType enum: OWNER, ADMIN, MEMBER, VIEWER, GUEST, SERVICE
+- `SecurityContext`: user_id, roles, groups, tenant_id, is_admin
+- `ACLEntry`: Principal-based access control (12 permission types)
+- `DataClassification`: PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED, TOP_SECRET
+- `Role`: RoleType enum: OWNER, ADMIN, MEMBER, VIEWER, GUEST, SERVICE
 
 **Type Enums** (`types.py`):
-- `AuthProviderType` -- GOOGLE, GITHUB, AZURE_AD, OPENAI, ANTHROPIC, API_KEY, OAUTH2, SSH
-- `TokenType` -- ACCESS, REFRESH, ID_TOKEN, API_KEY
+- `AuthProviderType`: GOOGLE, GITHUB, AZURE_AD, OPENAI, ANTHROPIC, API_KEY, OAUTH2, SSH
+- `TokenType`: ACCESS, REFRESH, ID_TOKEN, API_KEY
 
 ### 7.7 Enterprise Security (`backend/dataops/security/`)
 
@@ -569,15 +569,15 @@ apply_bootstrap()      # Apply ProviderBootstrap data
 | `encryption.py` | 391 | Field-level encryption, PII detection/masking |
 
 **Rate Limiters** (predefined):
-- `auth_limiter` -- 10 attempts/min
-- `api_limiter` -- 1000 calls/min
-- `llm_limiter` -- 50 calls/min
-- `crud_limiter` -- 500 ops/min
+- `auth_limiter`: 10 attempts/min
+- `api_limiter`: 1000 calls/min
+- `llm_limiter`: 50 calls/min
+- `crud_limiter`: 500 ops/min
 
 **Multi-Tenancy Isolation Levels:**
-- SHARED -- Row-level security (tenant_id filter)
-- DEDICATED -- Separate database/schema per tenant
-- ISOLATED -- Separate instance per tenant
+- SHARED: Row-level security (tenant_id filter)
+- DEDICATED: Separate database/schema per tenant
+- ISOLATED: Separate instance per tenant
 
 ### 7.8 Secrets Broker (`backend/services/secrets_broker/`)
 
@@ -588,10 +588,10 @@ apply_bootstrap()      # Apply ProviderBootstrap data
 | `config.py` | ~50 | Broker configuration |
 
 **Endpoints** (Bearer token protected):
-- `POST /v1/secrets/ensure` -- Store/update secret (201)
-- `POST /v1/secrets/retrieve` -- Retrieve secret + integrity hash
-- `DELETE /v1/secrets/{vault_reference}` -- Delete secret (204)
-- `GET /healthz` -- Health check
+- `POST /v1/secrets/ensure`: Store/update secret (201)
+- `POST /v1/secrets/retrieve`: Retrieve secret + integrity hash
+- `DELETE /v1/secrets/{vault_reference}`: Delete secret (204)
+- `GET /healthz`: Health check
 
 ### 7.9 Dependencies (`pyproject.toml`)
 
@@ -650,7 +650,7 @@ The `base/` module has **everything** needed for a unified auth system:
 
 ## CRITICAL PROBLEMS
 
-### 0. THE ELEPHANT IN THE ROOM -- `base/` IS UNUSED
+### 0. THE ELEPHANT IN THE ROOM: `base/` IS UNUSED
 
 The `base/backend/opsec/` module contains a **complete enterprise auth framework** with:
 - OAuth2 with PKCE, device flow, browser callback
@@ -694,20 +694,20 @@ A user who logs into the Portal with Google OAuth has **no way** to authenticate
 ### 5. SECRETS SPRAWL
 
 Secrets are scattered across:
-- `.env` (orchestrator root) -- master passwords, API tokens
-- `.env.local` (Portal) -- AUTH_SECRET, NEXTAUTH_URL
-- `vars.yml` (Streams/Ansible) -- Matrix secrets, SMTP credentials
-- `docker-compose.yml` (Trading) -- DB passwords, MinIO credentials
-- Environment variables (Trading) -- JWT secret
-- `token.pickle` (Backup) -- Google OAuth refresh tokens
-- `credentials.json` (Backup) -- Google service account keys
+- `.env` (orchestrator root): master passwords, API tokens
+- `.env.local` (Portal): AUTH_SECRET, NEXTAUTH_URL
+- `vars.yml` (Streams/Ansible): Matrix secrets, SMTP credentials
+- `docker-compose.yml` (Trading): DB passwords, MinIO credentials
+- Environment variables (Trading): JWT secret
+- `token.pickle` (Backup): Google OAuth refresh tokens
+- `credentials.json` (Backup): Google service account keys
 
 No central secrets manager is consistently used despite `SECRETS_BROKER_*` env vars existing.
 
 ### 6. GUEST ACCOUNT INCONSISTENCY
 
 - Portal: Has a full guest provider with SHA256-derived IDs, managed accounts, role-based access
-- Trading: No guest concept at all -- must register
+- Trading: No guest concept at all; must register
 - Streams: Matrix guest accounts are a separate Synapse feature
 
 ### 7. AUDIT LOGGING GAPS
@@ -715,7 +715,7 @@ No central secrets manager is consistently used despite `SECRETS_BROKER_*` env v
 - AMI-AUTH: Has `security-logger.ts` with structured security events
 - AMI-TRADING: No audit logging whatsoever
 - AMI-STREAMS: Matrix Synapse has its own logging
-- Base: Has blockchain-based audit trail -- **unused**
+- Base: Has blockchain-based audit trail (**unused**)
 - No centralized audit trail
 
 ### 8. THREE PASSWORD HASHING ALGORITHMS
@@ -753,62 +753,62 @@ The `base/` module has full MFA support (TOTP, WebAuthn, backup codes) that coul
 ## FILE REFERENCE INDEX
 
 ### AMI-AUTH
-- `projects/AMI-AUTH/src/config.ts` -- Provider loading, NextAuth config (607 lines)
-- `projects/AMI-AUTH/src/server.ts` -- auth(), handlers, signIn/Out (214 lines)
-- `projects/AMI-AUTH/src/middleware.ts` -- Route protection (83 lines)
-- `projects/AMI-AUTH/src/dataops-client.ts` -- User storage client (410 lines)
-- `projects/AMI-AUTH/src/env.ts` -- Environment parsing (99 lines)
-- `projects/AMI-AUTH/src/types.ts` -- Type definitions (91 lines)
-- `projects/AMI-AUTH/src/security-logger.ts` -- Audit logging (82 lines)
-- `projects/AMI-AUTH/src/client.ts` -- Browser fetch wrapper (26 lines)
+- `projects/AMI-AUTH/src/config.ts`: Provider loading, NextAuth config (607 lines)
+- `projects/AMI-AUTH/src/server.ts`: auth(), handlers, signIn/Out (214 lines)
+- `projects/AMI-AUTH/src/middleware.ts`: Route protection (83 lines)
+- `projects/AMI-AUTH/src/dataops-client.ts`: User storage client (410 lines)
+- `projects/AMI-AUTH/src/env.ts`: Environment parsing (99 lines)
+- `projects/AMI-AUTH/src/types.ts`: Type definitions (91 lines)
+- `projects/AMI-AUTH/src/security-logger.ts`: Audit logging (82 lines)
+- `projects/AMI-AUTH/src/client.ts`: Browser fetch wrapper (26 lines)
 
 ### AMI-PORTAL
-- `projects/AMI-PORTAL/app/api/auth/[...nextauth]/route.ts` -- NextAuth handler
-- `projects/AMI-PORTAL/app/auth/signin/page.tsx` -- Sign-in page
-- `projects/AMI-PORTAL/app/auth/signin/SignInForm.tsx` -- Sign-in form (275 lines)
-- `projects/AMI-PORTAL/app/auth/signin/guest/guest-handler.ts` -- Guest flow
-- `projects/AMI-PORTAL/app/lib/auth-guard.ts` -- API protection (44 lines)
-- `projects/AMI-PORTAL/middleware.ts` -- Route middleware
-- `projects/AMI-PORTAL/src/components/account/AccountDrawer.tsx` -- Account UI (647 lines)
-- `projects/AMI-PORTAL/app/lib/store.ts:216-570` -- Account store
+- `projects/AMI-PORTAL/app/api/auth/[...nextauth]/route.ts`: NextAuth handler
+- `projects/AMI-PORTAL/app/auth/signin/page.tsx`: Sign-in page
+- `projects/AMI-PORTAL/app/auth/signin/SignInForm.tsx`: Sign-in form (275 lines)
+- `projects/AMI-PORTAL/app/auth/signin/guest/guest-handler.ts`: Guest flow
+- `projects/AMI-PORTAL/app/lib/auth-guard.ts`: API protection (44 lines)
+- `projects/AMI-PORTAL/middleware.ts`: Route middleware
+- `projects/AMI-PORTAL/src/components/account/AccountDrawer.tsx`: Account UI (647 lines)
+- `projects/AMI-PORTAL/app/lib/store.ts:216-570`: Account store
 
 ### AMI-TRADING
-- `projects/AMI-TRADING/src/core/security.py` -- JWT + bcrypt (46 lines)
-- `projects/AMI-TRADING/src/delivery/api/auth.py` -- Auth endpoints (195 lines)
-- `projects/AMI-TRADING/src/delivery/api/deps.py` -- Auth deps + rate limit (209 lines)
-- `projects/AMI-TRADING/src/types/auth.py` -- User entity + schemas (69 lines)
-- `projects/AMI-TRADING/src/types/config.py` -- JWT config (338 lines)
-- `projects/AMI-TRADING/src/delivery/cli/user_commands.py` -- CLI tools (195 lines)
+- `projects/AMI-TRADING/src/core/security.py`: JWT + bcrypt (46 lines)
+- `projects/AMI-TRADING/src/delivery/api/auth.py`: Auth endpoints (195 lines)
+- `projects/AMI-TRADING/src/delivery/api/deps.py`: Auth deps + rate limit (209 lines)
+- `projects/AMI-TRADING/src/types/auth.py`: User entity + schemas (69 lines)
+- `projects/AMI-TRADING/src/types/config.py`: JWT config (338 lines)
+- `projects/AMI-TRADING/src/delivery/cli/user_commands.py`: CLI tools (195 lines)
 
 ### AMI-STREAMS
-- `projects/AMI-STREAMS/ansible/inventory/host_vars/mx1.p9q3fjcwcla0.uk/vars.yml` -- All Matrix auth config
+- `projects/AMI-STREAMS/ansible/inventory/host_vars/mx1.p9q3fjcwcla0.uk/vars.yml`: All Matrix auth config
 
-### Base Module (UNUSED -- at `/home/ami/Projects/AMI-ORCHESTRATOR/base/`)
-- `backend/opsec/auth/auth_service.py` -- Core auth service (269 lines)
-- `backend/opsec/auth/provider_registry.py` -- Provider adapter registry (78 lines)
-- `backend/opsec/auth/provider_adapters.py` -- OAuth/APIKey/SSH adapters (319 lines)
-- `backend/opsec/auth/repository.py` -- User/provider persistence (151 lines)
-- `backend/opsec/auth/exceptions.py` -- Auth exception taxonomy (55 lines)
-- `backend/opsec/oauth/oauth_manager.py` -- Google/GitHub/Azure OAuth2 (533 lines)
-- `backend/opsec/oauth/oauth_config.py` -- OAuth configs with PKCE (154 lines)
-- `backend/opsec/oauth/browser/callback_server.py` -- OAuth callback server (343 lines)
-- `backend/opsec/oauth/browser/browser_launcher.py` -- Browser launcher (73 lines)
-- `backend/opsec/crypto/jwt_utils.py` -- JWT + SessionManager (401 lines)
-- `backend/opsec/crypto/encryption.py` -- AES-256 Fernet encryption (205 lines)
-- `backend/opsec/password/password_facade.py` -- Argon2 + password policy (428 lines)
-- `backend/opsec/mfa/mfa_facade.py` -- TOTP/WebAuthn/backup codes (197 lines)
-- `backend/dataops/models/user.py` -- User + AuthProvider models (208 lines)
-- `backend/dataops/models/password.py` -- Password models + policies (164 lines)
-- `backend/dataops/models/mfa.py` -- MFA device + verification models (98 lines)
-- `backend/dataops/models/security.py` -- SecurityContext + ACL + DataClassification (149 lines)
-- `backend/dataops/models/types.py` -- AuthProviderType + TokenType enums (27 lines)
-- `backend/dataops/security/multi_tenancy.py` -- Multi-tenant isolation (412 lines)
-- `backend/dataops/security/rate_limiter.py` -- Token bucket + Redis + adaptive (289 lines)
-- `backend/dataops/security/audit_trail.py` -- Blockchain audit trail (367 lines)
-- `backend/dataops/security/encryption.py` -- Field encryption + PII masking (391 lines)
-- `backend/services/secrets_broker/app.py` -- Secrets management FastAPI (142 lines)
+### Base Module (UNUSED, at `/home/ami/Projects/AMI-ORCHESTRATOR/base/`)
+- `backend/opsec/auth/auth_service.py`: Core auth service (269 lines)
+- `backend/opsec/auth/provider_registry.py`: Provider adapter registry (78 lines)
+- `backend/opsec/auth/provider_adapters.py`: OAuth/APIKey/SSH adapters (319 lines)
+- `backend/opsec/auth/repository.py`: User/provider persistence (151 lines)
+- `backend/opsec/auth/exceptions.py`: Auth exception taxonomy (55 lines)
+- `backend/opsec/oauth/oauth_manager.py`: Google/GitHub/Azure OAuth2 (533 lines)
+- `backend/opsec/oauth/oauth_config.py`: OAuth configs with PKCE (154 lines)
+- `backend/opsec/oauth/browser/callback_server.py`: OAuth callback server (343 lines)
+- `backend/opsec/oauth/browser/browser_launcher.py`: Browser launcher (73 lines)
+- `backend/opsec/crypto/jwt_utils.py`: JWT + SessionManager (401 lines)
+- `backend/opsec/crypto/encryption.py`: AES-256 Fernet encryption (205 lines)
+- `backend/opsec/password/password_facade.py`: Argon2 + password policy (428 lines)
+- `backend/opsec/mfa/mfa_facade.py`: TOTP/WebAuthn/backup codes (197 lines)
+- `backend/dataops/models/user.py`: User + AuthProvider models (208 lines)
+- `backend/dataops/models/password.py`: Password models + policies (164 lines)
+- `backend/dataops/models/mfa.py`: MFA device + verification models (98 lines)
+- `backend/dataops/models/security.py`: SecurityContext + ACL + DataClassification (149 lines)
+- `backend/dataops/models/types.py`: AuthProviderType + TokenType enums (27 lines)
+- `backend/dataops/security/multi_tenancy.py`: Multi-tenant isolation (412 lines)
+- `backend/dataops/security/rate_limiter.py`: Token bucket + Redis + adaptive (289 lines)
+- `backend/dataops/security/audit_trail.py`: Blockchain audit trail (367 lines)
+- `backend/dataops/security/encryption.py`: Field encryption + PII masking (391 lines)
+- `backend/services/secrets_broker/app.py`: Secrets management FastAPI (142 lines)
 - **Total: ~4,700+ lines of auth/security code sitting unused**
 
 ### Orchestrator
-- `ami/scripts/backup/common/auth.py` -- Google Drive auth (184 lines)
-- `.env` -- Master secrets file
+- `ami/scripts/backup/common/auth.py`: Google Drive auth (184 lines)
+- `.env`: Master secrets file

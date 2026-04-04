@@ -5,7 +5,7 @@
 #   - name: Command name (what you type in shell)
 #   - binary: Path to the executable (relative to project root)
 #   - description: Human-readable description (for banner display)
-#   - category: core, enterprise, dev, or agents
+#   - category: core, enterprise, dev, infra, docs, or agents
 #   - features: Comma-separated list of key features/flags
 #   - hidden: true to hide from banner (optional)
 #   - container: Docker container name for container-backed commands (optional)
@@ -41,7 +41,13 @@ extensions:
     binary: ami/scripts/bin/ami-repo
     description: Git repository and server management
     category: core
-    features: git, gitlab-api, github-api, hf-api
+    features: git, gitlab-api, github-api, hf-api, status-all
+
+  - name: ami-welcome
+    binary: ami/scripts/bin/ami-welcome
+    description: Print the AMI Orchestrator banner
+    category: core
+    hidden: true
 
   - name: ami-pwd
     binary: ami/scripts/bin/ami-pwd
@@ -95,15 +101,73 @@ extensions:
   # ==========================================================================
   - name: ami-backup
     binary: ami/scripts/backup/create/main.py
-    description: Backup to Google Drive
+    description: Backup (rsync snapshots / Google Drive)
     category: dev
-    features: --name, --keep-local, --dry-run
+    features: --mode, --target, --keep-local, --dry-run
 
   - name: ami-restore
     binary: ami/scripts/backup/restore/main.py
-    description: Restore from Google Drive
+    description: Restore from snapshots or archives
     category: dev
-    features: --file-id, --latest-local, --local-path
+    features: --latest-snapshot, --snapshot, --file-id, --latest-local
+
+  - name: ami-gcloud
+    binary: .gcloud/google-cloud-sdk/bin/gcloud
+    description: Google Cloud CLI (gcloud SDK)
+    category: dev
+    features: compute, storage, iam, config
+
+  - name: ami-kubectl
+    binary: .boot-linux/bin/kubectl
+    description: Kubernetes CLI (kubectl + helm)
+    category: dev
+    features: get, apply, logs, describe, helm
+
+  - name: ami-cron
+    binary: ami/scripts/bin/ami_cron.py
+    description: AMI-aware cron job management
+    category: dev
+    features: list, add, remove, edit, status
+
+  # ==========================================================================
+  # Infrastructure & Networking (hidden by default)
+  # ==========================================================================
+  - name: ami-ssh
+    binary: ami/scripts/bin/ami_ssh.py
+    description: SSH with AMI keys and config
+    category: infra
+    features: auto-keys, project .ssh/, openssh
+    hidden: true
+
+  - name: ami-vpn
+    binary: ami/scripts/bin/run_openvpn_client.py
+    description: OpenVPN client with AMI config
+    category: infra
+    features: --ovpn-file, --action start/health, --daemon
+    hidden: true
+
+  - name: ami-tunnel
+    binary: ami/scripts/bin/ami_tunnel.py
+    description: Cloudflare tunnel management
+    category: infra
+    features: tunnel, access, login, service
+    hidden: true
+
+  - name: ami-ssl
+    binary: ami/scripts/bin/ami_ssl.py
+    description: OpenSSL with AMI cert paths
+    category: infra
+    features: x509, req, genrsa, s_client, verify
+    hidden: true
+
+  # ==========================================================================
+  # Document Production
+  # ==========================================================================
+  - name: ami-docs
+    binary: ami/scripts/bin/ami_docs.py
+    description: Document conversion and PDF generation
+    category: docs
+    features: pandoc, wkhtmltopdf, pdflatex, xelatex, pdfjam
 
   # ==========================================================================
   # AI Coding Agents (REQUIRE HUMAN SUPERVISION)

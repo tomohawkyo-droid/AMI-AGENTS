@@ -1,4 +1,4 @@
-# AMI Identity, Access & Secrets Management — Technical Specification
+# AMI Identity, Access & Secrets Management: Technical Specification
 
 **Date:** 2026-03-01
 **Status:** DRAFT

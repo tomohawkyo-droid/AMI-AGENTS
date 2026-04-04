@@ -2,7 +2,7 @@
 
 **Document Version:** 1.0
 **Classification:** Technical Specification
-**Domain:** Authentication & Identity -- Migration
+**Domain:** Authentication & Identity: Migration
 **Last Updated:** February 2026
 **Prerequisite Reading:** [SPEC-AUTH-OIDC-PROVIDER.md](SPEC-AUTH-OIDC-PROVIDER.md)
 
@@ -208,7 +208,7 @@ def decode_oidc_token(
             break
 
     if not key_data:
-        # Key not found -- try refreshing JWKS (key rotation)
+        # Key not found; try refreshing JWKS (key rotation)
         jwks = get_jwks(jwks_uri, force_refresh=True)
         for key in jwks.get("keys", []):
             if key.get("kid") == kid:
@@ -279,8 +279,8 @@ jwt_secret: str  # Retained during transition, remove after grace period
 ### 4.5. Login Flow Change
 
 Currently AMI-TRADING handles login and registration directly:
-- `POST /api/v1/auth/login` -- accepts email+password, issues HS256 JWT
-- `POST /api/v1/auth/register` -- creates user, issues HS256 JWT
+- `POST /api/v1/auth/login`: accepts email+password, issues HS256 JWT
+- `POST /api/v1/auth/register`: creates user, issues HS256 JWT
 
 **Target**: These endpoints redirect to the OIDC provider's authorization flow:
 

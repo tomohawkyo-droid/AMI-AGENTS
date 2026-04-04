@@ -1,4 +1,4 @@
-# Operations — Technical Specification
+# Operations: Technical Specification
 
 **Date:** 2026-03-01
 **Status:** DRAFT
@@ -18,7 +18,7 @@ make bootstrap-iam
 # Equivalent to:
 #   1. make bootstrap-keycloak    (existing)
 #   2. make bootstrap-openbao     (new)
-#   3. make bootstrap-iam-link    (new — cross-system wiring)
+#   3. make bootstrap-iam-link    (new, cross-system wiring)
 ```
 
 ### 1.2 Prerequisites
@@ -136,7 +136,7 @@ When a new organization is created in Keycloak:
 | Task | Dependencies | Rollback |
 |------|-------------|----------|
 | Deploy OpenBao container | Docker, systemd | Stop container |
-| Initialize (Shamir keys) | Physical key ceremony | Cannot undo — keys are final |
+| Initialize (Shamir keys) | Physical key ceremony | Cannot undo (keys are final) |
 | Configure auto-unseal | Unseal OpenBao running | Revert to Shamir |
 | JWT auth (Keycloak JWKS) | Keycloak running | Disable auth method |
 | KV v2 + transit engines | OpenBao initialized | Disable engines |
@@ -176,12 +176,12 @@ When a new organization is created in Keycloak:
 
 Existing Portal users MUST be migrated to Keycloak without password reset:
 
-**Option A — Keycloak User Storage Provider (Recommended)**:
+**Option A: Keycloak User Storage Provider (Recommended)**:
 1. Implement a custom User Storage SPI that reads from the Portal's existing user store
 2. On first login, Keycloak validates against legacy store, then migrates credentials to Keycloak's internal store
-3. Transparent to users — no password reset required
+3. Transparent to users, no password reset required
 
-**Option B — Bulk Import**:
+**Option B: Bulk Import**:
 1. Export users from Portal (username, email, hashed password)
 2. Import via Keycloak Admin API with `credentialData` containing the hash
 3. Keycloak must be configured to recognize the hash algorithm
@@ -373,7 +373,7 @@ POST /api/account-manager/clients/{uuid}/secret
 # 4. Old secret is automatically invalidated by Keycloak
 ```
 
-### 4.5 OpenBao Seal Key (Rekey — NFR-5.5)
+### 4.5 OpenBao Seal Key (Rekey, NFR-5.5)
 
 ```bash
 # Generate new Shamir shares (requires existing quorum)
@@ -408,12 +408,12 @@ bao operator rekey -nonce=<nonce> <unseal-key-3>
 | PostgreSQL (KC) | `pg_isready -U keycloak` | exit 0 | 30s |
 
 OpenBao health response codes:
-- `200` — initialized, unsealed, active
-- `429` — unsealed, standby
-- `472` — DR secondary, active
-- `473` — performance standby
-- `501` — not initialized
-- `503` — sealed
+- `200`: initialized, unsealed, active
+- `429`: unsealed, standby
+- `472`: DR secondary, active
+- `473`: performance standby
+- `501`: not initialized
+- `503`: sealed
 
 ### 5.2 Alert Thresholds
 
@@ -491,7 +491,7 @@ Two audit devices provide redundancy (see SPECIFICATION-SECRETS.md Section 2.4):
 1. **File audit**: `/var/log/openbao/audit.log` (JSON, HMAC'd sensitive values)
 2. **Stdout audit**: Docker log driver → log aggregation
 
-> **Critical**: If all audit devices fail, OpenBao blocks ALL requests. This is by design — auditability cannot be silently lost.
+> **Critical**: If all audit devices fail, OpenBao blocks ALL requests. This is by design: auditability cannot be silently lost.
 
 ### 6.3 Audit Log Format
 
@@ -523,7 +523,7 @@ Two audit devices provide redundancy (see SPECIFICATION-SECRETS.md Section 2.4):
 }
 ```
 
-Sensitive values (secret data, tokens) are HMAC'd in the audit log — not plaintext.
+Sensitive values (secret data, tokens) are HMAC'd in the audit log, not plaintext.
 
 ---
 
@@ -599,7 +599,7 @@ docker start ami-keycloak
 
 | Requirement | Specification Section | Verification Method |
 |-------------|----------------------|-------------------|
-| **FR-1.1** SSO via OIDC | AUTH §5.1 | Log in to Portal, access Trading — no second login |
+| **FR-1.1** SSO via OIDC | AUTH §5.1 | Log in to Portal, access Trading, no second login |
 | **FR-1.2** No re-login across apps | AUTH §5.1 | SSO session cookie skip |
 | **FR-1.3** Backchannel logout | AUTH §5.5 | Logout Portal → verify Trading session terminated |
 | **FR-1.4** Backchannel logout URL | AUTH §4.1-4.3 | Check client config in Keycloak |
