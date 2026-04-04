@@ -68,8 +68,19 @@ def _find_ssh_config() -> str | None:
 
 def main() -> int:
     """Main entry point — pass through to SSH with AMI defaults."""
-    ssh_bin = _find_ssh_binary()
     args = list(sys.argv[1:])
+
+    if not args or args[0] in ("--help", "-h"):
+        print("ami-ssh: SSH with AMI keys and config\n")
+        print("Usage: ami-ssh [ssh-args...]\n")
+        print("Wraps OpenSSH with AMI-aware defaults:")
+        print("  - Auto-discovers SSH keys from project .ssh/")
+        print("  - Uses AMI SSH config if present")
+        print("  - Uses bootstrapped OpenSSH from .boot-linux/")
+        print("\nAll arguments are passed through to ssh.")
+        return 0
+
+    ssh_bin = _find_ssh_binary()
 
     # Only inject defaults if user hasn't specified them
     has_identity = any(a == "-i" for a in args)
