@@ -253,12 +253,15 @@ display_banner() {
 
     _ami_echo "${GREEN}✓${NC} AMI Orchestrator shell environment configured successfully!"
     _ami_echo ""
-    _ami_echo " __       ___                         _     __  __  ___ "
-    _ami_echo " \\ \\     / _ \\  _ __   ___  _ __     / \\   |  \\/  ||_ _|        __   ___   __"
-    _ami_echo "  \\ \\   | | | || '_ \\ / _ \\| '_ \\   / _ \\  | |\\/| | | |   __ __/  \\ |_  ) /  \\\\\\\\"
-    _ami_echo "  / /   | |_| || |_) |  __/| | | | / ___ \\ | |  | | | |   \\ V / () | / / | () |"
-    _ami_echo " /_/     \\___/ | .__/ \\___||_| |_|/_/   \\_\\|_|  |_||___|   \\_/ \\__(_)___(_)__/"
-    _ami_echo "               |_|"
+    local banner_output
+    banner_output=$(python3 "$AMI_ROOT/ami/utils/banner.py" --project-root "$AMI_ROOT" 2>/dev/null)
+    if [[ -n "$banner_output" ]]; then
+        while IFS= read -r line; do
+            _ami_echo " $line"
+        done <<< "$banner_output"
+    else
+        _ami_echo "  OpenAMI"
+    fi
     _ami_echo ""
     _ami_echo "${GREEN}> Secure infrastructure for distributed enterprise automation and governance."
     _ami_echo "> Supports bare metal, cloud, and hybrid deployments without vendor lock-in."

@@ -221,6 +221,11 @@ ignore_missing_imports = true
 module = "loguru"
 ignore_missing_imports = true
 
+# art - ASCII art generation, no type stubs
+[[tool.mypy.overrides]]
+module = "art"
+ignore_missing_imports = true
+
 # Intel IPEX - optional CPU optimization
 [[tool.mypy.overrides]]
 module = "intel_extension_for_pytorch"

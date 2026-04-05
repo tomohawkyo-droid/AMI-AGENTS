@@ -42,6 +42,7 @@ from ami.cli_components import menu_selector as _menu
 from ami.cli_components.selection_dialog import DialogItem
 from ami.cli_components.text_input_utils import Colors
 from ami.types.results import NamedComponentStatus
+from ami.utils.banner import generate_banner_lines
 
 if TYPE_CHECKING:
     from ami.cli_components.menu_selector import MenuItem
@@ -78,8 +79,10 @@ class InstallationResult(NamedTuple):
 # ASCII Art & Banners
 # =============================================================================
 
-# Box inner width (between ║ characters)
-_BOX_WIDTH = 64
+_ART = generate_banner_lines()
+
+# Box inner width (between ║ characters) — sized to fit the art
+_BOX_WIDTH = max(64, max(len(line) for line in _ART) + 4)
 
 
 def _visible_width(s: str) -> int:
@@ -99,18 +102,6 @@ def _box_line(content: str) -> str:
     """Create a box line with proper padding for visible width."""
     return f"║{_pad_to_width(content, _BOX_WIDTH)}║"
 
-
-# ASCII art for "AMI BOOT" - defined separately for line length compliance
-# fmt: off
-_ART = [
-    " █████╗ ███╗   ███╗██╗   ██████╗  ██████╗  ██████╗ ████████╗",
-    "██╔══██╗████╗ ████║██║   ██╔══██╗██╔═══██╗██╔═══██╗╚══██╔══╝",
-    "███████║██╔████╔██║██║   ██████╔╝██║   ██║██║   ██║   ██║   ",
-    "██╔══██║██║╚██╔╝██║██║   ██╔══██╗██║   ██║██║   ██║   ██║   ",
-    "██║  ██║██║ ╚═╝ ██║██║   ██████╔╝╚██████╔╝╚██████╔╝   ██║   ",
-    "╚═╝  ╚═╝╚═╝     ╚═╝╚═╝   ╚═════╝  ╚═════╝  ╚═════╝    ╚═╝   ",
-]
-# fmt: on
 
 _BANNER_LINES = [
     f"{CYAN}╔{'═' * _BOX_WIDTH}╗",
