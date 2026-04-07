@@ -1,10 +1,10 @@
 # Specification: AMI Unified OIDC Identity Provider
 
-**Document Version:** 1.0
-**Classification:** Technical Specification
+**Date:** 2026-02-01
+**Status:** DRAFT
+**Type:** Specification
 **Domain:** Authentication & Identity
-**Last Updated:** February 2026
-**Prerequisite Reading:** [AUTH-FRAGMENTATION-AUDIT.md](../AUTH-FRAGMENTATION-AUDIT.md)
+**Prerequisite:** [AUTH-FRAGMENTATION-AUDIT.md](archive/AUTH-FRAGMENTATION-AUDIT.md)
 
 ---
 

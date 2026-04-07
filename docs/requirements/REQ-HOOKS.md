@@ -1,5 +1,9 @@
 # Requirements: Hooks and Moderation System
 
+**Date:** 2026-03-01
+**Status:** ACTIVE
+**Type:** Requirements
+
 ## Overview
 This document outlines the requirements for implementing a flexible hooks and moderation system for the AMI-Orchestrator agents. The system should allow for configurable validation at key points in the agent pipeline using YAML configurations and prompt files.
 

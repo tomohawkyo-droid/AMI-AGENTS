@@ -1,5 +1,11 @@
 # AMI Agent Ecosystem: Cross-Repo Architecture
 
+**Date:** 2026-03-01
+**Status:** DRAFT
+**Type:** Architecture
+
+> **Implementation note (2026-04-05):** This document describes the **target architecture**. Currently implemented: BootloaderAgent (ReAct loop), multi-provider runtime (Claude/Qwen/Gemini CLI), hook validation pipeline, command tier system, and config-driven provider routing. **Not yet implemented:** A2A protocol, ami-agentd gateway, Podman container isolation, UDS mesh, interaction logging, OIDC auth. Agents currently run directly on host via CLI subprocesses.
+
 > How containerised AI agents, the gateway, chat UI, task engine, and A2A protocol connect across AMI-AGENTS, AMI-TRADING, and AMI-SRP.
 
 ---
@@ -159,12 +165,12 @@ graph TD
 
 | Requirement Document | Spec Location | Implementation Repo | Path |
 |---------------------|---------------|---------------------|------|
-| Agent Container Isolation | AMI-AGENTS | AMI-AGENTS | `docs/requirements/REQUIREMENTS-AGENT-CONTAINERS.md` |
+| Agent Container Isolation | AMI-AGENTS | AMI-AGENTS | `docs/REQ-AGENT-CONTAINERS.md` |
 | Chat Agent Security Profile | AMI-TRADING | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-AGENT-PROFILE.md` |
 | Chat Backend (Gateway + A2A) | AMI-TRADING | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-BACKEND.md` |
 | Chat UI (Sidebar) | AMI-TRADING | AMI-TRADING | `docs/requirements/REQUIREMENTS-CHAT-UI.md` |
 | Task Engine (TODO/Planning) | AMI-SRP | AMI-SRP | `docs/requirements/REQUIREMENTS-TASK-ENGINE.md` |
-| This document | AMI-AGENTS | N/A | `docs/ARCHITECTURE-AGENT-ECOSYSTEM.md` |
+| This document | AMI-AGENTS | N/A | `docs/ARCH-AGENT-ECOSYSTEM.md` |
 
 ---
 

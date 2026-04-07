@@ -1,10 +1,12 @@
 # Specification: AMI-DATAOPS Polyglot Persistence Foundation
 
-**Document Version:** 1.0
-**Classification:** Technical Specification
-**Domain:** Data Access & Persistence
-**Last Updated:** February 2026
-**Source Codebase:** `base/backend/dataops/` (~24,000 LOC, 96 files)
+**Date:** 2026-02-01
+**Status:** DEPRECATED
+**Type:** Specification
+
+> **Deprecation note (2026-04-05):** The code described in this document (`base/backend/dataops/`) has been migrated to `projects/AMI-DATAOPS/`. This document is retained as historical reference for the migration.
+
+**Source Codebase (original):** `base/backend/dataops/` (~24,000 LOC, 96 files)
 
 ---
 

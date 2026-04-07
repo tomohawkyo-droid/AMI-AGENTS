@@ -2,7 +2,18 @@
 
 **Date:** 2026-03-23
 **Status:** DRAFT
-**Requirements:** [REQUIREMENTS-BACKUP.md](REQUIREMENTS-BACKUP.md) (REQ-BAK-001 through REQ-BAK-062, REQ-CLI-001 through REQ-CLI-023)
+**Type:** Specification
+**Requirements:** [REQ-BACKUP.md](../requirements/REQ-BACKUP.md) (REQ-BAK-001 through REQ-BAK-062, REQ-CLI-001 through REQ-CLI-023)
+
+> **Implementation note (2026-04-05):** The rsync backend and `--mode`/`--target` CLI flags described below are **not yet implemented**. The current system supports only:
+>
+> **Backup (`ami-backup`):** Creates a `tar.zst` archive and uploads to Google Drive. Optional secondary copy via `shutil.copy2()` to `AMI_BACKUP_MOUNT` or `/media/backup`. Flags: `--keep-local`, `--include-all`, `--auth-mode`, `--verbose`. No `--mode`, `--target`, or `--dry-run`.
+>
+> **Restore (`ami-restore`):** Downloads from Google Drive by file ID (`--file-id`), revision (`--revision`), or local path (`--local-path`/`--latest-local`). Supports selective path restoration and interactive wizard (`--interactive`). No `--latest-snapshot` or `--snapshot`.
+>
+> **Auth:** OAuth (default), service account impersonation (gcloud ADC), or service account key file.
+>
+> **Code:** `ami/scripts/backup/create/` (archiver, uploader, secondary, CLI) and `ami/scripts/backup/restore/` (drive client, local client, extractor, wizard, CLI).
 
 ---
 

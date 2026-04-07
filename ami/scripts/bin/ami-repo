@@ -11,4 +11,4 @@ export AMI_ROOT
 export PATH="$AMI_ROOT/.boot-linux/bin:$PATH"
 
 # Use venv from AMI_ROOT
-exec "/home/ami/AMI-AGENTS/.venv/bin/python" "$SCRIPT_DIR/ami_repo.py" "$@"
+exec "$AMI_ROOT/.venv/bin/python" "$SCRIPT_DIR/ami_repo.py" "$@"

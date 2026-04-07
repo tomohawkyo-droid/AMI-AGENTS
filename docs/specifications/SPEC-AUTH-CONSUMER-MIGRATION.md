@@ -1,10 +1,10 @@
 # Specification: Consumer Migration to OIDC Provider
 
-**Document Version:** 1.0
-**Classification:** Technical Specification
+**Date:** 2026-02-01
+**Status:** DRAFT
+**Type:** Specification
 **Domain:** Authentication & Identity: Migration
-**Last Updated:** February 2026
-**Prerequisite Reading:** [SPEC-AUTH-OIDC-PROVIDER.md](SPEC-AUTH-OIDC-PROVIDER.md)
+**Prerequisite:** [SPEC-AUTH-OIDC-PROVIDER.md](SPEC-AUTH-OIDC-PROVIDER.md)
 
 ---
 

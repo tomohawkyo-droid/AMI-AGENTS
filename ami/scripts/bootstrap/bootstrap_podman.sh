@@ -125,11 +125,11 @@ log_info "Checking system dependencies for Podman rootless mode"
 if ! command -v newuidmap &> /dev/null; then
     log_warn "newuidmap not found - required for Podman rootless mode"
     log_info "Installing uidmap package (requires sudo)..."
-    if sudo apt-get update && sudo apt-get install -y uidmap; then
+    if echo "$SUDO_PASS" | sudo -S apt-get update && echo "$SUDO_PASS" | sudo -S apt-get install -y uidmap; then
         log_info "✓ uidmap package installed successfully"
     else
         log_error "Failed to install uidmap package"
-        log_error "Please install manually: sudo apt-get install uidmap"
+        log_error "Please install manually: echo \"\$SUDO_PASS\" | sudo -S apt-get install uidmap"
         exit 1
     fi
 else
@@ -140,15 +140,30 @@ fi
 if ! command -v slirp4netns &> /dev/null; then
     log_warn "slirp4netns not found - required for Podman rootless networking"
     log_info "Installing slirp4netns package (requires sudo)..."
-    if sudo apt-get install -y slirp4netns; then
+    if echo "$SUDO_PASS" | sudo -S apt-get install -y slirp4netns; then
         log_info "✓ slirp4netns package installed successfully"
     else
         log_error "Failed to install slirp4netns package"
-        log_error "Please install manually: sudo apt-get install slirp4netns"
+        log_error "Please install manually: echo \"\$SUDO_PASS\" | sudo -S apt-get install slirp4netns"
         exit 1
     fi
 else
     log_info "✓ slirp4netns found at $(command -v slirp4netns)"
+fi
+
+# Check for iptables (required by netavark)
+if ! command -v iptables &> /dev/null; then
+    log_warn "iptables not found - required for Podman networking (netavark)"
+    log_info "Installing iptables package (requires sudo)..."
+    if echo "$SUDO_PASS" | sudo -S apt-get update && echo "$SUDO_PASS" | sudo -S apt-get install -y iptables; then
+        log_info "✓ iptables package installed successfully"
+    else
+        log_error "Failed to install iptables package"
+        log_error "Please install manually: echo \"\$SUDO_PASS\" | sudo -S apt-get install iptables"
+        exit 1
+    fi
+else
+    log_info "✓ iptables found at $(command -v iptables)"
 fi
 
 # AppArmor profile for rootless Podman (Ubuntu 24.04+)
@@ -165,7 +180,7 @@ if [[ "$APPARMOR_USERNS" == "1" ]]; then
     else
         log_warn "AppArmor restricts unprivileged user namespaces on this kernel"
         log_info "Installing AppArmor profile to allow Podman to create user namespaces (requires sudo)..."
-        if sudo tee "$APPARMOR_PROFILE" >/dev/null <<AAEOF
+        if echo "$SUDO_PASS" | sudo -S tee "$APPARMOR_PROFILE" >/dev/null <<AAEOF
 abi <abi/4.0>,
 include <tunables/global>
 
@@ -174,12 +189,12 @@ profile ami-podman ${PODMAN_REAL_BIN} flags=(unconfined) {
 }
 AAEOF
         then
-            sudo apparmor_parser -r "$APPARMOR_PROFILE"
+            echo "$SUDO_PASS" | sudo -S apparmor_parser -r "$APPARMOR_PROFILE"
             log_info "✓ AppArmor profile installed and loaded: $APPARMOR_PROFILE"
         else
             log_error "Failed to install AppArmor profile"
             log_error "Podman systemd service will fail with 'reexec: Permission denied'"
-            log_error "Fix manually: sudo cp <profile> $APPARMOR_PROFILE && sudo apparmor_parser -r $APPARMOR_PROFILE"
+            log_error "Fix manually: echo \"\$SUDO_PASS\" | sudo -S cp <profile> $APPARMOR_PROFILE && echo \"\$SUDO_PASS\" | sudo -S apparmor_parser -r $APPARMOR_PROFILE"
         fi
     fi
 else

@@ -413,8 +413,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Documentation
 
-- [USAGE.md](docs/USAGE.md) - Detailed usage and package integration guide
-- [SPEC-HOOKS.md](docs/SPEC-HOOKS.md) - Hook validation pipeline specification
-- [REQUIREMENTS-HOOKS.md](docs/REQUIREMENTS-HOOKS.md) - Hook system requirements
-- [ARCHITECTURE-AGENT-ECOSYSTEM.md](docs/ARCHITECTURE-AGENT-ECOSYSTEM.md) - System architecture
-- [docs/archive/](docs/archive/) - Historical audit reports, migration tracking
+See [docs/README.md](docs/README.md) for the full index. Key documents:
+
+- [GUIDE-USAGE.md](docs/GUIDE-USAGE.md) — Getting started, installation, configuration
+- [ARCH-AGENT-ECOSYSTEM.md](docs/ARCH-AGENT-ECOSYSTEM.md) — Cross-repo agent architecture
+- [SPEC-HOOKS.md](docs/specifications/SPEC-HOOKS.md) — Hook validation pipeline specification
+- [REQ-HOOKS.md](docs/requirements/REQ-HOOKS.md) — Hook system requirements
+- [SPEC-IAM.md](docs/specifications/SPEC-IAM.md) — IAM specification suite (auth, secrets, operations)

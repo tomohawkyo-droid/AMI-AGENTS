@@ -1,10 +1,16 @@
 # Requirements: Backup & Sync System
 
+**Date:** 2026-03-23
+**Status:** ACTIVE
+**Type:** Requirements
+
 ## Overview
 Replace the Google Drive-dependent backup system with a flexible rsync-based backup solution that supports local drives, network targets, and an optional rsync daemon for remote access. The existing tar.zst + Google Drive flow remains available as a fallback mode.
 
+> **Implementation status (2026-04-05):** Only the Google Drive backup mode (REQ-BAK-005) and partial restore (REQ-BAK-020 through REQ-BAK-024) are currently implemented. The rsync backend, snapshot versioning, rsyncd daemon, and multi-target support are not yet built. See [SPEC-BACKUP.md](../specifications/SPEC-BACKUP.md) for details on what exists vs what's planned.
+
 ## Background
-The current backup system (`ami/scripts/backup/`) requires Google Drive OAuth or service account impersonation. Google Workspace policy blocks the OAuth client, making the primary backup path non-functional. A local-first approach using rsync with `--link-dest` hard-link snapshots provides space-efficient versioned backups without cloud dependencies.
+The current backup system (`ami/scripts/backup/`) uses tar.zst archives uploaded to Google Drive, with optional secondary copy to a mount point. Google Workspace policy blocks the OAuth client in some configurations, motivating a local-first rsync approach.
 
 ---
 

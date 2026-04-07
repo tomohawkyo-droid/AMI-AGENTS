@@ -1,7 +1,13 @@
 # Playwright Integration Summary
 
+**Date:** 2026-02-01
+**Status:** DRAFT
+**Type:** Specification
+
+> **Implementation status (2026-04-05):** The security features described below (policy engine, user confirmation, audit trail) are not yet implemented. See [SPEC-PLAYWRIGHT.md](SPEC-PLAYWRIGHT.md) for details.
+
 ## Overview
-The AMI-Orchestrator project now includes a comprehensive Playwright integration that enables secure, auditable browser automation capabilities. This integration follows strict security protocols while providing powerful browser automation features.
+The AMI-Orchestrator project includes a Playwright integration for browser automation. Three scripts are operational (`dom-query.js`, `screenshot.js`, `console.js`) via the `ami-browser` extension. The security and audit layers described in the full spec remain planned work.
 
 ## Key Features
 - **Secure Browser Automation**: All browser operations go through security validation
@@ -43,4 +49,4 @@ node ami/scripts/browser/dom-query.js https://example.com "document.title"
 ```
 
 ## Documentation
-For detailed specifications, see [PLAYWRIGHT_INTEGRATION_SPEC.md](docs/PLAYWRIGHT_INTEGRATION_SPEC.md).
+For detailed specifications, see [SPEC-PLAYWRIGHT.md](SPEC-PLAYWRIGHT.md).

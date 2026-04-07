@@ -2,21 +2,22 @@
 
 **Date:** 2026-03-01
 **Status:** DRAFT
-**Companion:** [REQUIREMENTS-IAM.md](REQUIREMENTS-IAM.md)
+**Type:** Specification
+**Companion:** [REQ-IAM.md](../requirements/REQ-IAM.md)
 **Scope:** Cross-project IAM unification (AMI-PORTAL, AMI-TRADING, AMI-STREAMS, Orchestrator)
 
 ---
 
 ## Overview
 
-This specification is split into four domain-specific documents. Each translates the corresponding requirements from REQUIREMENTS-IAM.md into concrete technical implementation: exact product versions, configuration schemas, API contracts, data models, wire formats, and operational procedures.
+This specification is split into four domain-specific documents. Each translates the corresponding requirements from REQ-IAM.md into concrete technical implementation: exact product versions, configuration schemas, API contracts, data models, wire formats, and operational procedures.
 
 | Document | Covers | Requirements |
 |----------|--------|-------------|
-| [SPECIFICATION-AUTHENTICATION.md](SPECIFICATION-AUTHENTICATION.md) | Keycloak realm configuration, OIDC flows, client integration, SSO, session management, IdPs, MFA, brute force, password policy | FR-1 through FR-9, NFR-2 |
-| [SPECIFICATION-AUTHORIZATION.md](SPECIFICATION-AUTHORIZATION.md) | Permission registry, role hierarchy, RBAC guards, escalation controls, multi-tenancy scoping, API route matrix | FR-5, FR-4 |
-| [SPECIFICATION-SECRETS.md](SPECIFICATION-SECRETS.md) | OpenBao server config, KV v2 layout, namespaces, auth methods, policies, PKI, transit, secrets UI API contract, dynamic credentials | FR-10 through FR-14, NFR-1 |
-| [SPECIFICATION-OPERATIONS.md](SPECIFICATION-OPERATIONS.md) | Bootstrap automation, migration plan, backup/restore, key rotation, monitoring/alerting, audit, emergency access, compliance traceability | NFR-3 through NFR-7, Section 6-9 |
+| [SPEC-AUTHENTICATION.md](SPEC-AUTHENTICATION.md) | Keycloak realm configuration, OIDC flows, client integration, SSO, session management, IdPs, MFA, brute force, password policy | FR-1 through FR-9, NFR-2 |
+| [SPEC-AUTHORIZATION.md](SPEC-AUTHORIZATION.md) | Permission registry, role hierarchy, RBAC guards, escalation controls, multi-tenancy scoping, API route matrix | FR-5, FR-4 |
+| [SPEC-SECRETS.md](SPEC-SECRETS.md) | OpenBao server config, KV v2 layout, namespaces, auth methods, policies, PKI, transit, secrets UI API contract, dynamic credentials | FR-10 through FR-14, NFR-1 |
+| [SPEC-OPERATIONS.md](SPEC-OPERATIONS.md) | Bootstrap automation, migration plan, backup/restore, key rotation, monitoring/alerting, audit, emergency access, compliance traceability | NFR-3 through NFR-7, Section 6-9 |
 
 ## Conventions
 
@@ -24,7 +25,7 @@ This specification is split into four domain-specific documents. Each translates
 - Configuration examples use actual deployment values where known; placeholders use `<angle-brackets>`
 - HCL blocks are OpenBao policy syntax
 - JSON blocks are Keycloak realm export format
-- All ports, paths, and addresses reflect the current network topology (LAN: `192.168.50.66`)
+- All ports, paths, and addresses reflect the current network topology (LAN: `localhost`)
 
 ## Product Versions
 

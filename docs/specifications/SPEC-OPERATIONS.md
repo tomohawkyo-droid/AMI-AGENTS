@@ -2,8 +2,11 @@
 
 **Date:** 2026-03-01
 **Status:** DRAFT
-**Parent:** [SPECIFICATION-IAM.md](SPECIFICATION-IAM.md)
+**Type:** Specification
+**Parent:** [SPEC-IAM.md](SPEC-IAM.md)
 **Requirements:** NFR-3 through NFR-7, Sections 6-9
+
+> **Implementation status (2026-04-05):** The `make bootstrap-iam` command and multi-phase bootstrap procedure described here are not yet automated. OpenBao currently runs in `-dev` mode with a hardcoded root token. Keycloak is deployed but JWT auth, AppRole, and cross-system wiring (steps 14-29) are not implemented. This document serves as the blueprint for the production bootstrap.
 
 ---
 
@@ -35,13 +38,13 @@ make bootstrap-iam
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `KEYCLOAK_URL` | `http://192.168.50.66:8082` | Keycloak base URL |
+| `KEYCLOAK_URL` | `http://localhost:8082` | Keycloak base URL |
 | `KEYCLOAK_REALM` | `ami` | Target realm |
 | `KEYCLOAK_ADMIN_USER` | `admin` | Keycloak admin username |
 | `KEYCLOAK_ADMIN_PASSWORD` | `admin` | Keycloak admin password |
 | `KEYCLOAK_CLIENT_ID` | `ami-portal` | Portal client ID |
 | `KEYCLOAK_CLIENT_SECRET` | (from `.env.local`) | Portal client secret |
-| `BAO_ADDR` | `http://192.168.50.66:8200` | OpenBao API address |
+| `BAO_ADDR` | `http://localhost:8200` | OpenBao API address |
 | `BAO_TOKEN` | (from init output) | OpenBao root/admin token |
 | `KC_IDP_<PROVIDER>_CLIENT_ID` | (optional) | IdP client IDs |
 | `KC_IDP_<PROVIDER>_CLIENT_SECRET` | (optional) | IdP client secrets |
@@ -119,7 +122,7 @@ When a new organization is created in Keycloak:
 
 | Task | Status | Details |
 |------|--------|---------|
-| Keycloak deployed and running | Done | `192.168.50.66:8082` |
+| Keycloak deployed and running | Done | `localhost:8082` |
 | Portal authenticates via Keycloak OIDC | Done | NextAuth + Keycloak provider |
 | Portal RBAC derives from Keycloak JWT | Done | `resolvePermissions()` |
 | Bootstrap configures service account | Done | `bootstrap-keycloak.sh` |
@@ -229,7 +232,7 @@ set -euo pipefail
 BACKUP_DIR="/var/backups/openbao"
 DATE=$(date +%Y%m%d-%H%M%S)
 RETENTION_DAYS=30
-BAO_ADDR="http://192.168.50.66:8200"
+BAO_ADDR="http://localhost:8200"
 
 mkdir -p "$BACKUP_DIR"
 
@@ -271,7 +274,7 @@ docker exec -i keycloak-db pg_restore \
 docker start ami-keycloak
 
 # Verify
-curl -sf http://192.168.50.66:8082/health
+curl -sf http://localhost:8082/health
 ```
 
 #### Restore OpenBao
@@ -512,7 +515,7 @@ Two audit devices provide redundancy (see SPECIFICATION-SECRETS.md Section 2.4):
     "id": "uuid",
     "operation": "read",
     "path": "tenants/acme-corp/secrets/team/data/backend-team/db-creds",
-    "remote_address": "192.168.50.66"
+    "remote_address": "localhost"
   },
   "response": {
     "data": {

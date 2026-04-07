@@ -1,4 +1,10 @@
-# REQUIREMENTS: Containerised Agent Isolation
+# Requirements: Containerised Agent Isolation
+
+**Date:** 2026-03-01
+**Status:** DRAFT
+**Type:** Requirements
+
+> **Implementation status (2026-04-05):** Podman is bootstrapped (v5.6.2) with status monitoring and safety guards. Agent containerization (ami-agentd, A2A gateway, container lifecycle management) is not yet built. Agents currently run directly on host via CLI subprocesses.
 
 ## Purpose
 

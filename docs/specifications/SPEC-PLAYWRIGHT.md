@@ -1,4 +1,10 @@
-# Playwright Integration Specification for AMI-Orchestrator
+# Specification: Playwright Integration
+
+**Date:** 2026-02-01
+**Status:** DRAFT
+**Type:** Specification
+
+> **Implementation status (2026-04-05):** The basic Playwright integration works — `ami-browser` extension is registered, three browser scripts exist (`dom-query.js`, `screenshot.js`, `console.js`), and `playwright` binary is bootstrapped. However, the security layer described in this spec (YAML policy engine, user confirmation for sensitive ops, domain allowlist/blocklist via env vars, audit trail logging) is **not implemented**. Browser scripts execute directly with no validation layer.
 
 ## Overview
 

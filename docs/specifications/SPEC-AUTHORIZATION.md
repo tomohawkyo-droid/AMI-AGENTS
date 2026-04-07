@@ -2,8 +2,11 @@
 
 **Date:** 2026-03-01
 **Status:** DRAFT
-**Parent:** [SPECIFICATION-IAM.md](SPECIFICATION-IAM.md)
+**Type:** Specification
+**Parent:** [SPEC-IAM.md](SPEC-IAM.md)
 **Requirements:** FR-4, FR-5
+
+> **Implementation status (2026-04-05):** The 74-permission RBAC registry and route-level authorization guards described here are not yet implemented. Current auth validates Keycloak JWT signature only — no route-level permission checks, no role enforcement on API endpoints.
 
 ---
 
