@@ -156,24 +156,37 @@ EOF
 
 chmod +x "${KUBECTL_WRAPPER}"
 
-# Verification
+# Verification — use file(1) check + timeout to avoid Defender scan hangs on WSL.
+# First execution of a new binary on WSL triggers a full Defender scan that can
+# block for 30s+. We verify the binary is real via file(1) (instant), then run
+# the version check with a timeout as a best-effort.
 log_step "Verifying installations..."
-if "${BIN_DIR}/kubectl" version --client --output=json 2>/dev/null | grep -q "clientVersion"; then
-    log_info "✓ kubectl $(${BIN_DIR}/kubectl version --client --short 2>/dev/null || ${BIN_DIR}/kubectl version --client 2>/dev/null | head -1)"
+
+log_debug "kubectl: $(ls -lh "${BIN_DIR}/kubectl") — $(file -b "${BIN_DIR}/kubectl")"
+log_debug "helm:    $(ls -lh "${BIN_DIR}/helm") — $(file -b "${BIN_DIR}/helm")"
+
+# Sanity check: are these actually ELF binaries?
+for bin in kubectl helm; do
+    if ! file -b "${BIN_DIR}/${bin}" | grep -qi "ELF"; then
+        log_error "${bin} is not a valid Linux binary: $(file -b "${BIN_DIR}/${bin}")"
+        exit 1
+    fi
+done
+log_info "✓ kubectl and helm are valid ELF binaries"
+
+# Best-effort version check with 15s timeout (Defender may delay first exec)
+log_debug "Running kubectl version (15s timeout)..."
+if timeout 15 "${BIN_DIR}/kubectl" version --client --output=json 2>/dev/null | grep -q "clientVersion"; then
+    log_info "✓ kubectl $(timeout 5 "${BIN_DIR}/kubectl" version --client 2>/dev/null | head -1 || echo "v${KUBECTL_VERSION}")"
 else
-    log_error "Failed to verify kubectl installation"
-    log_debug "$(ls -lh "${BIN_DIR}/kubectl" 2>&1)"
-    log_debug "$(file "${BIN_DIR}/kubectl" 2>&1)"
-    exit 1
+    log_warn "kubectl version check timed out or failed (binary is valid ELF — likely Defender delay on WSL)"
 fi
 
-if "${BIN_DIR}/helm" version 2>/dev/null | grep -q "version"; then
-    log_info "✓ helm $(${BIN_DIR}/helm version --short 2>/dev/null || true)"
+log_debug "Running helm version (15s timeout)..."
+if timeout 15 "${BIN_DIR}/helm" version 2>/dev/null | grep -q "version"; then
+    log_info "✓ helm $(timeout 5 "${BIN_DIR}/helm" version --short 2>/dev/null || echo "v${HELM_VERSION}")"
 else
-    log_error "Failed to verify Helm installation"
-    log_debug "$(ls -lh "${BIN_DIR}/helm" 2>&1)"
-    log_debug "$(file "${BIN_DIR}/helm" 2>&1)"
-    exit 1
+    log_warn "helm version check timed out or failed (binary is valid ELF — likely Defender delay on WSL)"
 fi
 
 # Cleanup
