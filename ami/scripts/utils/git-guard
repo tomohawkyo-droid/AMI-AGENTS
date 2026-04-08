@@ -17,8 +17,14 @@ if [[ ! -x "$GIT_REAL" ]]; then
 fi
 
 block() {
-    echo "❌ BLOCKED: $1"
-    echo "This command is forbidden to prevent data loss."
+    local msg="❌ BLOCKED: $1 ($(date -Is))"
+    # Write to terminal directly — bypasses all stdout/stderr redirection.
+    # Cannot be silenced by "> /dev/null 2>&1".
+    echo "$msg" > /dev/tty 2>/dev/null || true
+    # Also write to stderr for logs/CI where /dev/tty may not exist
+    echo "$msg" >&2
+    # Permanent audit trail
+    echo "$msg | cwd=$(pwd) | cmd=$1" >> "${HOME}/.ami-git-guard.log" 2>/dev/null || true
     exit 1
 }
 
