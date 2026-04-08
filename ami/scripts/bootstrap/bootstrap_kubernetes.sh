@@ -90,9 +90,12 @@ if [ ! -s "${HELM_TARBALL}" ]; then
     exit 1
 fi
 
-# Extract Helm
+# Extract Helm — use /tmp to avoid WSL/Windows Defender filesystem slowdowns
 log_info "Extracting Helm ($(du -h "${HELM_TARBALL}" | cut -f1))..."
-tar -xzf "${HELM_TARBALL}" -C "${KUBERNETES_DIR}" --strip-components=1 "${OS}-${ARCH}/helm"
+_HELM_TMP="$(mktemp -d)"
+tar -xzf "${HELM_TARBALL}" -C "${_HELM_TMP}" --no-same-owner --strip-components=1 "${OS}-${ARCH}/helm"
+mv "${_HELM_TMP}/helm" "${KUBERNETES_DIR}/helm"
+rm -rf "${_HELM_TMP}"
 
 # Move binaries to .boot-linux/bin
 mv "${KUBECTL_BIN}" "${BIN_DIR}/kubectl"
