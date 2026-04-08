@@ -21,9 +21,13 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+BLUE='\033[0;34m'
+
 log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_debug() { echo -e "${BLUE}[DEBUG]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+log_step() { echo -e "${GREEN}[>>>>]${NC} $*"; }
 
 if [[ "$(uname -s)" != "Linux" ]]; then
     log_error "Linux only."
@@ -40,6 +44,9 @@ mkdir -p "${KUBERNETES_DIR}"
 mkdir -p "${BIN_DIR}"
 
 log_info "Bootstrapping Kubernetes tools..."
+log_debug "BOOT_DIR=${BOOT_DIR}"
+log_debug "BIN_DIR=${BIN_DIR}"
+log_debug "KUBERNETES_DIR=${KUBERNETES_DIR}"
 
 # Detect architecture
 ARCH=$(uname -m)
@@ -52,12 +59,25 @@ esac
 
 OS="linux"
 
+# Detect WSL — warn about known performance issues
+_IS_WSL=0
+if grep -qi microsoft /proc/version 2>/dev/null; then
+    _IS_WSL=1
+    log_warn "WSL detected. If extraction stalls, add a Windows Defender exclusion:"
+    log_warn "  PowerShell (admin): Add-MpExclusion -Path '\\\\wsl\$'"
+fi
+
+log_debug "OS=${OS} ARCH=${ARCH} WSL=${_IS_WSL}"
+
 # Download kubectl
 KUBECTL_VERSION="1.31.0"
 KUBECTL_URL="https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
 KUBECTL_BIN="${KUBERNETES_DIR}/kubectl"
 
-log_info "Downloading kubectl from ${KUBECTL_URL}..."
+log_step "Downloading kubectl v${KUBECTL_VERSION}..."
+log_debug "URL: ${KUBECTL_URL}"
+log_debug "Dest: ${KUBECTL_BIN}"
+_dl_start=$(date +%s)
 if command -v curl &> /dev/null; then
     curl -fSL --connect-timeout 30 --max-time 120 -o "${KUBECTL_BIN}" "${KUBECTL_URL}"
 elif command -v wget &> /dev/null; then
@@ -66,6 +86,8 @@ else
     log_error "Neither curl nor wget found. Please install one of them."
     exit 1
 fi
+_dl_end=$(date +%s)
+log_info "kubectl downloaded ($(du -h "${KUBECTL_BIN}" | cut -f1)) in $((_dl_end - _dl_start))s"
 
 chmod +x "${KUBECTL_BIN}"
 
@@ -74,7 +96,10 @@ HELM_VERSION="3.16.0"
 HELM_URL="https://get.helm.sh/helm-v${HELM_VERSION}-${OS}-${ARCH}.tar.gz"
 HELM_TARBALL="${KUBERNETES_DIR}/helm.tar.gz"
 
-log_info "Downloading Helm from ${HELM_URL}..."
+log_step "Downloading Helm v${HELM_VERSION}..."
+log_debug "URL: ${HELM_URL}"
+log_debug "Dest: ${HELM_TARBALL}"
+_dl_start=$(date +%s)
 if command -v curl &> /dev/null; then
     curl -fSL --connect-timeout 30 --max-time 120 -o "${HELM_TARBALL}" "${HELM_URL}"
 elif command -v wget &> /dev/null; then
@@ -83,21 +108,40 @@ else
     log_error "Neither curl nor wget found."
     exit 1
 fi
+_dl_end=$(date +%s)
 
 # Verify download succeeded
 if [ ! -s "${HELM_TARBALL}" ]; then
     log_error "Helm download failed or produced empty file."
     exit 1
 fi
+log_info "Helm tarball downloaded ($(du -h "${HELM_TARBALL}" | cut -f1)) in $((_dl_end - _dl_start))s"
+log_debug "Tarball type: $(file -b "${HELM_TARBALL}")"
 
-# Extract Helm — use /tmp to avoid WSL/Windows Defender filesystem slowdowns
-log_info "Extracting Helm ($(du -h "${HELM_TARBALL}" | cut -f1))..."
+# Extract Helm — use /tmp (native Linux FS) to avoid WSL/DrvFS/Defender stalls.
+# Helm is the only bootstrap that uses --strip-components + member-path filtering,
+# which forces tar to scan entry-by-entry — extremely slow on NTFS-backed mounts.
 _HELM_TMP="$(mktemp -d)"
+log_step "Extracting Helm to ${_HELM_TMP} (bypassing project dir for speed)..."
+log_debug "tar -xzf ${HELM_TARBALL} -C ${_HELM_TMP} --no-same-owner --strip-components=1 ${OS}-${ARCH}/helm"
+_ext_start=$(date +%s)
 tar -xzf "${HELM_TARBALL}" -C "${_HELM_TMP}" --no-same-owner --strip-components=1 "${OS}-${ARCH}/helm"
+_ext_end=$(date +%s)
+log_info "Helm extracted in $((_ext_end - _ext_start))s"
+
+if [ ! -f "${_HELM_TMP}/helm" ]; then
+    log_error "Extraction succeeded but helm binary not found in ${_HELM_TMP}"
+    ls -la "${_HELM_TMP}/" >&2
+    rm -rf "${_HELM_TMP}"
+    exit 1
+fi
+log_debug "Extracted binary: $(ls -lh "${_HELM_TMP}/helm")"
+
 mv "${_HELM_TMP}/helm" "${KUBERNETES_DIR}/helm"
 rm -rf "${_HELM_TMP}"
 
 # Move binaries to .boot-linux/bin
+log_step "Installing binaries to ${BIN_DIR}..."
 mv "${KUBECTL_BIN}" "${BIN_DIR}/kubectl"
 mv "${KUBERNETES_DIR}/helm" "${BIN_DIR}/helm"
 
@@ -113,18 +157,22 @@ EOF
 chmod +x "${KUBECTL_WRAPPER}"
 
 # Verification
+log_step "Verifying installations..."
 if "${BIN_DIR}/kubectl" version --client --output=json 2>/dev/null | grep -q "clientVersion"; then
-    log_info "✓ kubectl installed successfully"
-    "${BIN_DIR}/kubectl" version --client 2>/dev/null || true
+    log_info "✓ kubectl $(${BIN_DIR}/kubectl version --client --short 2>/dev/null || ${BIN_DIR}/kubectl version --client 2>/dev/null | head -1)"
 else
     log_error "Failed to verify kubectl installation"
+    log_debug "$(ls -lh "${BIN_DIR}/kubectl" 2>&1)"
+    log_debug "$(file "${BIN_DIR}/kubectl" 2>&1)"
     exit 1
 fi
 
 if "${BIN_DIR}/helm" version 2>/dev/null | grep -q "version"; then
-    log_info "✓ Helm installed successfully"
+    log_info "✓ helm $(${BIN_DIR}/helm version --short 2>/dev/null || true)"
 else
     log_error "Failed to verify Helm installation"
+    log_debug "$(ls -lh "${BIN_DIR}/helm" 2>&1)"
+    log_debug "$(file "${BIN_DIR}/helm" 2>&1)"
     exit 1
 fi
 
@@ -132,3 +180,6 @@ fi
 rm -rf "${KUBERNETES_DIR}"
 
 log_info "Kubernetes tools bootstrap complete."
+log_debug "kubectl: ${BIN_DIR}/kubectl"
+log_debug "helm:    ${BIN_DIR}/helm"
+log_debug "wrapper: ${BIN_DIR}/ami-kubectl"
