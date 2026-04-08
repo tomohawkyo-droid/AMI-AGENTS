@@ -88,7 +88,8 @@ def test_guard_blocks_destructive_commands(mock_env: MockEnv) -> None:
     for cmd in destructive_cmds:
         res = run_git_cmd(cmd, mock_env.env)
         assert res.returncode == 1, f"'{cmd}' should have been blocked"
-        assert "BLOCKED" in res.stdout, f"'{cmd}' output: {res.stdout}"
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" in combined, f"'{cmd}' output: {combined}"
 
 
 def test_guard_blocks_destructive_flags(mock_env: MockEnv) -> None:
@@ -103,7 +104,8 @@ def test_guard_blocks_destructive_flags(mock_env: MockEnv) -> None:
     for cmd in blocked_flag_cmds:
         res = run_git_cmd(cmd, mock_env.env)
         assert res.returncode == 1, f"'{cmd}' should have been blocked"
-        assert "BLOCKED" in res.stdout
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" in combined, f"'{cmd}' output: {combined}"
 
 
 def test_guard_blocks_destructive_subcommands(mock_env: MockEnv) -> None:
@@ -113,7 +115,8 @@ def test_guard_blocks_destructive_subcommands(mock_env: MockEnv) -> None:
     for cmd in cmds:
         res = run_git_cmd(cmd, mock_env.env)
         assert res.returncode == 1
-        assert "BLOCKED" in res.stdout
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" in combined, f"'{cmd}' output: {combined}"
 
 
 def test_guard_allows_safe_commands(mock_env: MockEnv) -> None:
@@ -135,7 +138,8 @@ def test_guard_allows_safe_commands(mock_env: MockEnv) -> None:
 
     for cmd in safe_cmds:
         res = run_git_cmd(cmd, mock_env.env)
-        assert "BLOCKED" not in res.stdout, f"'{cmd}' should be allowed"
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" not in combined, f"'{cmd}' should be allowed"
         assert "PASSTHROUGH" in res.stdout, f"'{cmd}' didn't reach real-git"
 
 
