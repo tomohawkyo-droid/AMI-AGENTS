@@ -88,6 +88,27 @@ else
 fi
 _dl_end=$(date +%s)
 log_info "kubectl downloaded ($(du -h "${KUBECTL_BIN}" | cut -f1)) in $((_dl_end - _dl_start))s"
+log_debug "kubectl file type: $(file -b "${KUBECTL_BIN}")"
+
+# Validate kubectl is an actual binary, not an error page or wrapper script.
+# dl.k8s.io can return HTML behind proxies, and snap/system kubectl may be a wrapper.
+# Real kubectl is ~54M; a wrapper/error page is typically <1M.
+_kubectl_size=$(stat -c%s "${KUBECTL_BIN}" 2>/dev/null || stat -f%z "${KUBECTL_BIN}" 2>/dev/null || echo 0)
+if ! file -b "${KUBECTL_BIN}" | grep -qi "ELF"; then
+    log_error "kubectl download is not a valid ELF binary: $(file -b "${KUBECTL_BIN}")"
+    log_error "Size: ${_kubectl_size} bytes (expected ~54MB)"
+    log_error "First 3 lines of downloaded file:"
+    head -3 "${KUBECTL_BIN}" >&2
+    log_error ""
+    log_error "This usually means:"
+    log_error "  1. A corporate proxy/firewall intercepted the download"
+    log_error "  2. A snap/system kubectl script was picked up instead"
+    log_error "  3. DNS is broken (try: curl -v '${KUBECTL_URL}' 2>&1 | head -30)"
+    log_error ""
+    log_error "Workaround: download manually and place at ${BIN_DIR}/kubectl"
+    log_error "  curl -fSL -o '${BIN_DIR}/kubectl' '${KUBECTL_URL}'"
+    exit 1
+fi
 
 chmod +x "${KUBECTL_BIN}"
 
