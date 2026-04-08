@@ -59,9 +59,9 @@ KUBECTL_BIN="${KUBERNETES_DIR}/kubectl"
 
 log_info "Downloading kubectl from ${KUBECTL_URL}..."
 if command -v curl &> /dev/null; then
-    curl -L -o "${KUBECTL_BIN}" "${KUBECTL_URL}"
+    curl -fSL --connect-timeout 30 --max-time 120 -o "${KUBECTL_BIN}" "${KUBECTL_URL}"
 elif command -v wget &> /dev/null; then
-    wget -O "${KUBECTL_BIN}" "${KUBECTL_URL}"
+    wget --timeout=30 -O "${KUBECTL_BIN}" "${KUBECTL_URL}"
 else
     log_error "Neither curl nor wget found. Please install one of them."
     exit 1
@@ -76,13 +76,22 @@ HELM_TARBALL="${KUBERNETES_DIR}/helm.tar.gz"
 
 log_info "Downloading Helm from ${HELM_URL}..."
 if command -v curl &> /dev/null; then
-    curl -L -o "${HELM_TARBALL}" "${HELM_URL}"
+    curl -fSL --connect-timeout 30 --max-time 120 -o "${HELM_TARBALL}" "${HELM_URL}"
 elif command -v wget &> /dev/null; then
-    wget -O "${HELM_TARBALL}" "${HELM_URL}"
+    wget --timeout=30 -O "${HELM_TARBALL}" "${HELM_URL}"
+else
+    log_error "Neither curl nor wget found."
+    exit 1
+fi
+
+# Verify download succeeded
+if [ ! -s "${HELM_TARBALL}" ]; then
+    log_error "Helm download failed or produced empty file."
+    exit 1
 fi
 
 # Extract Helm
-log_info "Extracting Helm..."
+log_info "Extracting Helm ($(du -h "${HELM_TARBALL}" | cut -f1))..."
 tar -xzf "${HELM_TARBALL}" -C "${KUBERNETES_DIR}" --strip-components=1 "${OS}-${ARCH}/helm"
 
 # Move binaries to .boot-linux/bin
