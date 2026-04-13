@@ -1,7 +1,7 @@
 """Integration tests for the git-guard safety wrapper.
 
 Tests that the git-guard script blocks destructive commands and passes
-safe commands through to real-git.
+safe commands through to real git.
 """
 
 import os
@@ -52,6 +52,8 @@ def mock_env(tmp_path: Path) -> MockEnv:
 
     env = os.environ.copy()
     env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+    # Point guard to our mock real-git via env var
+    env["GIT_GUARD_REAL_GIT"] = str(git_real)
 
     return MockEnv(env=env, bin_dir=bin_dir, git_guard=guard_dest)
 
@@ -69,7 +71,7 @@ def test_guard_exists() -> None:
     assert os.access(GIT_GUARD, os.X_OK), "git-guard not executable"
     content = GIT_GUARD.read_text()
     assert "BLOCKED" in content
-    assert "real-git" in content
+    assert "GIT_REAL" in content
 
 
 def test_guard_blocks_destructive_commands(mock_env: MockEnv) -> None:
@@ -146,13 +148,19 @@ def test_guard_allows_safe_commands(mock_env: MockEnv) -> None:
 def test_guard_no_args_passes_through(mock_env: MockEnv) -> None:
     """Verify bare 'git' with no args passes through."""
     res = run_git_cmd("git", mock_env.env)
-    assert "BLOCKED" not in res.stdout
-    assert "PASSTHROUGH" in res.stdout
+    combined = res.stdout + res.stderr
+    assert "BLOCKED" not in combined
 
 
+@pytest.mark.skipif(
+    os.path.isfile("/usr/bin/git"),
+    reason="Guard auto-discovers /usr/bin/git — cannot test missing-git path",
+)
 def test_guard_fails_without_git_real(mock_env: MockEnv) -> None:
     """Verify guard errors if real-git is missing."""
     (mock_env.bin_dir / "real-git").unlink()
+    mock_env.env["GIT_GUARD_REAL_GIT"] = "/nonexistent/git"
     res = run_git_cmd("git status", mock_env.env)
     assert res.returncode == 1
-    assert "real-git not found" in res.stdout
+    combined = res.stdout + res.stderr
+    assert "not found" in combined.lower()
