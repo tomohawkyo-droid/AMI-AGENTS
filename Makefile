@@ -1,6 +1,9 @@
 # Makefile for AMI Agents
 SHELL := /bin/bash
 
+# Contract compliance
+-include projects/AMI-CI/lib/makefile_contract.mk
+
 # Default target
 .PHONY: help
 help: ## Show this help message
@@ -8,6 +11,11 @@ help: ## Show this help message
 	@echo ""
 	@echo "Other Targets:"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %%-28s %%s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+# --- Preflight ---
+
+.PHONY: preflight
+preflight: pre-req-check ## Verify environment and pre-requisites
 
 # --- Pre-requisites Check ---
 
@@ -129,7 +137,7 @@ install-node-agents: ## Install Node.js CLI agents (claude, gemini, qwen)
 	@echo "✅ Node.js CLI agents installed"
 
 .PHONY: sync
-sync: sync-package ## Alias for sync-package
+sync: sync-package install-hooks ## Sync deps + reinstall hooks
 
 # --- Config & Utilities ---
 
