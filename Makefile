@@ -9,6 +9,16 @@ help: ## Show this help message
 	@echo "Other Targets:"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %%-28s %%s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+# --- Pre-requisites Check ---
+
+.PHONY: pre-req-check
+pre-req-check: ## Check system pre-requisites (runs automatically on install)
+	@bash ami/scripts/pre-req.sh
+
+.PHONY: pre-req
+pre-req: ## Install system pre-requisites (requires sudo)
+	@bash ami/scripts/pre-req.sh --install
+
 # --- Main Installation Flow ---
 
 INSTALL_LOG := install-$(shell date +%Y%m%d-%H%M%S).log
@@ -18,10 +28,13 @@ install: ## Install AMI Agents in editable mode with all setup
 	@exec > >(tee -a "$(INSTALL_LOG)") 2>&1; \
 	echo "🚀 Installing AMI Agents..."; \
 	echo "📝 Log: $(INSTALL_LOG)"; \
+	$(MAKE) pre-req-check && \
 	$(MAKE) sync-package && \
 	$(MAKE) setup-config && \
 	$(MAKE) register-extensions && \
 	$(MAKE) install-bootstrap && \
+	$(MAKE) install-git-guard && \
+	$(MAKE) install-hooks && \
 	$(MAKE) install-shell && \
 	echo "✨ Installation complete!" && \
 	bash ami/scripts/shell/shell-setup --welcome
@@ -31,10 +44,13 @@ install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
 	@exec > >(tee -a "$(INSTALL_LOG)") 2>&1; \
 	echo "🚀 Installing AMI Agents (CI mode)..."; \
 	echo "📝 Log: $(INSTALL_LOG)"; \
+	$(MAKE) pre-req-check && \
 	$(MAKE) sync-package && \
 	$(MAKE) setup-config && \
 	$(MAKE) register-extensions && \
 	$(MAKE) install-bootstrap-ci && \
+	$(MAKE) install-git-guard && \
+	$(MAKE) install-hooks && \
 	$(MAKE) install-shell && \
 	echo "✨ Installation complete (CI mode)!"
 
@@ -75,13 +91,26 @@ install-bootstrap-ci: ## Non-interactive bootstrap using defaults file
 	@.venv/bin/python ami/scripts/bootstrap_installer.py --defaults ami/config/install-defaults.yaml
 
 .PHONY: bootstrap-core
-bootstrap-core: ## Bootstrap core tools (uv, python, git, git-lfs/xet) into .boot-linux
+bootstrap-core: ## Bootstrap core tools (uv, python, git-lfs/xet) into .boot-linux
 	@echo "🔧 Bootstrapping core tools..."
 	@bash ami/scripts/bootstrap/bootstrap_uv.sh
 	@bash ami/scripts/bootstrap/bootstrap_python.sh
-	@bash ami/scripts/bootstrap/bootstrap_git.sh
 	@bash ami/scripts/bootstrap/bootstrap_git_xet.sh
 	@echo "✅ Core bootstrap complete"
+
+.PHONY: install-git-guard
+install-git-guard: ## Install git safety wrapper to .boot-linux/bin/git
+	@mkdir -p .boot-linux/bin
+	@if command -v git &> /dev/null; then \
+		SYSTEM_GIT=$$(command -v git); \
+		echo "🔒 Installing git-guard (system git: $$SYSTEM_GIT)"; \
+		cp ami/scripts/utils/git-guard .boot-linux/bin/git; \
+		chmod +x .boot-linux/bin/git; \
+		echo "✅ Git safety wrapper installed"; \
+	else \
+		echo "⚠️  System git not found — skipping git-guard installation"; \
+		echo "    Run: sudo make pre-req"; \
+	fi
 
 .PHONY: install-shell
 install-shell: ## Install AMI shell environment to ~/.bashrc

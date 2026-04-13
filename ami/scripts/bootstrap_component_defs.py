@@ -31,6 +31,8 @@ def _get_package_version(package_name: str) -> str:
 
 
 # Core Dependencies (installed FIRST, before anything else)
+# Note: git, openssh, openssl, openvpn are system dependencies checked by pre-req.sh
+# They are NOT bootstrap components — install them via: sudo make pre-req
 CORE_DEPS = [
     Component(
         name="uv",
@@ -55,6 +57,17 @@ CORE_DEPS = [
         version_pattern=r"Python (\d+\.\d+\.\d+)",
     ),
     Component(
+        name="gcc",
+        label="GCC/musl",
+        description="C compiler (static toolchain)",
+        type=ComponentType.SCRIPT,
+        group="Core Dependencies",
+        script="bootstrap_gcc.sh",
+        detect_path=".boot-linux/bin/gcc",
+        version_cmd=[".boot-linux/bin/gcc", "--version"],
+        version_pattern=r"gcc.*?(\d+\.\d+\.\d+)",
+    ),
+    Component(
         name="git_xet",
         label="Git Xet",
         description="HuggingFace large file storage",
@@ -64,17 +77,6 @@ CORE_DEPS = [
         detect_path=".boot-linux/bin/git-lfs",
         version_cmd=[".boot-linux/bin/git-lfs", "--version"],
         version_pattern=r"git-lfs/(\d+\.\d+\.\d+)",
-    ),
-    Component(
-        name="git",
-        label="Git",
-        description="Version control",
-        type=ComponentType.SCRIPT,
-        group="Core Dependencies",
-        script="bootstrap_git.sh",
-        detect_path=".boot-linux/git/bin/git",
-        version_cmd=[".boot-linux/git/bin/git", "--version"],
-        version_pattern=r"git version (\d+\.\d+\.\d+)",
     ),
 ]
 
@@ -225,40 +227,8 @@ DEV_TOOLS = [
 ]
 
 # Security & Networking
+# Note: openssh, openssl, openvpn are system dependencies checked by pre-req.sh
 SECURITY = [
-    Component(
-        name="openssh",
-        label="OpenSSH",
-        description="SSH tools",
-        type=ComponentType.SCRIPT,
-        group="Security & Networking",
-        script="bootstrap_openssh.sh",
-        detect_path=".boot-linux/openssh/sbin/sshd",
-        version_cmd=[".boot-linux/openssh/sbin/sshd", "-V"],
-        version_pattern=r"OpenSSH[_\s](\d+\.\d+)",
-    ),
-    Component(
-        name="openssl",
-        label="OpenSSL",
-        description="SSL/TLS toolkit",
-        type=ComponentType.SCRIPT,
-        group="Security & Networking",
-        script="bootstrap_openssl.sh",
-        detect_path=".boot-linux/bin/openssl",
-        version_cmd=[".boot-linux/bin/openssl", "version"],
-        version_pattern=r"OpenSSL (\d+\.\d+\.\d+)",
-    ),
-    Component(
-        name="openvpn",
-        label="OpenVPN",
-        description="VPN client",
-        type=ComponentType.SCRIPT,
-        group="Security & Networking",
-        script="bootstrap_openvpn.sh",
-        detect_path=".boot-linux/bin/openvpn",
-        version_cmd=[".boot-linux/openvpn/sbin/openvpn", "--version"],
-        version_pattern=r"OpenVPN (\d+\.\d+\.\d+)",
-    ),
     Component(
         name="cloudflared",
         label="Cloudflared",

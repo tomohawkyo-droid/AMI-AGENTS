@@ -8,7 +8,7 @@ import subprocess
 import sys
 from collections.abc import Callable
 from threading import Event
-from typing import ClassVar, NamedTuple
+from typing import Any, ClassVar, NamedTuple, cast
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -402,11 +402,12 @@ class BootloaderAgent:
         """Convert provider metadata to EntryMetadata."""
         if not provider_meta:
             return EntryMetadata()
+        meta = cast(Any, provider_meta)
         return EntryMetadata(
-            model=getattr(provider_meta, "model", None),
-            tokens=getattr(provider_meta, "tokens", None),
-            duration=getattr(provider_meta, "duration", None),
-            exit_code=getattr(provider_meta, "exit_code", None),
+            model=meta.model,
+            tokens=meta.tokens,
+            duration=meta.duration,
+            exit_code=meta.exit_code,
         )
 
     def _is_stopped(self, ctx: RunContext, response_parts: list[str]) -> bool:

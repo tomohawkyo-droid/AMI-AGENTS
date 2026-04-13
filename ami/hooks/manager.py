@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 import yaml
 
@@ -42,9 +42,16 @@ def _parse_event(event_key: str, config_path: Path) -> HookEvent:
         raise ValueError(msg) from None
 
 
+class _ValidatorConfig(TypedDict, total=False):
+    """Validator configuration entry."""
+
+    type: str
+    config: dict[str, str]
+
+
 def _parse_validators(
     event_key: str,
-    validator_configs: list[dict[str, str]],
+    validator_configs: list[_ValidatorConfig],
     config_path: Path,
 ) -> list[ValidatorProtocol]:
     """Parse and instantiate validators for one event from config."""

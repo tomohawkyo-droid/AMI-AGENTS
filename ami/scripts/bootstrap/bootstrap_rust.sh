@@ -62,15 +62,11 @@ else
     exit 1
 fi
 
-# Ensure a C linker is available (required by Rust toolchain)
-if ! command -v cc &>/dev/null && ! command -v gcc &>/dev/null; then
-    log_info "No C compiler found. Installing build-essential (required by Rust)..."
-    if command -v sudo &>/dev/null; then
-        sudo apt-get update -qq && sudo apt-get install -y build-essential
-    else
-        log_error "No C compiler (cc/gcc) found and sudo not available. Install build-essential manually."
-        exit 1
-    fi
+# Check if a C linker is available (required by Rust toolchain)
+if ! command -v cc &>/dev/null && ! command -v gcc &>/dev/null && ! command -v clang &>/dev/null; then
+    log_error "No C compiler (cc/gcc/clang) found — required by Rust toolchain."
+    log_error "Run: sudo make pre-req"
+    exit 1
 fi
 
 log_info "Installing Rust (this may take a moment)..."

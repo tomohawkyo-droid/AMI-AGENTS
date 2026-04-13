@@ -43,6 +43,15 @@ fi
 mkdir -p "${KUBERNETES_DIR}"
 mkdir -p "${BIN_DIR}"
 
+# Clean any stale/corrupted binaries from previous runs
+for bin in kubectl helm ami-kubectl; do
+    if [[ -e "${BIN_DIR}/${bin}" ]] && ! file -b "${BIN_DIR}/${bin}" 2>/dev/null | grep -qi "ELF"; then
+        log_warn "Removing stale ${bin} ($(file -b "${BIN_DIR}/${bin}" 2>/dev/null || echo unknown))"
+        rm -f "${BIN_DIR}/${bin}"
+    fi
+done
+rm -rf "${KUBERNETES_DIR}"/*
+
 log_info "Bootstrapping Kubernetes tools..."
 log_debug "BOOT_DIR=${BOOT_DIR}"
 log_debug "BIN_DIR=${BIN_DIR}"
@@ -163,8 +172,13 @@ rm -rf "${_HELM_TMP}"
 
 # Move binaries to .boot-linux/bin
 log_step "Installing binaries to ${BIN_DIR}..."
+
+log_debug "Before mv: kubectl = $(file -b "${KUBECTL_BIN}" 2>/dev/null || echo missing), size=$(stat -c%s "${KUBECTL_BIN}" 2>/dev/null || echo 0)"
 mv "${KUBECTL_BIN}" "${BIN_DIR}/kubectl"
+log_debug "After mv: kubectl = $(file -b "${BIN_DIR}/kubectl" 2>/dev/null || echo missing), size=$(stat -c%s "${BIN_DIR}/kubectl" 2>/dev/null || echo 0)"
+
 mv "${KUBERNETES_DIR}/helm" "${BIN_DIR}/helm"
+log_debug "After mv: helm = $(file -b "${BIN_DIR}/helm" 2>/dev/null || echo missing), size=$(stat -c%s "${BIN_DIR}/helm" 2>/dev/null || echo 0)"
 
 # Create kubectl wrapper with proper config
 KUBECTL_WRAPPER="${BIN_DIR}/ami-kubectl"
@@ -176,6 +190,7 @@ exec kubectl "$@"
 EOF
 
 chmod +x "${KUBECTL_WRAPPER}"
+log_debug "After wrapper create: kubectl = $(file -b "${BIN_DIR}/kubectl" 2>/dev/null || echo missing), size=$(stat -c%s "${BIN_DIR}/kubectl" 2>/dev/null || echo 0)"
 
 # Verification — use file(1) check + timeout to avoid Defender scan hangs on WSL.
 # First execution of a new binary on WSL triggers a full Defender scan that can

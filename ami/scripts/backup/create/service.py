@@ -122,7 +122,7 @@ class BackupService:
                 return True
             if isinstance(cause, (RefreshError, TransportError)):
                 return True
-            cause = getattr(cause, "__cause__", None)
+            cause = cause.__cause__
         return False
 
     async def _handle_upload_error(

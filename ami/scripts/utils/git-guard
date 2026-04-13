@@ -1,18 +1,28 @@
 #!/usr/bin/env bash
 # Git Guard - Blocks destructive commands
-# Installed to ${BOOT_LINUX_DIR}/bin/git, calls real-git
+# Installed to ${BOOT_LINUX_DIR}/bin/git, calls system git
 #
 # This wrapper prevents accidental data loss from dangerous git commands.
-# It cannot be bypassed because it IS the git binary in PATH.
+# It resolves the system git at runtime from known paths or a cached value.
 
 set -euo pipefail
 
-GIT_REAL="$(dirname "$0")/real-git"
+# Resolve system git: try cached path first, then search known locations
+GIT_REAL="${GIT_GUARD_REAL_GIT:-}"
+
+if [[ -z "$GIT_REAL" || ! -x "$GIT_REAL" ]]; then
+    for candidate in /usr/bin/git /usr/local/bin/git /snap/bin/git; do
+        if [[ -x "$candidate" ]]; then
+            GIT_REAL="$candidate"
+            break
+        fi
+    done
+fi
 
 # Ensure real git exists
-if [[ ! -x "$GIT_REAL" ]]; then
-    echo "ERROR: real-git not found at $GIT_REAL"
-    echo "Run bootstrap_git.sh to fix installation"
+if [[ -z "${GIT_REAL:-}" || ! -x "$GIT_REAL" ]]; then
+    echo "ERROR: System git not found in known locations"
+    echo "Git is a system dependency — run: sudo make pre-req"
     exit 1
 fi
 

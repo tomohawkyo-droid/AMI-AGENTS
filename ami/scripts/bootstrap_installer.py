@@ -378,7 +378,34 @@ def _run_from_defaults(defaults_file: Path) -> int:
     return _print_summary(install_result.success_count, install_result.failed_labels)
 
 
+def _restore_terminal() -> None:
+    """Restore terminal to a clean state."""
+    # Reset all ANSI attributes
+    sys.stdout.write(f"{RESET}")
+    # Show cursor (in case it was hidden)
+    sys.stdout.write("\033[?25h")
+    # Reset scrolling region
+    sys.stdout.write("\033[r")
+    # Move to bottom of screen
+    sys.stdout.write("\033[999E")
+    sys.stdout.flush()
+
+
 def main() -> int:
+    """Main entry point for the bootstrap installer TUI."""
+    try:
+        return _main_impl()
+    except (KeyboardInterrupt, SystemExit):
+        _restore_terminal()
+        raise
+    except Exception:
+        _restore_terminal()
+        raise
+    finally:
+        _restore_terminal()
+
+
+def _main_impl() -> int:
     """Main entry point for the bootstrap installer TUI."""
     parser = argparse.ArgumentParser(
         description="Bootstrap Installer for AMI Orchestrator"

@@ -151,3 +151,4 @@ projects/
 # Linter config symlinks (point to res/config/)
 ruff.toml
 mypy.toml
+.qwen/

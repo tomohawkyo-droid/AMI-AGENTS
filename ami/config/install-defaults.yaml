@@ -2,24 +2,34 @@
 # Used by: make install-ci
 # Edit this file to change which components are installed by default
 #
-# NOTE: Only include components that can install without external dependencies
-# (no Node.js, no pip packages, etc.)
+# NOTE: Only include components that bootstrap from direct downloads.
+# System dependencies (git, openssh, openssl, openvpn) are checked by pre-req.sh
+# and installed via: sudo make pre-req
 
 components:
   # Core Dependencies (installed FIRST)
   - uv
   - python
 
-  # Development Tools (system packages, usually pre-installed)
-  - git
-  - go
+  # AI Coding Assistants
+  - claude
+  - gemini
+  - qwen
 
   # Containers & Orchestration
   - podman
 
+  # Development Tools
+  - gh
+  - go
+
   # Security & Networking
-  - openssh
-  - openssl
+  - cloudflared
+
+  # Document Processing
+  - pandoc
+  - texlive
 
   # Miscellaneous
+  - adb
   - ansible
