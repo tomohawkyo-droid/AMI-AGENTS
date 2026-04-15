@@ -173,7 +173,7 @@ DEV_TOOLS = [
         group="Development Tools",
         script="bootstrap_rust.sh",
         detect_path=".boot-linux/rust/bin/cargo",
-        version_cmd=["ami/scripts/bin/ami-run", "rustc", "--version"],
+        version_cmd=[".boot-linux/rust/bin/rustc", "--version"],
         version_pattern=r"rustc (\d+\.\d+\.\d+)",
     ),
     Component(
@@ -319,6 +319,21 @@ MATRIX = [
     ),
 ]
 
+# Browser Automation
+BROWSER = [
+    Component(
+        name="playwright",
+        label="Playwright",
+        description="Browser automation (chromium + chrome)",
+        type=ComponentType.SCRIPT,
+        group="Browser Automation",
+        script="bootstrap_playwright.sh",
+        detect_path=".boot-linux/playwright-browsers",
+        version_cmd=[".venv/bin/playwright", "--version"],
+        version_pattern=r"(\d+\.\d+\.\d+)",
+    ),
+]
+
 # Miscellaneous
 MISC = [
     Component(
@@ -353,6 +368,7 @@ ALL_COMPONENTS: list[Component] = [
     *DEV_TOOLS,
     *SECURITY,
     *DOCUMENTS,
+    *BROWSER,
     *MATRIX,
     *MISC,
 ]
@@ -365,6 +381,7 @@ GROUPS = [
     "Development Tools",
     "Security & Networking",
     "Document Processing",
+    "Browser Automation",
     "Matrix & Communication",
     "Miscellaneous",
 ]

@@ -93,6 +93,21 @@ log_success "Rust installed to $RUST_HOME"
 "$RUST_HOME/bin/rustc" --version
 "$RUST_HOME/bin/cargo" --version
 
+# Bootstrap glibc GCC if not present — required as Rust's linker driver
+# (.boot-linux/bin/gcc is musl, which is incompatible with Rust's glibc toolchain)
+if [ ! -x "$BOOT_DIR/bin/gcc-glibc" ]; then
+    log_info "Bootstrapping glibc GCC for Rust linker..."
+    bash "$SCRIPT_DIR/bootstrap_gcc_glibc.sh"
+fi
+
+# Configure cargo to use glibc GCC as the linker for x86_64-unknown-linux-gnu
+# Use just the binary name — gcc-glibc is in .boot-linux/bin/ which is in $PATH
+cat > "$RUST_HOME/config.toml" << 'TOML'
+[target.x86_64-unknown-linux-gnu]
+linker = "gcc-glibc"
+TOML
+log_success "Global cargo config created (glibc gcc linker for x86_64-unknown-linux-gnu)"
+
 # Install additional components required for development tooling
 log_info "Installing additional Rust components..."
 "$RUST_HOME/bin/rustup" component add llvm-tools-preview rust-src

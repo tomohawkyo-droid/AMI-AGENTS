@@ -66,10 +66,10 @@ extensions:
   # Enterprise Services
   # ==========================================================================
   - name: ami-mail
-    binary: ami/scripts/bin/ami_mail.py
-    description: Enterprise mail operations CLI
+    binary: .boot-linux/bin/himalaya
+    description: Enterprise mail CLI (himalaya fork)
     category: enterprise
-    features: send, send-block, fetch
+    features: send, send-block, batch, domain, template, groups
 
   - name: ami-chat
     binary: .boot-linux/bin/matrix-commander
@@ -118,7 +118,7 @@ extensions:
     features: compute, storage, iam, config
 
   - name: ami-kubectl
-    binary: .boot-linux/bin/kubectl
+    binary: .boot-linux/bin/ami-kubectl
     description: Kubernetes CLI (kubectl + helm)
     category: dev
     features: get, apply, logs, describe, helm

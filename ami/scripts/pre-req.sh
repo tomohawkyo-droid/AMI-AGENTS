@@ -292,6 +292,9 @@ install_missing() {
         return 1
     fi
 
+    # Playwright system libs are checked in the check phase and included in
+    # MISSING_ENTRIES — they get installed via the apt-get block above.
+
     return 0
 }
 
@@ -396,6 +399,28 @@ log_section "Additional Tools"
 check_command "tar"      "tar"      "tar archiver"    || true
 check_command "gzip"     "gzip"     "gzip compression"  || true
 check_command "dpkg-deb" "dpkg"     "dpkg-deb extractor" || true
+
+# --- Playwright/Browser System Libraries ---
+log_section "Browser Automation (Playwright)"
+
+# Key libraries that Playwright/Chromium needs — check via dpkg
+_pw_missing=0
+_pw_libs=(
+    libnss3 libgbm1 libatk-bridge2.0-0t64 libpango-1.0-0 libcairo2
+    libcups2t64 libdrm2 libdbus-1-3 libxkbcommon0 libxrandr2
+)
+for lib in "${_pw_libs[@]}"; do
+    if dpkg -s "$lib" &>/dev/null 2>&1; then
+        :  # installed, quiet
+    else
+        log_miss "Playwright library: $lib"
+        MISSING_ENTRIES+=("$lib|$lib|Playwright browser dependency ($lib)")
+        _pw_missing=1
+    fi
+done
+if [[ $_pw_missing -eq 0 ]]; then
+    log_ok "Playwright system libraries"
+fi
 
 # Check wget as curl alternative
 if ! find_binary curl &> /dev/null && ! find_binary wget &> /dev/null; then

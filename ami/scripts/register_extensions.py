@@ -101,14 +101,20 @@ def register_extensions() -> None:
 
         target_path = bin_dir / name
 
+        # Skip if target already exists at link path (bootstrap created it)
+        source_path = ami_root / binary
+        if target_path.resolve() == source_path.resolve():
+            print(f"  ✓ {name} → {binary} (already in place)")
+            continue
+
         if binary.endswith(".py"):
             # Python script - create wrapper
             create_wrapper(target_path, ami_root, binary)
             print(f"  ✓ {name} → wrapper({binary})")
         else:
             # Direct binary - fix stale shebangs then create symlink
-            fix_stale_shebang(ami_root / binary, ami_root)
-            create_symlink(target_path, ami_root / binary)
+            fix_stale_shebang(source_path, ami_root)
+            create_symlink(target_path, source_path)
             print(f"  ✓ {name} → {binary}")
 
     print(f"\n✅ Created {len(extensions)} commands in {bin_dir}")

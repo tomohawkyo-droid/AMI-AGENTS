@@ -1,15 +1,17 @@
 # AMI Identity, Access & Secrets Management: Requirements
 
 **Date:** 2026-03-01
-**Status:** DRAFT
+**Updated:** 2026-04-13
+**Status:** ACTIVE
 **Type:** Requirements
 **Scope:** Cross-project IAM unification (AMI-PORTAL, AMI-TRADING, AMI-STREAMS, Orchestrator)
+**Specs:** [SPEC-IAM](../specifications/SPEC-IAM.md) | [SPEC-AUTHENTICATION](../specifications/SPEC-AUTHENTICATION.md) | [SPEC-AUTHORIZATION](../specifications/SPEC-AUTHORIZATION.md) | [SPEC-SECRETS](../specifications/SPEC-SECRETS.md) | [SPEC-OPERATIONS](../specifications/SPEC-OPERATIONS.md)
 
 ---
 
 ## 1. Problem Statement
 
-The AMI ecosystem has **6 independent auth systems** across its services (see [AUTH-FRAGMENTATION-AUDIT.md](AUTH-FRAGMENTATION-AUDIT.md)). Zero shared identity, zero SSO, zero token interoperability. Secrets are scattered across `.env` files, Ansible vaults, Docker Compose, and pickle files. A comprehensive auth framework exists in `base/backend/opsec/` (~4,700 lines) and is unused.
+The AMI ecosystem has **6 independent auth systems** across its services (see [AUTH-FRAGMENTATION-AUDIT](../archive/AUTH-FRAGMENTATION-AUDIT.md)). Zero shared identity, zero SSO, zero token interoperability. Secrets are scattered across `.env` files, Ansible vaults, Docker Compose, and pickle files. A comprehensive auth framework exists in `base/backend/opsec/` (~4,700 lines) and is unused.
 
 The goal is to consolidate into a single IAM stack that provides:
 
@@ -463,6 +465,40 @@ The `resolvePermissions()` function MUST accept both legacy and new role names. 
 | FR-14.5 | Admins MUST be able to browse all secret paths they have policy access to |
 | FR-14.6 | Secret values MUST be treated as untrusted input. React JSX escaping handles rendering; no `dangerouslySetInnerHTML` |
 | FR-14.7 | Rate limiting MUST be applied to secret read/write API routes to prevent enumeration attacks |
+
+### 3.4 Centralized Infrastructure Provisioning
+
+#### FR-15: Single Keycloak Instance via DATAOPS
+
+| ID | Requirement |
+|----|-------------|
+| FR-15.1 | AMI-DATAOPS SHALL be the sole deployer of the Keycloak instance. No other project SHALL deploy its own Keycloak container or PostgreSQL backend for Keycloak. |
+| FR-15.2 | Keycloak version SHALL always track latest stable (currently 26.2+). DATAOPS compose MUST be updated when new versions are available. |
+| FR-15.3 | Dependent projects (AMI-PORTAL, AMI-TRADING, AMI-STREAMS, etc.) SHALL request OIDC client provisioning from DATAOPS, not maintain their own realm JSON exports or Keycloak docker-compose services. |
+| FR-15.4 | DATAOPS Ansible provisioning (`compose.yml`) SHALL support provisioning multiple OIDC clients, not just `ami-portal`. Client list SHALL be configurable via env vars or a YAML manifest. |
+| FR-15.5 | Each project's Makefile SHALL include a `preflight` check verifying Keycloak is reachable at the expected address before running auth-dependent operations. |
+| FR-15.6 | AMI-TRADING MUST remove its independent Keycloak + keycloak-db services from `docker-compose.yml` and depend on the DATAOPS instance. |
+| FR-15.7 | AMI-TRADING MUST remove `res/docker/keycloak/ami-realm.json` and use DATAOPS Ansible provisioning for its `ami-trading` client. |
+| FR-15.8 | A single `.env.example` template per project SHALL document the required Keycloak env vars (issuer URL, client ID, client secret) without hardcoding deployment addresses. |
+
+#### FR-16: OAuth 2.1 Compliance
+
+| ID | Requirement |
+|----|-------------|
+| FR-16.1 | AMI-TRADING MUST migrate from Resource Owner Password Credentials (ROPC) grant to Authorization Code + PKCE flow. ROPC is deprecated in OAuth 2.1. |
+| FR-16.2 | `directAccessGrantsEnabled` MUST be set to `false` on the `ami-trading` Keycloak client. |
+| FR-16.3 | All OIDC clients MUST use Authorization Code flow with PKCE (S256) for user authentication. |
+| FR-16.4 | Client Credentials grant remains valid for service-to-service (M2M) authentication. |
+
+#### FR-17: Infrastructure Tooling
+
+| ID | Requirement |
+|----|-------------|
+| FR-17.1 | `ami-kcadm` CLI wrapper SHALL be documented as an extension and registered in `extensions.yaml`. |
+| FR-17.2 | `bootstrap-keycloak.sh` (PORTAL) SHALL be consolidated with DATAOPS Ansible provisioning to avoid duplication. |
+| FR-17.3 | A `make bootstrap-iam` target SHALL automate the full IAM stack setup (Keycloak realm + clients + OpenBao init + cross-system wiring). |
+| FR-17.4 | All bootstrap and provisioning operations SHALL be idempotent. |
+| FR-17.5 | AMI-PORTAL SHALL provide an `.env.example` template (tracked in git) documenting all required auth environment variables. |
 
 ---
 

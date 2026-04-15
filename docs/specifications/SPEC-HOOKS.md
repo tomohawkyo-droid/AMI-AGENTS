@@ -28,11 +28,10 @@ The hook validation pipeline replaces the original guard system with a configura
 
 | Requirement | Status | Notes |
 |---|---|---|
-| REQ-HOOK-003: Load prompts from TXT/MD files | NOT STARTED | For future LLM-based validators |
-| REQ-HOOK-005: LLM-based content evaluation | NOT STARTED | Requires prompt loading infrastructure |
-| REQ-HOOK-006 (full): MODIFY / REQUEST_FEEDBACK | NOT STARTED | Current system supports ALLOW/DENY/CONFIRM only |
-| REQ-HOOK-008: Multi-provider compatibility | IMPLICIT | Hooks run before provider calls, provider-agnostic |
-| REQ-HOOK-010: Feedback injection into agent loop | NOT STARTED | Would require HookResult extension |
+| REQ-HOOK-050–057: LLM-in-the-loop validation | NOT STARTED | CLI-based LLM evaluation on any hook event |
+| REQ-HOOK-060–063: MODIFY action | NOT STARTED | Command/content rewriting with re-validation |
+| REQ-HOOK-070–074: Feedback injection | NOT STARTED | REQUEST_FEEDBACK prepends guidance to next LLM call |
+| REQ-HOOK-080–087: Security loadouts/profiles | NOT STARTED | Named YAML profiles bundling scope + validators |
 
 ## Architecture
 
@@ -71,7 +70,7 @@ Commands are classified into 4 security tiers in `command_tiers.yaml`:
 | **execute** | CONFIRM | No | python, pytest, mypy, make, cargo, uv, curl, wget, ami-* |
 | **admin** | DENY | No | rm, sudo, chmod, chown, kill, git push/reset/checkout/commit |
 
-Additionally, 22 **hard deny** patterns block dangerous constructs unconditionally (command chaining, nested shells, dangerous invocations).
+Additionally, 21 **hard deny** patterns block dangerous constructs unconditionally (command chaining, nested shells, dangerous invocations).
 
 Scope overrides from `RunContext` can modify tier actions per-session.
 
@@ -140,7 +139,7 @@ Hook config path resolution (in `HookManager.create()`):
 | `ami/core/policies/engine.py` | PolicyEngine: loads patterns from YAML via manifest |
 | `ami/config/hooks.yaml` | Validator-to-event mapping (v4.0.0) |
 | `ami/config/policies/manifest.yaml` | Maps policy names to pattern file paths (v1.0.0) |
-| `ami/config/policies/command_tiers.yaml` | 4 tiers + 22 hard deny rules (v1.0.0) |
+| `ami/config/policies/command_tiers.yaml` | 4 tiers + 21 hard deny rules (v1.0.0) |
 | `ami/config/patterns/sensitive_files.yaml` | Sensitive file patterns for EditSafetyValidator |
 | `ami/config/patterns/prohibited_communication_patterns.yaml` | Prohibited output patterns for ContentSafetyValidator |
 
@@ -152,3 +151,208 @@ Hook config path resolution (in `HookManager.create()`):
 2. Add to `_VALIDATOR_REGISTRY` in `ami/hooks/manager.py`
 3. Add to the appropriate event in `ami/config/hooks.yaml`
 4. Add tests in `tests/unit/hooks/test_validators.py`
+
+---
+
+## Phase 2 Design
+
+### Extended HookResult
+
+```python
+class HookResult(NamedTuple):
+    allowed: bool
+    message: str
+    needs_confirmation: bool = False
+    action: str = "allow"          # "allow" | "deny" | "confirm" | "modify" | "feedback"
+    modified_content: str = ""     # Rewritten command/content (when action="modify")
+    feedback: str = ""             # Message to inject (when action="feedback")
+```
+
+Backward-compatible: existing validators only set `allowed`/`message`/`needs_confirmation`. New fields default to no-op.
+
+### LLM Validator (`llm_eval`)
+
+A new validator type that invokes a CLI agent to evaluate hook context against a prompt.
+
+#### Config in hooks.yaml
+
+```yaml
+hooks:
+  pre_bash:
+    - validator: command_tier
+    - validator: llm_eval
+      prompt_file: ami/config/hooks/prompts/pre_bash_review.md
+      backend: opencode           # "claude" | "qwen" | "gemini" | "opencode"
+      timeout: 30
+      model: claude-sonnet-4-5   # optional, backend default otherwise
+  post_output:
+    - validator: content_safety
+    - validator: llm_eval
+      prompt_file: ami/config/hooks/prompts/output_review.md
+      backend: opencode
+      timeout: 30
+```
+
+#### Prompt File Format
+
+```markdown
+# Hook Evaluation: PRE_BASH
+
+You are a security reviewer. Evaluate this command for safety.
+
+## Context
+- Event: {{event}}
+- Project root: {{project_root}}
+- Command: {{command}}
+
+## Rules
+1. Never allow commands that delete production data
+2. Flag commands that access credentials files
+3. ...
+
+## Response Format
+Respond with EXACTLY one JSON object:
+{"decision": "allow|deny|modify|feedback", "reason": "...", "modified": "...", "feedback": "..."}
+```
+
+#### Execution Flow
+
+```
+LLMValidator.check(context):
+  1. Load prompt_file, render with Jinja2 (context vars)
+  2. Invoke CLI: subprocess.run([backend, "--print", rendered_prompt], timeout=timeout)
+  3. Parse JSON response from stdout
+  4. Map to HookResult:
+     - "allow"    → HookResult(allowed=True, ...)
+     - "deny"     → HookResult(allowed=False, message=reason)
+     - "modify"   → HookResult(allowed=True, action="modify", modified_content=...)
+     - "feedback" → HookResult(allowed=True, action="feedback", feedback=...)
+  5. On timeout/parse error → HookResult(allowed=False, message="LLM eval failed (fail-closed)")
+```
+
+No SDK imports. Uses `subprocess.run()` with the CLI binary, same as how agents invoke tools.
+
+OpenCode is the preferred backend when using API keys directly (avoids per-provider CLI licensing concerns). Each provider CLI (claude, qwen, gemini) is also supported for users who already have them installed.
+
+### MODIFY Action Flow
+
+```
+HookManager.run(event, context):
+  for validator in validators[event]:
+    result = validator.check(context)
+    if result.action == "modify":
+      # Show diff to user
+      print(f"Validator '{validator.name}' wants to modify:")
+      print(f"  Before: {context.command}")
+      print(f"  After:  {result.modified_content}")
+      if not user_confirms():
+        return HookResult(allowed=False, message="User rejected modification")
+      # Replace context and continue validation chain
+      context = context._replace(command=result.modified_content)
+      continue
+    if not result.allowed:
+      return result  # short-circuit on deny
+  return HookResult(allowed=True, message="all validators passed")
+```
+
+### Feedback Injection Flow
+
+```
+HookManager.run(event, context):
+  pending_feedback = []
+  for validator in validators[event]:
+    result = validator.check(context)
+    if result.action == "feedback":
+      pending_feedback.append(result.feedback)
+      continue  # action proceeds
+    ...
+  # Store feedback for next LLM call
+  if pending_feedback:
+    self._feedback_queue.extend(pending_feedback)
+  return allow_result
+
+# In BootloaderAgent, before next LLM call:
+def _build_messages(self, instruction, ...):
+  feedback = self._hook_manager.drain_feedback()
+  if feedback:
+    instruction = f"[Hook feedback]\n{'\\n'.join(feedback)}\n\n{instruction}"
+```
+
+Feedback queue drains after injection. Each feedback entry tracks remaining TTL (default 5 interactions). Expired entries are silently dropped.
+
+### Security Loadouts
+
+#### Directory Structure
+
+```
+ami/config/loadouts/
+  standard.yaml     # Default v4.0.0 behavior
+  research.yaml     # Relaxed: execute=ALLOW, admin=DENY
+  development.yaml  # Moderate: execute=ALLOW, admin=CONFIRM
+  deployment.yaml   # Strict: execute=CONFIRM, admin=DENY, LLM review on all
+  container.yaml    # Containerized agents: minimal tools, strict deny
+```
+
+#### Loadout YAML Format
+
+```yaml
+# ami/config/loadouts/research.yaml
+name: research
+extends: standard
+description: "Relaxed profile for research agents — allows execution, blocks admin"
+
+tier_overrides:
+  observe: allow
+  modify: confirm
+  execute: allow
+  admin: deny
+
+hooks:
+  pre_bash:
+    - validator: command_tier
+  pre_edit:
+    - validator: path_traversal
+    - validator: edit_safety
+  post_output:
+    - validator: content_safety
+
+# Optional: LLM review layer (omit to skip)
+# hooks:
+#   pre_bash:
+#     - validator: command_tier
+#     - validator: llm_eval
+#       prompt_file: ami/config/hooks/prompts/research_review.md
+
+allowed_tools:
+  - Read
+  - WebSearch
+  - WebFetch
+  - Bash
+
+extra_patterns: []
+suppress_patterns: []
+```
+
+#### Resolution
+
+```python
+# In HookManager.create():
+loadout_name = os.environ.get("AMI_LOADOUT") or agent_config.loadout or "standard"
+loadout = LoadoutConfig.load(loadout_name)  # handles 'extends' chain
+# Apply tier_overrides as base scope
+# Use loadout.hooks instead of default hooks.yaml
+# Pass allowed_tools to BootloaderAgent
+```
+
+#### Container Integration
+
+When `ami-agentd create` builds a container, the loadout is baked into the env:
+
+```bash
+podman run -d \
+  -e AMI_LOADOUT=container \
+  -e AMI_CONTAINER=1 \
+  ...
+```
+
+Inside the container, `AMI_CONTAINER=1` prevents loadout changes at runtime.

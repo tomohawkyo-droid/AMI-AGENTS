@@ -1,12 +1,60 @@
 # AMI Identity, Access & Secrets Management: Technical Specification
 
 **Date:** 2026-03-01
-**Status:** DRAFT
+**Updated:** 2026-04-13
+**Status:** ACTIVE
 **Type:** Specification
 **Companion:** [REQ-IAM.md](../requirements/REQ-IAM.md)
 **Scope:** Cross-project IAM unification (AMI-PORTAL, AMI-TRADING, AMI-STREAMS, Orchestrator)
 
 ---
+
+## Implementation Status (2026-04-13)
+
+### Deployed
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **Keycloak** | DEPLOYED | v26.2 (DATAOPS compose, updated from 26.1). v26.2 in TRADING compose (independent instance — must migrate to DATAOPS per FR-15). Realm `ami`. Brute force on, registration off. |
+| **`ami-kcadm`** | DEPLOYED | CLI wrapper (`ami/scripts/bin/ami-kcadm`) executes `kcadm.sh` inside `ami-keycloak` container |
+| **NextAuth** | DEPLOYED | v5.0.0-beta.30 in AMI-PORTAL. Keycloak OIDC + guest credentials provider. JWT sessions. |
+| **Keycloak Admin API** | DEPLOYED | `keycloak-admin.ts` (378 lines) in PORTAL — full CRUD for users, roles, clients, sessions |
+| **Account Manager UI** | DEPLOYED | 11 API routes under `/api/account-manager/` — users, roles, clients, sessions, passwords, providers |
+| **RBAC (basic)** | DEPLOYED | 4 roles (admin/editor/viewer/guest), 8 permissions in `permissions.ts`, `resolvePermissions()` + `hasPermission()` |
+| **Bootstrap script** | DEPLOYED | `projects/AMI-PORTAL/scripts/bootstrap-keycloak.sh` — converts client to confidential, enables service accounts, assigns realm-management roles |
+| **OpenBao** | DEPLOYED (dev) | v2.4.4 in DATAOPS compose, `-dev` flag, hardcoded root token. No production config, no JWT auth, no policies. |
+| **Vaultwarden** | DEPLOYED | v1.35.4 in DATAOPS compose, signups disabled |
+| **PostgreSQL** | DEPLOYED | Keycloak DB backend via `config/postgres-init/01-keycloak.sql` |
+| **Ansible provisioning** | DEPLOYED | DATAOPS `res/ansible/compose.yml` auto-provisions realm + `ami-portal` OIDC client |
+| **AMI-TRADING auth** | DEPLOYED | BFF pattern with ROPC grant (deprecated — must migrate to Auth Code + PKCE per FR-16), RS256 JWKS validation |
+
+### Not Built
+
+| Requirement | Priority | Notes |
+|-------------|----------|-------|
+| OpenBao JWT auth (Keycloak→OpenBao) | ASAP | Dev mode only, no JWT auth method configured |
+| OpenBao policies / namespaces | ASAP | No `config.hcl`, no policies committed |
+| Per-user secret vaults (FR-12) | ASAP | No identity-templated policies |
+| Team/group secrets (FR-13) | ASAP | No external group mappings |
+| Portal Secrets UI (FR-14) | ASAP | Zero OpenBao references in PORTAL code |
+| AppRole for services (FR-10) | ASAP | Services use `.env` files |
+| `.env` → OpenBao migration | ASAP | Everything still in `.env` |
+| Full permission registry (74 perms) | DISCUSSION | Only 8 permissions exist; requires design discussion |
+| Organization/tenant scoping (FR-5.5) | FUTURE | Multi-tenancy — real requirement but not immediate |
+| Service identity hierarchy (FR-5.4) | DISCUSSION | Aspirational, needs prioritization |
+| Multi-IdP (FR-3, 11 providers) | FUTURE | Only Keycloak direct + guest currently |
+| MFA enforcement (FR-7) | FUTURE | Not configured in Keycloak realm |
+| Backchannel logout (FR-1.3/1.4) | FUTURE | Missing Portal endpoint |
+| Monitoring/alerting (NFR-6) | FUTURE | Not built |
+| Multi-client provisioning (FR-15.4) | TODO | DATAOPS Ansible only provisions `ami-portal` client |
+| `make bootstrap-iam` (FR-17.3) | TODO | No unified IAM bootstrap target |
+| PORTAL `.env.example` (FR-17.5) | TODO | `.env.local` exists (gitignored, runtime) but no tracked template |
+
+### Known Issues
+
+1. **Duplicated Keycloak infrastructure**: TRADING maintains its own Keycloak + keycloak-db + `ami-realm.json` in docker-compose instead of depending on DATAOPS. Must migrate per FR-15.
+2. **AMI-TRADING uses ROPC grant**: `directAccessGrantsEnabled: true` on `ami-trading` client, `grant_type: "password"` in `src/delivery/api/auth.py`. Deprecated in OAuth 2.1. Must migrate per FR-16.
+3. **Bootstrap script duplication**: PORTAL `bootstrap-keycloak.sh` and DATAOPS Ansible provisioning both configure Keycloak clients. Should be consolidated per FR-17.2.
 
 ## Overview
 

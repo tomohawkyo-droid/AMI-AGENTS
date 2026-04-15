@@ -184,6 +184,9 @@ fi
 source "$AGENTS_SCRIPTS/utils/env_setup.sh"
 setup_paths
 
+# Playwright browsers path (installed to .boot-linux/ instead of ~/.cache/)
+export PLAYWRIGHT_BROWSERS_PATH="$AMI_ROOT/.boot-linux/playwright-browsers"
+
 # Import helper functions
 source "$AGENTS_SCRIPTS/utils/module_helpers.sh"
 

@@ -1,19 +1,46 @@
 # Backup & Sync: Technical Specification
 
 **Date:** 2026-03-23
-**Status:** DRAFT
+**Updated:** 2026-04-13
+**Status:** ACTIVE
 **Type:** Specification
-**Requirements:** [REQ-BACKUP.md](../requirements/REQ-BACKUP.md) (REQ-BAK-001 through REQ-BAK-062, REQ-CLI-001 through REQ-CLI-023)
+**Requirements:** [REQ-BACKUP.md](../requirements/REQ-BACKUP.md)
 
-> **Implementation note (2026-04-05):** The rsync backend and `--mode`/`--target` CLI flags described below are **not yet implemented**. The current system supports only:
->
-> **Backup (`ami-backup`):** Creates a `tar.zst` archive and uploads to Google Drive. Optional secondary copy via `shutil.copy2()` to `AMI_BACKUP_MOUNT` or `/media/backup`. Flags: `--keep-local`, `--include-all`, `--auth-mode`, `--verbose`. No `--mode`, `--target`, or `--dry-run`.
->
-> **Restore (`ami-restore`):** Downloads from Google Drive by file ID (`--file-id`), revision (`--revision`), or local path (`--local-path`/`--latest-local`). Supports selective path restoration and interactive wizard (`--interactive`). No `--latest-snapshot` or `--snapshot`.
->
-> **Auth:** OAuth (default), service account impersonation (gcloud ADC), or service account key file.
->
-> **Code:** `ami/scripts/backup/create/` (archiver, uploader, secondary, CLI) and `ami/scripts/backup/restore/` (drive client, local client, extractor, wizard, CLI).
+## Implementation Status (2026-04-13)
+
+| Area | Status | Details |
+|------|--------|---------|
+| Google Drive backup | DONE | tar.zst archives uploaded to Google Drive. Flags: `--keep-local`, `--include-all`, `--auth-mode`, `--verbose`. |
+| Google Drive restore | DONE | Download by file ID (`--file-id`), revision (`--revision`), local path (`--local-path`/`--latest-local`). Interactive wizard (`--interactive`). |
+| Local secondary copy | DONE | `shutil.copy2()` to `AMI_BACKUP_MOUNT` or `/media/backup`. |
+| GDrive auth | DONE | 3 methods: OAuth (pickle token), service account impersonation (gcloud ADC), service account key file. Selectable via `GDRIVE_AUTH_METHOD`. |
+| rsync backend | NOT BUILT | `--mode`/`--target` CLI flags not implemented. |
+| Snapshot versioning | NOT BUILT | `--link-dest` hard-link dedup not implemented. |
+| rsyncd daemon | NOT BUILT | Optional remote access not implemented. |
+| Multi-target | NOT BUILT | Simultaneous local + remote not implemented. |
+
+### Known Issues
+
+1. **Code location split**: Backup code exists in BOTH `ami/scripts/backup/` (AMI-AGENTS) and `projects/AMI-DATAOPS/ami/dataops/backup/`. Canonical location is AMI-DATAOPS. The AMI-AGENTS copy must be removed and `extensions.yaml` updated to point to the DATAOPS module.
+2. **rsync is a system package**: Cannot be bootstrapped to `.boot-linux/` like uv/python. Must be a system dependency installed via `pre-req.sh`. REQ-BAK-030 updated accordingly.
+3. **No OpenBao integration**: REQ-IAM FR-11 specifies backup credentials from OpenBao at runtime. GDrive auth currently uses `.env` + gcloud CLI.
+
+### Current Code Map
+
+| Path | Purpose |
+|------|---------|
+| `ami/scripts/backup/create/main.py` | Backup entry point (legacy location) |
+| `ami/scripts/backup/create/cli.py` | CLI argument parsing (GDrive only) |
+| `ami/scripts/backup/create/archiver.py` | tar.zst archive creation |
+| `ami/scripts/backup/create/uploader.py` | Google Drive upload |
+| `ami/scripts/backup/create/secondary.py` | Secondary copy to mount point |
+| `ami/scripts/backup/restore/main.py` | Restore entry point (legacy location) |
+| `ami/scripts/backup/restore/cli.py` | Restore CLI (GDrive + local) |
+| `ami/scripts/backup/restore/drive_client.py` | Google Drive download |
+| `ami/scripts/backup/restore/local_client.py` | Local file restore |
+| `ami/scripts/backup/restore/wizard.py` | Interactive restore wizard |
+| `ami/scripts/backup/common/auth.py` | 3-method Google auth (261 lines) |
+| `projects/AMI-DATAOPS/ami/dataops/backup/` | Canonical backup module (target for migration) |
 
 ---
 

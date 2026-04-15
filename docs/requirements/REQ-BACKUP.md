@@ -1,16 +1,16 @@
 # Requirements: Backup & Sync System
 
 **Date:** 2026-03-23
+**Updated:** 2026-04-13
 **Status:** ACTIVE
 **Type:** Requirements
+**Spec:** [SPEC-BACKUP](../specifications/SPEC-BACKUP.md)
 
 ## Overview
 Replace the Google Drive-dependent backup system with a flexible rsync-based backup solution that supports local drives, network targets, and an optional rsync daemon for remote access. The existing tar.zst + Google Drive flow remains available as a fallback mode.
 
-> **Implementation status (2026-04-05):** Only the Google Drive backup mode (REQ-BAK-005) and partial restore (REQ-BAK-020 through REQ-BAK-024) are currently implemented. The rsync backend, snapshot versioning, rsyncd daemon, and multi-target support are not yet built. See [SPEC-BACKUP.md](../specifications/SPEC-BACKUP.md) for details on what exists vs what's planned.
-
 ## Background
-The current backup system (`ami/scripts/backup/`) uses tar.zst archives uploaded to Google Drive, with optional secondary copy to a mount point. Google Workspace policy blocks the OAuth client in some configurations, motivating a local-first rsync approach.
+The current backup system uses tar.zst archives uploaded to Google Drive, with optional secondary copy to a mount point. Google Workspace policy blocks the OAuth client in some configurations, motivating a local-first rsync approach.
 
 ---
 
@@ -43,7 +43,7 @@ The current backup system (`ami/scripts/backup/`) uses tar.zst archives uploaded
 
 ### 4. rsync Daemon (rsyncd)
 
-- **REQ-BAK-030**: System shall include a bootstrapped rsync binary (no system-wide installation required)
+- **REQ-BAK-030**: rsync SHALL be a system dependency installed via `pre-req.sh` (not bootstrapped to `.boot-linux/`)
 - **REQ-BAK-031**: System shall provide an rsync daemon that runs on a non-privileged port (no root/sudo required)
 - **REQ-BAK-032**: System shall generate a default `rsyncd.conf` exposing the backup snapshot directory as a read-only module
 - **REQ-BAK-033**: System shall support authenticated access via rsync secrets file
@@ -57,23 +57,37 @@ The current backup system (`ami/scripts/backup/`) uses tar.zst archives uploaded
 - **REQ-BAK-042**: System shall support explicit mode override via CLI flag (`--mode`)
 - **REQ-BAK-043**: System shall not require Google Drive credentials when operating in rsync or archive mode
 - **REQ-BAK-044**: Backup targets shall be configurable via environment variables:
-  - `AMI_BACKUP_MOUNT`: local mount path (default: `/media/backup`)
+  - `AMI_BACKUP_MOUNT`: local mount path (no default — must be explicitly configured)
   - `AMI_BACKUP_REMOTE`: network target (e.g., `rsync://nas:8873/backup` or `user@host:/backup`)
   - `BACKUP_MAX_SNAPSHOTS`: retention limit (default: 10)
 - **REQ-BAK-045**: System shall validate that at least one backup target is reachable before starting the backup
 
-### 6. Progress & Reporting
+### 6. Google Drive Authentication
 
-- **REQ-BAK-050**: System shall display real-time progress during backup (files transferred, bytes, percentage)
-- **REQ-BAK-051**: System shall display real-time progress during restore
-- **REQ-BAK-052**: System shall report total backup size and time elapsed on completion
-- **REQ-BAK-053**: System shall report space savings from hard-link deduplication (new data vs. total snapshot size)
+- **REQ-BAK-050**: System shall support three Google Drive authentication methods:
+  - **Impersonation**: Service account impersonation via `gcloud` Application Default Credentials (ADC)
+  - **Service Account Key**: Direct service account JSON key file
+  - **OAuth**: User OAuth flow with token refresh (pickle-based token cache)
+- **REQ-BAK-051**: Auth method shall be selectable via `GDRIVE_AUTH_METHOD` env var (`impersonation`, `key`, `oauth`)
+- **REQ-BAK-052**: `gcloud` CLI shall be used for ADC credential management (refresh, impersonation). The bootstrapped `ami-gcloud` wrapper or system `gcloud` shall be supported.
+- **REQ-BAK-053**: Google Drive credentials SHALL eventually migrate to OpenBao (per REQ-IAM FR-11). Until then, `.env` and service account key files remain the auth mechanism.
+- **REQ-BAK-054**: OAuth token pickle file location shall be configurable via `GDRIVE_TOKEN_FILE` env var
+- **REQ-BAK-055**: Service account email shall be configurable via `GDRIVE_SERVICE_ACCOUNT_EMAIL` env var
+- **REQ-BAK-056**: Service account key file path shall be configurable via `GDRIVE_CREDENTIALS_FILE` env var
+- **REQ-BAK-057**: Backup folder ID shall be configurable via `GDRIVE_BACKUP_FOLDER_ID` env var
 
-### 7. File Exclusions
+### 7. Progress & Reporting
 
-- **REQ-BAK-060**: System shall reuse the existing exclusion patterns (`.git/`, `__pycache__/`, `*.pyc`, etc.)
-- **REQ-BAK-061**: System shall support `--include-all` flag to disable exclusions
-- **REQ-BAK-062**: Exclusion patterns shall be compatible with rsync `--exclude` syntax (existing patterns already are)
+- **REQ-BAK-060**: System shall display real-time progress during backup (files transferred, bytes, percentage)
+- **REQ-BAK-061**: System shall display real-time progress during restore
+- **REQ-BAK-062**: System shall report total backup size and time elapsed on completion
+- **REQ-BAK-063**: System shall report space savings from hard-link deduplication (new data vs. total snapshot size)
+
+### 8. File Exclusions
+
+- **REQ-BAK-070**: System shall reuse the existing exclusion patterns (`.git/`, `__pycache__/`, `*.pyc`, etc.)
+- **REQ-BAK-071**: System shall support `--include-all` flag to disable exclusions
+- **REQ-BAK-072**: Exclusion patterns shall be compatible with rsync `--exclude` syntax (existing patterns already are)
 
 ---
 
@@ -114,8 +128,13 @@ The current backup system (`ami/scripts/backup/`) uses tar.zst archives uploaded
 - Async I/O via asyncio
 - Logging via loguru
 - Progress display via tqdm
-- Bootstrap follows existing `.boot-linux/` patterns
-- No root/sudo required for any operation
+- rsync is a system dependency (installed via `pre-req.sh`), not bootstrapped
+- No root/sudo required for backup/restore operations
+
+### Code Ownership
+- All backup code SHALL reside in AMI-DATAOPS
+- Any legacy backup code in AMI-AGENTS SHALL be removed after migration
+- CLI entry points (thin wrappers) remain in AMI-AGENTS
 
 ### Compatibility Constraints
 - Existing tar.zst + Google Drive backup flow shall remain functional
@@ -141,8 +160,9 @@ The current backup system (`ami/scripts/backup/`) uses tar.zst archives uploaded
 - `rsyncd-venv start` starts a daemon accessible from other machines
 
 ### Performance
-- Incremental backup of a 10GB project with <1% changed files completes in under 30 seconds on a local drive
-- Snapshot rotation of 100+ snapshots completes in under 5 seconds
+- Placeholder targets (no real-world performance data yet):
+  - Incremental backup of a 10GB project with <1% changed files: target <30s on local drive
+  - Snapshot rotation of 100+ snapshots: target <5s
 
 ### Reliability
 - Pre-flight validation catches unreachable targets before backup starts
@@ -154,15 +174,16 @@ The current backup system (`ami/scripts/backup/`) uses tar.zst archives uploaded
 ## Dependencies
 
 ### Internal
-- `ami/scripts/backup/`: existing backup system
-- `ami/scripts/backup/common/constants.py`: exclusion patterns, mount points
-- `ami/scripts/bootstrap/`: bootstrap script system
-- `ami/scripts/bootstrap_components.py`: component registry
+- AMI-DATAOPS backup module
+- AMI-AGENTS CLI entry points (thin wrappers)
+- System pre-requisites installer (rsync)
 
 ### External
-- `rsync` (bootstrapped binary, no system dependency)
-- `tqdm` (already a project dependency)
-- `loguru` (already a project dependency)
+- rsync (system package)
+- gcloud (for Google Drive auth)
+- tqdm, loguru (Python)
+- google-auth, google-auth-oauthlib, google-api-python-client (Python, GDrive mode)
 
 ### Related Documents
-- `docs/SPECIFICATION-BACKUP.md` (to be written after requirements approval)
+- [SPEC-BACKUP](../specifications/SPEC-BACKUP.md)
+- [REQ-IAM](REQ-IAM.md) — FR-11 (backup credentials from OpenBao)
