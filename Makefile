@@ -63,19 +63,25 @@ install-ci: ## Non-interactive install for CI (uses install-defaults.yaml)
 	echo "✨ Installation complete (CI mode)!"
 
 .PHONY: ensure-ci
-ensure-ci: ## Auto-clone AMI-CI if missing
+ensure-ci: ## Clone AMI-CI if missing, pull latest if present
 	@if [ ! -f "projects/AMI-CI/lib/checks.sh" ]; then \
 		echo "📦 AMI-CI not found — cloning..."; \
 		git clone git@github.com:Independent-AI-Labs/AMI-CI.git projects/AMI-CI; \
 		echo "✅ AMI-CI cloned to projects/AMI-CI"; \
+	else \
+		echo "🔄 Pulling latest AMI-CI..."; \
+		cd projects/AMI-CI && git pull --ff-only 2>/dev/null || echo "⚠️  AMI-CI pull failed (offline or dirty)"; \
 	fi
 
 .PHONY: ensure-dataops
-ensure-dataops: ## Auto-clone AMI-DATAOPS if missing
+ensure-dataops: ## Clone AMI-DATAOPS if missing, pull latest if present
 	@if [ ! -f "projects/AMI-DATAOPS/pyproject.toml" ]; then \
 		echo "📦 AMI-DATAOPS not found — cloning..."; \
 		git clone git@github.com:Independent-AI-Labs/AMI-DATAOPS.git projects/AMI-DATAOPS; \
 		echo "✅ AMI-DATAOPS cloned to projects/AMI-DATAOPS"; \
+	else \
+		echo "🔄 Pulling latest AMI-DATAOPS..."; \
+		cd projects/AMI-DATAOPS && git pull --ff-only 2>/dev/null || echo "⚠️  AMI-DATAOPS pull failed (offline or dirty)"; \
 	fi
 
 .PHONY: sync-package
