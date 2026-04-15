@@ -185,18 +185,14 @@ setup-automation: ## Setup automation configuration
 	fi
 
 .PHONY: setup-extensions
-setup-extensions: ## Setup extensions configuration
+setup-extensions: ## Setup extensions configuration (always refreshed from template)
 	@echo "⚙️  Setting up extensions configuration..."
-	@if [ ! -f "ami/config/extensions.yaml" ]; then \
-		if [ -f "ami/config/extensions.template.yaml" ]; then \
-			cp "ami/config/extensions.template.yaml" "ami/config/extensions.yaml"; \
-			echo "✅ Created ami/config/extensions.yaml from template"; \
-		else \
-			echo "⚠️  Template ami/config/extensions.template.yaml not found, creating empty config"; \
-			echo "extensions: []" > "ami/config/extensions.yaml"; \
-		fi \
+	@if [ -f "ami/config/extensions.template.yaml" ]; then \
+		cp "ami/config/extensions.template.yaml" "ami/config/extensions.yaml"; \
+		echo "✅ Updated ami/config/extensions.yaml from template"; \
 	else \
-		echo "ℹ️  Extensions configuration already exists at ami/config/extensions.yaml"; \
+		echo "⚠️  Template ami/config/extensions.template.yaml not found"; \
+		[ -f "ami/config/extensions.yaml" ] || echo "extensions: []" > "ami/config/extensions.yaml"; \
 	fi
 
 .PHONY: register-extensions

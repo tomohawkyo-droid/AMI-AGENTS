@@ -65,7 +65,15 @@ def install_component(component: Component) -> bool:
     if component.type == ComponentType.SCRIPT:
         if not component.script:
             return False
-        return run_bootstrap_script(component.script)
+        script_ok = run_bootstrap_script(component.script)
+        # If script exited non-zero but the component is actually installed
+        # (detect_path exists), treat as success. Some bootstrap scripts
+        # have non-critical failures in post-install steps.
+        if not script_ok and component.detect_path:
+            path = PROJECT_ROOT / component.detect_path
+            if path.exists():
+                return True
+        return script_ok
     elif component.type == ComponentType.UV:
         # UV packages are handled by uv sync
         return True
