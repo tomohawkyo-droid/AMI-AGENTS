@@ -70,7 +70,7 @@ while IFS= read -r git_dir; do
 
         echo -e "${RED}✗${NC} ${BOLD}${repo_name}${NC}  ${CYAN}${branch}${NC}  ${sync}  ${changes}"
     fi
-done < <({ echo "$PROJECT_ROOT/.git"; find "$PROJECTS_DIR" -name .git -type d 2>/dev/null; } | sort)
+done < <({ echo "$PROJECT_ROOT/.git"; find "$PROJECTS_DIR" -name .git \( -type d -o -type f \) 2>/dev/null; } | sort)
 
 echo ""
 echo -e "${BOLD}${total_count}${NC} repos: ${GREEN}${clean_count} clean${NC}, ${RED}${dirty_count} dirty${NC}"
