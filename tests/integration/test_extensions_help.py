@@ -166,9 +166,12 @@ class TestExtensionInstallation:
             content = cmd_path.read_text()
             assert "ami-run" in content, f"{ext_name} wrapper should call ami-run"
         else:
-            # Non-Python binaries get symlinks
-            assert cmd_path.is_symlink(), (
-                f"{ext_name} (non-.py binary) should be a symlink"
+            # Non-Python binaries are symlinks OR already in .boot-linux/bin/
+            # (bootstrap-created wrappers that register_extensions skips)
+            is_symlink = cmd_path.is_symlink()
+            is_in_place = str(ext.binary).startswith(".boot-linux/bin/")
+            assert is_symlink or is_in_place, (
+                f"{ext_name} should be symlink or in .boot-linux/bin/"
             )
 
 
