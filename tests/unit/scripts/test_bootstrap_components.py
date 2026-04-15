@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from ami.scripts.bootstrap_component_defs import (
     AI_AGENTS,
     ALL_COMPONENTS,
+    BROWSER,
     CONTAINERS,
     CORE_DEPS,
     DEV_TOOLS,
@@ -24,7 +25,7 @@ from ami.scripts.bootstrap_components import (
     ComponentType,
 )
 
-EXPECTED_GROUP_COUNT = 8
+EXPECTED_GROUP_COUNT = 9
 
 
 class TestComponentType:
@@ -368,6 +369,7 @@ class TestComponentLists:
             + len(DEV_TOOLS)
             + len(SECURITY)
             + len(DOCUMENTS)
+            + len(BROWSER)
             + len(MATRIX)
             + len(MISC)
         )
@@ -390,6 +392,7 @@ class TestGroups:
             "Development Tools",
             "Security & Networking",
             "Document Processing",
+            "Browser Automation",
             "Matrix & Communication",
             "Miscellaneous",
         ]
