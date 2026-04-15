@@ -44,7 +44,7 @@ mkdir -p "${KUBERNETES_DIR}"
 mkdir -p "${BIN_DIR}"
 
 # Clean any stale/corrupted binaries from previous runs
-for bin in kubectl helm ami-kubectl; do
+for bin in kubectl helm; do
     if [[ -e "${BIN_DIR}/${bin}" ]] && ! file -b "${BIN_DIR}/${bin}" 2>/dev/null | grep -qi "ELF"; then
         log_warn "Removing stale ${bin} ($(file -b "${BIN_DIR}/${bin}" 2>/dev/null || echo unknown))"
         rm -f "${BIN_DIR}/${bin}"
@@ -180,18 +180,6 @@ log_debug "After mv: kubectl = $(file -b "${BIN_DIR}/kubectl" 2>/dev/null || ech
 mv "${KUBERNETES_DIR}/helm" "${BIN_DIR}/helm"
 log_debug "After mv: helm = $(file -b "${BIN_DIR}/helm" 2>/dev/null || echo missing), size=$(stat -c%s "${BIN_DIR}/helm" 2>/dev/null || echo 0)"
 
-# Create kubectl wrapper with proper config
-KUBECTL_WRAPPER="${BIN_DIR}/ami-kubectl"
-cat > "${KUBECTL_WRAPPER}" <<'EOF'
-#!/usr/bin/env bash
-# kubectl wrapper for AMI-ORCHESTRATOR with custom config
-export KUBECONFIG="${HOME}/.kube/config:./.kube/config"
-exec kubectl "$@"
-EOF
-
-chmod +x "${KUBECTL_WRAPPER}"
-log_debug "After wrapper create: kubectl = $(file -b "${BIN_DIR}/kubectl" 2>/dev/null || echo missing), size=$(stat -c%s "${BIN_DIR}/kubectl" 2>/dev/null || echo 0)"
-
 # Verification — use file(1) check + timeout to avoid Defender scan hangs on WSL.
 # First execution of a new binary on WSL triggers a full Defender scan that can
 # block for 30s+. We verify the binary is real via file(1) (instant), then run
@@ -231,4 +219,3 @@ rm -rf "${KUBERNETES_DIR}"
 log_info "Kubernetes tools bootstrap complete."
 log_debug "kubectl: ${BIN_DIR}/kubectl"
 log_debug "helm:    ${BIN_DIR}/helm"
-log_debug "wrapper: ${BIN_DIR}/ami-kubectl"

@@ -118,7 +118,7 @@ extensions:
     features: compute, storage, iam, config
 
   - name: ami-kubectl
-    binary: .boot-linux/bin/ami-kubectl
+    binary: ami/scripts/bin/ami-kubectl
     description: Kubernetes CLI (kubectl + helm)
     category: dev
     features: get, apply, logs, describe, helm

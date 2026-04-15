@@ -24,13 +24,9 @@ fi
 # Install synadm using uv pip into the boot-linux python env
 "$UV_CMD" pip install --python "$PYTHON_ENV" synadm
 
-# Create a simple wrapper in bin/ if it didn't get one
-if [ ! -f "$BOOT_LINUX_DIR/bin/synadm" ]; then
-    cat > "$BOOT_LINUX_DIR/bin/synadm" <<EOF
-#!/bin/bash
-"$PYTHON_CMD" -m synadm "\$@"
-EOF
-    chmod +x "$BOOT_LINUX_DIR/bin/synadm"
+# Symlink the installed entry point to bin/
+if [ -f "$PYTHON_ENV/bin/synadm" ] && [ ! -e "$BOOT_LINUX_DIR/bin/synadm" ]; then
+    ln -sf "$PYTHON_ENV/bin/synadm" "$BOOT_LINUX_DIR/bin/synadm"
 fi
 
 echo "synadm installed in .boot-linux"

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# ami-kubectl: kubectl wrapper with AMI KUBECONFIG defaults
+set -euo pipefail
+
+export KUBECONFIG="${HOME}/.kube/config:./.kube/config"
+exec kubectl "$@"

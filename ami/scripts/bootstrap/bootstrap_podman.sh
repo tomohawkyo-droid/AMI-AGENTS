@@ -286,16 +286,8 @@ fi
 # Note: podman-compose is installed via pyproject.toml dependencies
 # Run: uv sync or ami-run uv sync to install it
 
-# Create Docker alias symlinks for seamless migration
-log_info "Creating Docker alias symlinks"
-ln -sf "${VENV_DIR}/bin/podman" "${VENV_DIR}/bin/docker"
-
-# Link podman-compose from root .venv if available
-if [ -f "${PROJECT_ROOT}/.venv/bin/podman-compose" ]; then
-    ln -sf "${PROJECT_ROOT}/.venv/bin/podman-compose" "${VENV_DIR}/bin/podman-compose"
-    ln -sf "${VENV_DIR}/bin/podman-compose" "${VENV_DIR}/bin/docker-compose"
-    log_info "✓ Linked podman-compose from project .venv"
-fi
+# Docker alias symlinks (docker → podman) are created by register_extensions.py,
+# not here. Bootstrap only installs the podman binary itself.
 
 # Create containers.conf to point Podman to helper binaries in venv
 log_info "Configuring Podman to use venv helper binaries"
