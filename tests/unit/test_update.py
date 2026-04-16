@@ -16,6 +16,7 @@ from ami.scripts.update import (
     _print_dirty_error,
     _print_summary,
     _print_tier_status,
+    _run_from_defaults,
     analyze_repo,
     categorize,
     check_dirty,
@@ -27,6 +28,7 @@ from ami.scripts.update import (
     is_ancestor,
     pull_updates,
     ref_exists,
+    run_post_system_update,
 )
 
 # ---------------------------------------------------------------------------
@@ -421,3 +423,41 @@ class TestPrintSummary:
         _print_summary([], "SYSTEM")
         out = capsys.readouterr().out
         assert out == ""
+
+
+class TestRunPostSystemUpdate:
+    def test_runs_uv_sync_and_hooks(self, tmp_path: Path) -> None:
+        boot_uv = tmp_path / ".boot-linux" / "bin" / "uv"
+        boot_uv.parent.mkdir(parents=True)
+        boot_uv.write_text("")
+        ci_hooks = tmp_path / "projects" / "AMI-CI" / "scripts" / "generate-hooks"
+        ci_hooks.parent.mkdir(parents=True)
+        ci_hooks.write_text("")
+        dataops = tmp_path / "projects" / "AMI-DATAOPS" / "pyproject.toml"
+        dataops.parent.mkdir(parents=True)
+        dataops.write_text("")
+
+        with patch("ami.scripts.update.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            run_post_system_update(tmp_path)
+
+        _min_calls = 2
+        assert mock_run.call_count >= _min_calls
+
+
+class TestRunFromDefaults:
+    def test_missing_file(self, tmp_path: Path) -> None:
+        missing = tmp_path / "nope.yaml"
+        repos: list[RepoInfo] = []
+        result = _run_from_defaults(missing, repos, repos, tmp_path)
+        assert result == 1
+
+    def test_all_clean(self, tmp_path: Path) -> None:
+        defaults = tmp_path / "defaults.yaml"
+        defaults.write_text("remote: origin\ntiers: [system]\n")
+        repo = _repo(name="projects/AMI-CI", path=tmp_path)
+        run_path = "ami.scripts.update._git"
+        with patch(run_path) as mock_git:
+            mock_git.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            result = _run_from_defaults(defaults, [repo], [], tmp_path)
+        assert result == 0
