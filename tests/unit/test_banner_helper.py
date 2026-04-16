@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from ami.scripts.shell.banner_helper import (
     _color_for,
+    _format_features,
+    _format_partial_line,
+    _has_failed_container_dep,
     _icon_for,
+    _print_extension,
     _title_for,
+    output_banner,
     output_extra,
 )
 from ami.scripts.shell.extension_registry import (
@@ -112,3 +118,72 @@ class TestOutputExtra:
         assert "Hidden" in captured.out
         assert "Degraded" in captured.out
         assert "Unavailable" in captured.out
+
+
+class TestFormatFeatures:
+    def test_with_features(self) -> None:
+        ext = _make_ext("cmd", Status.READY)
+        ext.entry["features"] = ["a", "b", "c"]
+        result = _format_features(ext)
+        assert result is not None
+        assert "a, b, c" in result
+
+    def test_no_features(self) -> None:
+        ext = _make_ext("cmd", Status.READY)
+        assert _format_features(ext) is None
+
+
+class TestFormatPartialLine:
+    def test_contains_name_and_desc(self) -> None:
+        ext = _make_ext("my-cmd", Status.READY)
+        line = _format_partial_line(ext, "\033[0m", "v1.0")
+        assert "my-cmd" in line
+        assert "Test my-cmd" in line
+        assert "v1.0" in line
+
+
+class TestHasFailedContainerDep:
+    def test_no_deps(self) -> None:
+        ext = _make_ext("cmd", Status.READY)
+        assert not _has_failed_container_dep(ext, Path("/tmp"))
+
+    def test_with_container_dep(self) -> None:
+        ext = _make_ext("cmd", Status.READY)
+        ext.entry["deps"] = [
+            {"name": "ctr", "type": "container", "container": "x"},
+        ]
+        with patch(
+            "ami.scripts.shell.banner_helper.check_dep",
+            return_value=False,
+        ):
+            assert _has_failed_container_dep(ext, Path("/tmp"))
+
+
+class TestPrintExtension:
+    def test_no_check_quiet(self, capsys) -> None:
+        ext = _make_ext("cmd", Status.READY)
+        _print_extension(ext, Path("/tmp"), "\033[0m", quiet=True, is_tty=False)
+        out = capsys.readouterr().out
+        assert "cmd" in out
+
+
+class TestOutputBanner:
+    def test_skips_hidden_and_unavailable(self, capsys) -> None:
+        exts = [
+            _make_ext("visible", Status.READY),
+            _make_ext("hidden", Status.HIDDEN),
+            _make_ext("gone", Status.UNAVAILABLE),
+        ]
+        output_banner(exts, Path("/tmp"), quiet=True)
+        out = capsys.readouterr().out
+        assert "visible" in out
+        assert "hidden" not in out
+        assert "gone" not in out
+
+    def test_empty_category_skipped(self, capsys) -> None:
+        exts = [
+            _make_ext("h", Status.HIDDEN),
+        ]
+        output_banner(exts, Path("/tmp"), quiet=True)
+        out = capsys.readouterr().out
+        assert out == ""
