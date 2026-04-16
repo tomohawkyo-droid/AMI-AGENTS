@@ -187,3 +187,20 @@ class TestOutputBanner:
         output_banner(exts, Path("/tmp"), quiet=True)
         out = capsys.readouterr().out
         assert out == ""
+
+    def test_degraded_shown_with_warning(self, capsys) -> None:
+        ext = _make_ext("deg", Status.DEGRADED, reason="dep missing")
+        output_banner([ext], Path("/tmp"), quiet=True)
+        out = capsys.readouterr().out
+        assert "deg" in out
+
+    def test_with_check_non_tty(self, capsys) -> None:
+        ext = _make_ext("cmd", Status.READY)
+        ext.entry["check"] = {
+            "command": ["echo", "v1.2.3"],
+            "versionPattern": r"(\d+\.\d+\.\d+)",
+            "healthExpect": "1.2.3",
+        }
+        _print_extension(ext, Path("/tmp"), "\033[0m", quiet=False, is_tty=False)
+        out = capsys.readouterr().out
+        assert "cmd" in out
