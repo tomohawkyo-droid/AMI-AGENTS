@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
-import yaml
+
+from ami.scripts.shell.extension_registry import (
+    discover_manifests,
+    resolve_extensions,
+)
 
 
 def _find_project_root() -> Path:
@@ -25,7 +29,6 @@ def _find_project_root() -> Path:
 
 
 PROJECT_ROOT = _find_project_root()
-EXTENSIONS_YAML = PROJECT_ROOT / "ami" / "config" / "extensions.yaml"
 BIN_DIR = PROJECT_ROOT / ".boot-linux" / "bin"
 VALID_CATEGORIES = frozenset(["core", "enterprise", "dev", "infra", "docs", "agents"])
 MIN_DESCRIPTION_LENGTH = 5
@@ -43,20 +46,19 @@ class ExtensionMetadata(NamedTuple):
 
 
 def get_all_extensions() -> list[ExtensionMetadata]:
-    """Get all extensions from extensions.yaml (single source of truth)."""
-    if not EXTENSIONS_YAML.exists():
-        return []
-    config = yaml.safe_load(EXTENSIONS_YAML.read_text())
+    """Get all extensions from manifest discovery."""
+    manifests = discover_manifests(PROJECT_ROOT)
+    resolved = resolve_extensions(manifests, PROJECT_ROOT)
     return [
         ExtensionMetadata(
-            name=ext.get("name", ""),
-            description=ext.get("description", ""),
-            category=ext.get("category", ""),
-            binary=ext.get("binary", ""),
-            features=ext.get("features", ""),
-            hidden=ext.get("hidden", False),
+            name=r.entry.get("name", ""),
+            description=r.entry.get("description", ""),
+            category=r.entry.get("category", ""),
+            binary=r.entry.get("binary", ""),
+            features=", ".join(r.entry.get("features", [])),
+            hidden=r.entry.get("hidden", False),
         )
-        for ext in config.get("extensions", [])
+        for r in resolved
     ]
 
 
