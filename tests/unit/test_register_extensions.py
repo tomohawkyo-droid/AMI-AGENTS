@@ -1,239 +1,152 @@
-"""Unit tests for scripts/register_extensions module."""
+"""Unit tests for ami.scripts.register_extensions."""
 
+from __future__ import annotations
+
+import os
 import stat
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 import yaml
 
 from ami.scripts.register_extensions import (
     create_symlink,
     create_wrapper,
+    fix_stale_shebang,
     register_extensions,
-    remove_bashrc_functions,
-    update_bashrc_path,
 )
 
 
 class TestCreateWrapper:
-    """Tests for create_wrapper function."""
+    """Test wrapper script creation."""
 
-    def test_creates_executable_wrapper(self, tmp_path) -> None:
-        """Test wrapper script is created with correct content and permissions."""
-        target = tmp_path / "my-cmd"
-        ami_root = Path("/opt/ami")
-        create_wrapper(target, ami_root, "ami/scripts/bin/my_script.py")
-
+    def test_creates_executable_wrapper(self, tmp_path: Path) -> None:
+        target = tmp_path / "test-cmd"
+        create_wrapper(target, tmp_path, "scripts/test.py")
         assert target.exists()
+        assert os.access(target, os.X_OK)
         content = target.read_text()
-        assert "#!/usr/bin/env bash" in content
         assert "ami-run" in content
-        assert "ami/scripts/bin/my_script.py" in content
-        assert target.stat().st_mode & stat.S_IXUSR
+        assert "scripts/test.py" in content
+
+    def test_wrapper_is_bash_script(self, tmp_path: Path) -> None:
+        target = tmp_path / "cmd"
+        create_wrapper(target, tmp_path, "s.py")
+        content = target.read_text()
+        assert content.startswith("#!/usr/bin/env bash")
 
 
 class TestCreateSymlink:
-    """Tests for create_symlink function."""
+    """Test symlink creation."""
 
-    def test_creates_symlink(self, tmp_path) -> None:
-        """Test symlink is created pointing to target."""
+    def test_creates_symlink(self, tmp_path: Path) -> None:
         target = tmp_path / "real-binary"
         target.write_text("binary")
-        link = tmp_path / "my-link"
-
+        link = tmp_path / "link"
         create_symlink(link, target)
-
         assert link.is_symlink()
         assert link.resolve() == target.resolve()
 
-    def test_replaces_existing_symlink(self, tmp_path) -> None:
-        """Test existing symlink is replaced."""
-        old_target = tmp_path / "old"
-        old_target.write_text("old")
-        new_target = tmp_path / "new"
-        new_target.write_text("new")
-        link = tmp_path / "my-link"
+    def test_replaces_existing_symlink(self, tmp_path: Path) -> None:
+        target1 = tmp_path / "bin1"
+        target2 = tmp_path / "bin2"
+        target1.write_text("1")
+        target2.write_text("2")
+        link = tmp_path / "link"
+        create_symlink(link, target1)
+        create_symlink(link, target2)
+        assert link.resolve() == target2.resolve()
 
-        create_symlink(link, old_target)
-        create_symlink(link, new_target)
 
-        assert link.resolve() == new_target.resolve()
+class TestFixStaleShebang:
+    """Test stale shebang fixing."""
+
+    def test_fixes_nonexistent_python_path(self, tmp_path: Path) -> None:
+        script = tmp_path / "script"
+        script.write_text("#!/nonexistent/python3\nimport sys\n")
+        script.chmod(script.stat().st_mode | stat.S_IXUSR)
+        fix_stale_shebang(script, tmp_path)
+        content = script.read_text()
+        assert str(tmp_path / ".venv" / "bin" / "python3") in content
+
+    def test_skips_valid_shebang(self, tmp_path: Path) -> None:
+        venv_python = tmp_path / ".venv" / "bin" / "python3"
+        venv_python.parent.mkdir(parents=True)
+        venv_python.write_text("")
+        script = tmp_path / "script"
+        original = f"#!{venv_python}\nimport sys\n"
+        script.write_text(original)
+        fix_stale_shebang(script, tmp_path)
+        assert script.read_text() == original
+
+    def test_skips_nonexistent_file(self, tmp_path: Path) -> None:
+        fix_stale_shebang(tmp_path / "nope", tmp_path)
+
+    def test_skips_non_python_shebang(self, tmp_path: Path) -> None:
+        script = tmp_path / "script"
+        original = "#!/usr/bin/env bash\necho hi\n"
+        script.write_text(original)
+        fix_stale_shebang(script, tmp_path)
+        assert script.read_text() == original
 
 
 class TestRegisterExtensions:
-    """Tests for register_extensions function."""
+    """Test the full registration pipeline."""
 
-    def test_returns_early_when_config_not_found(self, tmp_path, capsys) -> None:
-        """Test returns early when extensions config not found."""
-        with patch("ami.scripts.register_extensions.Path") as mock_path:
-            mock_path.cwd.return_value = tmp_path
-            mock_path.home.return_value = tmp_path
-            # ext_config won't exist because tmp_path has no ami/config/extensions.yaml
-            # But Path is mocked, so we need the / operator to return real paths
-            mock_path.__truediv__ = Path.__truediv__
+    def test_discovers_and_registers(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Test that manifests are discovered and extensions registered."""
+        # Create a manifest
+        manifest_dir = tmp_path / "ami" / "scripts" / "bin"
+        manifest_dir.mkdir(parents=True)
+        manifest = {
+            "extensions": [
+                {
+                    "name": "test-ext",
+                    "binary": "ami/scripts/bin/test-ext",
+                    "description": "A test extension",
+                    "category": "core",
+                },
+            ],
+        }
+        (manifest_dir / "extension.manifest.yaml").write_text(yaml.dump(manifest))
 
-        # Use real paths - config file doesn't exist in tmp_path
+        # Create the binary
+        binary = tmp_path / "ami" / "scripts" / "bin" / "test-ext"
+        binary.write_text("#!/bin/bash\necho hi")
+        binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+
+        # Create pyproject.toml so find_ami_root works
+        (tmp_path / "pyproject.toml").write_text("[project]\nname='test'\n")
+
+        # Create .boot-linux/bin
+        boot_bin = tmp_path / ".boot-linux" / "bin"
+        boot_bin.mkdir(parents=True)
+
+        # Create bashrc
+        (tmp_path / ".bashrc").write_text("")
+
         with (
-            patch.object(Path, "cwd", return_value=tmp_path),
+            patch.dict(os.environ, {"AMI_ROOT": str(tmp_path)}),
             patch.object(Path, "home", return_value=tmp_path),
         ):
             register_extensions()
 
         captured = capsys.readouterr()
-        assert "not found" in captured.out.lower()
+        assert "test-ext" in captured.out
 
-    def test_creates_symlinks_for_binaries(self, tmp_path, capsys) -> None:
-        """Test creates symlinks for non-.py binaries."""
-        # Setup extensions config
-        config_dir = tmp_path / "ami" / "config"
-        config_dir.mkdir(parents=True)
-        config = {
-            "extensions": [
-                {"name": "test-cmd", "binary": "some/binary"},
-            ]
-        }
-        (config_dir / "extensions.yaml").write_text(yaml.dump(config))
+    def test_warns_when_no_manifests(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Test warning when no manifests found."""
+        (tmp_path / "pyproject.toml").write_text("[project]\nname='t'\n")
+        boot_bin = tmp_path / ".boot-linux" / "bin"
+        boot_bin.mkdir(parents=True)
 
-        # Create the binary target
-        binary = tmp_path / "some" / "binary"
-        binary.parent.mkdir(parents=True)
-        binary.write_text("binary")
-
-        # Create bashrc so update_bashrc_path works
-        (tmp_path / ".bashrc").write_text("")
-
-        with (
-            patch.object(Path, "cwd", return_value=tmp_path),
-            patch.object(Path, "home", return_value=tmp_path),
-        ):
-            register_extensions()
-
-        bin_dir = tmp_path / ".boot-linux" / "bin"
-        link = bin_dir / "test-cmd"
-        assert link.is_symlink()
-
-    def test_creates_wrappers_for_python_scripts(self, tmp_path, capsys) -> None:
-        """Test creates wrapper scripts for .py binaries."""
-        config_dir = tmp_path / "ami" / "config"
-        config_dir.mkdir(parents=True)
-        config = {
-            "extensions": [
-                {"name": "test-py", "binary": "ami/scripts/test.py"},
-            ]
-        }
-        (config_dir / "extensions.yaml").write_text(yaml.dump(config))
-        (tmp_path / ".bashrc").write_text("")
-
-        with (
-            patch.object(Path, "cwd", return_value=tmp_path),
-            patch.object(Path, "home", return_value=tmp_path),
-        ):
-            register_extensions()
-
-        wrapper = tmp_path / ".boot-linux" / "bin" / "test-py"
-        assert wrapper.exists()
-        assert "ami-run" in wrapper.read_text()
-
-    def test_skips_invalid_entries(self, tmp_path, capsys) -> None:
-        """Test skips entries missing name or binary."""
-        config_dir = tmp_path / "ami" / "config"
-        config_dir.mkdir(parents=True)
-        config = {
-            "extensions": [
-                {"name": "valid", "binary": "bin/valid"},
-                {"name": "no-binary"},
-                {"binary": "no-name"},
-            ]
-        }
-        (config_dir / "extensions.yaml").write_text(yaml.dump(config))
-        (tmp_path / ".bashrc").write_text("")
-
-        with (
-            patch.object(Path, "cwd", return_value=tmp_path),
-            patch.object(Path, "home", return_value=tmp_path),
-        ):
+        with patch.dict(os.environ, {"AMI_ROOT": str(tmp_path)}):
             register_extensions()
 
         captured = capsys.readouterr()
-        assert "Invalid" in captured.out
-
-
-class TestUpdateBashrcPath:
-    """Tests for update_bashrc_path function."""
-
-    def test_adds_path_to_bashrc(self, tmp_path) -> None:
-        """Test PATH export is added to bashrc."""
-        bashrc = tmp_path / ".bashrc"
-        bashrc.write_text("# existing content\n")
-        bin_dir = tmp_path / ".boot-linux" / "bin"
-
-        with patch.object(Path, "home", return_value=tmp_path):
-            update_bashrc_path(bin_dir)
-
-        content = bashrc.read_text()
-        assert "# AMI PATH" in content
-        assert str(bin_dir) in content
-
-    def test_replaces_existing_path_marker(self, tmp_path) -> None:
-        """Test existing AMI PATH marker is replaced, not duplicated."""
-        bashrc = tmp_path / ".bashrc"
-        bashrc.write_text('export PATH="/old/path:$PATH"  # AMI PATH\n# other\n')
-        bin_dir = tmp_path / ".boot-linux" / "bin"
-
-        with patch.object(Path, "home", return_value=tmp_path):
-            update_bashrc_path(bin_dir)
-
-        content = bashrc.read_text()
-        assert content.count("# AMI PATH") == 1
-        assert "/old/path" not in content
-        assert str(bin_dir) in content
-
-    def test_skips_if_no_bashrc(self, tmp_path) -> None:
-        """Test does nothing when bashrc doesn't exist."""
-        bin_dir = tmp_path / ".boot-linux" / "bin"
-
-        with patch.object(Path, "home", return_value=tmp_path):
-            update_bashrc_path(bin_dir)
-
-        assert not (tmp_path / ".bashrc").exists()
-
-
-class TestRemoveBashrcFunctions:
-    """Tests for remove_bashrc_functions function."""
-
-    def test_removes_existing_block(self, tmp_path) -> None:
-        """Test removes AMI AGENT EXTENSIONS block from bashrc."""
-        bashrc = tmp_path / ".bashrc"
-        bashrc.write_text(
-            "# before\n"
-            "# --- AMI AGENT EXTENSIONS START ---\n"
-            "export OLD=value\n"
-            "# --- AMI AGENT EXTENSIONS END ---\n"
-            "# after\n"
-        )
-
-        with patch.object(Path, "home", return_value=tmp_path):
-            remove_bashrc_functions()
-
-        content = bashrc.read_text()
-        assert "AMI AGENT EXTENSIONS" not in content
-        assert "# before" in content
-        assert "# after" in content
-
-    def test_noop_when_no_block(self, tmp_path) -> None:
-        """Test does nothing when no AMI block exists."""
-        bashrc = tmp_path / ".bashrc"
-        original = "# just normal content\nexport FOO=bar\n"
-        bashrc.write_text(original)
-
-        with patch.object(Path, "home", return_value=tmp_path):
-            remove_bashrc_functions()
-
-        assert bashrc.read_text() == original
-
-    def test_skips_if_no_bashrc(self, tmp_path) -> None:
-        """Test does nothing when bashrc doesn't exist."""
-        with patch.object(Path, "home", return_value=tmp_path):
-            remove_bashrc_functions()
-
-        assert not (tmp_path / ".bashrc").exists()
+        assert "no extension" in captured.out.lower()
