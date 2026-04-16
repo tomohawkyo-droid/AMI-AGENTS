@@ -244,8 +244,8 @@ update: ## Interactive update of all repos (SYSTEM then APPS)
 	@bash ami/scripts/bin/ami-update
 
 .PHONY: update-ci
-update-ci: ## Non-interactive update (origin only, ff-only, fails on diverge)
-	@bash ami/scripts/bin/ami-update --ci
+update-ci: ## Non-interactive update (uses update-defaults.yaml)
+	@bash ami/scripts/bin/ami-update --defaults ami/config/update-defaults.yaml
 
 .PHONY: update-deps
 update-deps: ## Update Python dependencies only

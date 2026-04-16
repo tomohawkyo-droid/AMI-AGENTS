@@ -46,9 +46,15 @@ APPS tier has no internal ordering — all are independent.
 | Repo | Path | Reason |
 |------|------|--------|
 | python-ta-reference | `projects/RUST-TRADING/python-ta-reference` | Vendored third-party (bukosabino/ta) |
-| matrix-docker-ansible-deploy | `projects/AMI-STREAMS/ansible/...` | Vendored third-party |
+| matrix-docker-ansible-deploy | `projects/AMI-STREAMS/ansible/...` | Vendored third-party submodule |
+| himalaya | `projects/AMI-STREAMS/himalaya` | Submodule of AMI-STREAMS (updated with STREAMS) |
 | config, docs, scripts, SUCK | `projects/RUST-TRADING/*` | Monorepo dirs (remote points to AMI-AGENTS parent) |
-| polymarket-insider-tracker | `projects/polymarket-insider-tracker` | Standalone project, not part of update chain |
+| polymarket-insider-tracker | `projects/polymarket-insider-tracker` | Standalone project |
+| AMI-SRP + research submodules | `projects/AMI-SRP/research/...` | Third-party research repos (Bloomberg, Palantir) |
+| AMI-FOLD | `projects/AMI-FOLD` | Inactive project |
+| CV | `projects/CV` | Inactive project |
+| docs | `projects/docs` | Documentation submodule |
+| res | `projects/res` | Shared resources |
 
 ---
 
@@ -85,25 +91,32 @@ APPS tier has no internal ordering — all are independent.
 
 ### Entry Point: `ami/scripts/update.py`
 
+Same pattern as `bootstrap_installer.py` — `--defaults` flag for CI mode:
+
 ```python
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--ci', action='store_true', help='Non-interactive CI mode')
+def _main_impl() -> int:
+    parser = argparse.ArgumentParser(
+        description="Auto-update AMI repos (SYSTEM then APPS)"
+    )
+    parser.add_argument(
+        "--defaults",
+        type=Path,
+        metavar="FILE",
+        help="Non-interactive mode using YAML config file",
+    )
     args = parser.parse_args()
 
     root = find_ami_root()
     repos = discover_repos(root)
-
     system_repos = categorize(repos, tier='system')
     app_repos = categorize(repos, tier='apps')
 
-    # Update SYSTEM first
-    result = update_tier(system_repos, ci_mode=args.ci, tier_name='SYSTEM')
-    if result.any_updated:
-        run_post_system_update(root)
+    # Non-interactive (CI) mode
+    if args.defaults:
+        return _run_from_defaults(args.defaults, system_repos, app_repos, root)
 
-    # Then APPS
-    update_tier(app_repos, ci_mode=args.ci, tier_name='APPS')
+    # Interactive mode — TUI multiselect
+    return _run_interactive(system_repos, app_repos, root)
 ```
 
 ### Repo Discovery
@@ -128,27 +141,29 @@ EXCLUDED_SUBMODULES = {
 }
 
 def discover_repos(root: Path) -> list[RepoInfo]:
-    repos = []
+    repos = [RepoInfo(path=root, name='AMI-AGENTS')]
     projects_dir = root / 'projects'
 
-    # Root repo
-    repos.append(RepoInfo(path=root, name='AMI-AGENTS'))
+    # Walk projects/ looking for .git dirs or files (submodules use .git files)
+    for dirpath, dirnames, filenames in os.walk(projects_dir):
+        # Prune: don't descend into .git dirs, node_modules, etc.
+        dirnames[:] = [
+            d for d in dirnames
+            if d not in {'.git', 'node_modules', '__pycache__', '.venv'}
+        ]
+        path = Path(dirpath)
+        # Check for .git dir or .git file (submodule)
+        if (path / '.git').exists():
+            rel = str(path.relative_to(root))
+            if rel in EXCLUDED_REPOS:
+                continue
+            if any(rel.endswith(exc) for exc in EXCLUDED_SUBMODULES):
+                continue
+            repos.append(RepoInfo(path=path, name=rel))
+            # Don't descend into this repo's subdirectories
+            dirnames.clear()
 
-    # Project repos (including submodule .git files)
-    for git_path in sorted(projects_dir.rglob('.git')):
-        repo_dir = git_path.parent
-        rel = str(repo_dir.relative_to(root))
-
-        # Skip excluded repos
-        if rel in EXCLUDED_REPOS:
-            continue
-        # Skip vendored submodules (check if any excluded submodule path is a suffix)
-        if any(rel.endswith(exc) for exc in EXCLUDED_SUBMODULES):
-            continue
-
-        repos.append(RepoInfo(path=repo_dir, name=rel))
-
-    return repos
+    return sorted(repos, key=lambda r: r.name)
 ```
 
 ### Dirty Check
@@ -179,8 +194,7 @@ Commit or stash your changes, then retry.
 ### Fetch & Merge Analysis
 
 ```python
-@dataclass
-class RemoteUpdate:
+class RemoteUpdate(NamedTuple):
     repo: RepoInfo
     remote: str          # e.g., "origin"
     branch: str          # e.g., "main"
@@ -336,34 +350,52 @@ def run_post_system_update(root: Path):
         subprocess.run(['bash', str(ci_hooks)], cwd=str(root), check=False)
 ```
 
-### CI Mode
+### Non-Interactive Mode (`--defaults`)
+
+Same pattern as `bootstrap_installer.py --defaults`:
 
 ```python
-def update_tier_ci(repos: list[RepoInfo]) -> bool:
-    # Check dirty
-    dirty = check_dirty(repos)
-    if dirty:
+def _run_from_defaults(defaults_file, system_repos, app_repos, root) -> int:
+    config = yaml.safe_load(defaults_file.read_text())
+    remote = config.get('remote', 'origin')
+    fail_on_diverge = config.get('fail_on_diverge', True)
+    fail_on_dirty = config.get('fail_on_dirty', True)
+    tiers = config.get('tiers', ['system', 'apps'])
+
+    all_repos = []
+    if 'system' in tiers:
+        all_repos.extend(system_repos)
+    if 'apps' in tiers:
+        all_repos.extend(app_repos)
+
+    # Dirty check
+    dirty = check_dirty(all_repos)
+    if dirty and fail_on_dirty:
         print_dirty_error(dirty)
-        return False
+        return 1
 
-    # Analyze — origin only
-    all_updates = []
-    for repo in repos:
-        updates = analyze_repo(repo)
-        origin_updates = [u for u in updates if u.remote == 'origin']
-        all_updates.extend(origin_updates)
+    # Fetch + analyze — selected remote only
+    updates = []
+    for repo in all_repos:
+        repo_updates = analyze_repo(repo)
+        updates.extend(u for u in repo_updates if u.remote == remote)
 
-    # Check all can ff
-    non_ff = [u for u in all_updates if not u.can_ff]
-    if non_ff:
-        print("ERROR: Cannot auto-merge the following repos:")
-        for u in non_ff:
-            print(f"  {u.repo.name}  {u.remote}/{u.branch}  DIVERGED")
-        return False
+    # Diverge check
+    non_ff = [u for u in updates if not u.can_ff]
+    if non_ff and fail_on_diverge:
+        print_diverge_error(non_ff)
+        return 1
 
-    # Pull all
-    results = pull_updates(all_updates)
-    return all(r.success for r in results)
+    # Pull all clean ff
+    mergeable = [u for u in updates if u.can_ff]
+    results = pull_updates(mergeable)
+
+    # Post-system update
+    if 'system' in tiers and any(r.success for r in results):
+        run_post_system_update(root)
+
+    print_summary(results)
+    return 0 if all(r.success for r in results) else 1
 ```
 
 ---
@@ -373,14 +405,28 @@ def update_tier_ci(repos: list[RepoInfo]) -> bool:
 ```makefile
 .PHONY: update
 update: ## Interactive update of all repos (SYSTEM then APPS)
-	@.venv/bin/python ami/scripts/update.py
+	@bash ami/scripts/bin/ami-update
 
 .PHONY: update-ci
-update-ci: ## Non-interactive update (origin only, ff-only, fails on diverge)
-	@.venv/bin/python ami/scripts/update.py --ci
+update-ci: ## Non-interactive update (uses update-defaults.yaml)
+	@bash ami/scripts/bin/ami-update --ci --defaults ami/config/update-defaults.yaml
 ```
 
-Replace current `update` target (which only runs `uv update`) with the new full-repo update. The `uv sync` call happens inside `make sync` as a post-SYSTEM-update action.
+### CI Defaults YAML (`ami/config/update-defaults.yaml`)
+
+Same pattern as `install-defaults.yaml` for bootstrap:
+
+```yaml
+# Non-interactive update configuration.
+# Used by: make update-ci
+
+remote: origin          # Only pull from this remote
+tiers:
+  - system              # Update SYSTEM tier
+  - apps                # Update APPS tier
+fail_on_diverge: true   # Exit 1 if any repo has diverged history
+fail_on_dirty: true     # Exit 1 if any repo has uncommitted changes
+```
 
 ---
 
@@ -424,29 +470,14 @@ cd "$AMI_ROOT"
 exec "$AMI_ROOT/.venv/bin/python" "$AMI_ROOT/ami/scripts/update.py" "$@"
 ```
 
-Registered in `extensions.template.yaml`:
+Registered in `ami/scripts/bin/extension.manifest.yaml` as a core extension.
 
-```yaml
-- name: ami-update
-  binary: ami/scripts/bin/ami-update
-  description: Auto-update all AMI repos
-  category: core
-  features: --ci, interactive, SYSTEM/APPS tiers
+Usage:
+```bash
+ami-update              # Interactive: TUI multiselect
+ami-update --ci         # CI mode: origin only, ff-only, fails on diverge
+ami-update --ci --defaults path/to/config.yaml  # CI with custom config
 ```
-
-### Makefile Targets
-
-```makefile
-.PHONY: update
-update: ## Interactive update of all repos (SYSTEM then APPS)
-	@bash ami/scripts/bin/ami-update
-
-.PHONY: update-ci
-update-ci: ## Non-interactive update (origin only, ff-only, fails on diverge)
-	@bash ami/scripts/bin/ami-update --ci
-```
-
-Both targets delegate to `ami-update` which resolves AMI_ROOT and runs from there regardless of cwd.
 
 ---
 
@@ -454,13 +485,13 @@ Both targets delegate to `ami-update` which resolves AMI_ROOT and runs from ther
 
 | File | Purpose |
 |------|---------|
-| `ami/scripts/bin/ami-update` | NEW: shell entry point (resolves AMI_ROOT, delegates to update.py) |
-| `ami/scripts/update.py` | NEW: main update logic (discover, check, fetch, analyze, select, pull) |
-| `Makefile` | MODIFY: replace `update` target, add `update-ci` |
-| `ami/config/extensions.template.yaml` | MODIFY: add ami-update extension entry |
+| `ami/scripts/bin/ami-update` | Shell entry point (resolves AMI_ROOT, delegates to update.py) |
+| `ami/scripts/update.py` | Main update logic (discover, check, fetch, analyze, select, pull) |
+| `ami/config/update-defaults.yaml` | CI mode defaults (repos to update, origin-only) |
+| `Makefile` | `update` (interactive) and `update-ci` (YAML defaults) targets |
+| `ami/scripts/bin/extension.manifest.yaml` | ami-update registered as core extension |
 | `ami/cli_components/menu_selector.py` | REUSE: `MenuItem` class |
 | `ami/cli_components/dialogs.py` | REUSE: `multiselect()` facade |
-| `ami/scripts/utils/git-status-all` | REFERENCE: repo discovery pattern |
 
 ---
 

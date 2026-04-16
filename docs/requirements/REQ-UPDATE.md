@@ -53,16 +53,16 @@ Updating the AMI workspace requires manually pulling each project, checking for 
 ### 5. Update Execution
 
 - **REQ-UPD-040**: For each selected repo, perform `git pull --ff-only` from the selected remote
-- **REQ-UPD-041**: After pulling SYSTEM tier repos, automatically run `make sync` in AMI-AGENTS (reinstalls hooks, re-syncs deps)
+- **REQ-UPD-041**: After pulling SYSTEM tier repos, automatically re-sync Python dependencies and reinstall git hooks
 - **REQ-UPD-042**: Report success/failure for each repo after update
 - **REQ-UPD-043**: If any repo fails to pull, continue with remaining repos (don't abort the batch)
 
-### 6. CI Mode (Non-Interactive)
+### 6. Non-Interactive Mode (CI)
 
-- **REQ-UPD-050**: `make update-ci` shall perform a fully non-interactive update
-- **REQ-UPD-051**: CI mode only pulls from `origin` remote
-- **REQ-UPD-052**: CI mode only proceeds if ALL repos have clean fast-forward paths — otherwise fails with non-zero exit code
-- **REQ-UPD-053**: CI mode aborts if any repo is dirty
+- **REQ-UPD-050**: `make update-ci` shall perform a fully non-interactive update using a YAML defaults file (same pattern as `make install-ci` with `install-defaults.yaml`)
+- **REQ-UPD-051**: The defaults file shall specify: remote to pull from, tiers to update, and failure behavior
+- **REQ-UPD-052**: Non-interactive mode only proceeds if ALL repos have clean fast-forward paths — otherwise fails with non-zero exit code
+- **REQ-UPD-053**: Non-interactive mode aborts if any repo is dirty
 
 ### 7. Post-Update Actions
 
@@ -70,24 +70,24 @@ Updating the AMI workspace requires manually pulling each project, checking for 
 - **REQ-UPD-061**: After SYSTEM tier update, re-sync Python dependencies (`uv sync`)
 - **REQ-UPD-062**: After any tier update, report a summary of what changed (repos updated, commits pulled, any failures)
 
+### 8. CLI Entry Point
+
+- **REQ-UPD-070**: An `ami-update` command shall be available as a shell extension
+- **REQ-UPD-071**: `ami-update` shall always run from AMI-AGENTS root regardless of the user's current working directory
+- **REQ-UPD-072**: `ami-update --defaults FILE` shall invoke non-interactive mode from YAML config
+- **REQ-UPD-073**: `ami-update` shall be registered in the extension manifest
+- **REQ-UPD-074**: `make update` shall invoke interactive mode
+- **REQ-UPD-075**: `make update-ci` shall invoke CI mode using a YAML defaults file (same pattern as `install-defaults.yaml`)
+
 ---
 
 ## Constraints
 
 - Python 3.11+ (update script)
-- Reuse existing TUI multiselect component (`ami/cli_components/selection_dialog.py`)
+- Reuse existing TUI multiselect component
 - Only fast-forward merges — never rebase or merge with conflicts automatically
-- Git operations use the bootstrapped git (`.boot-linux/bin/git` with git-guard)
+- Git operations use the bootstrapped git with git-guard
 - Must work offline (fetch failure is non-fatal, just reports "offline")
-
-### 8. CLI Entry Point
-
-- **REQ-UPD-070**: An `ami-update` command shall be available as a shell extension
-- **REQ-UPD-071**: `ami-update` shall always run from AMI-AGENTS root regardless of the user's current working directory
-- **REQ-UPD-072**: `ami-update --ci` shall invoke CI mode (non-interactive)
-- **REQ-UPD-073**: `ami-update` shall be registered in the extension manifest
-
----
 
 ## Non-Requirements
 

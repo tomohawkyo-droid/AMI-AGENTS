@@ -1,0 +1,10 @@
+# Non-interactive update configuration.
+# Used by: make update-ci
+# Same pattern as install-defaults.yaml for bootstrap.
+
+remote: origin
+tiers:
+  - system
+  - apps
+fail_on_diverge: true
+fail_on_dirty: true
