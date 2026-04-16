@@ -13,6 +13,7 @@ from ami.scripts.shell.banner_helper import (
     _icon_for,
     _print_extension,
     _title_for,
+    main,
     output_banner,
     output_extra,
 )
@@ -204,3 +205,71 @@ class TestOutputBanner:
         _print_extension(ext, Path("/tmp"), "\033[0m", quiet=False, is_tty=False)
         out = capsys.readouterr().out
         assert "cmd" in out
+
+    def test_with_failed_health(self, capsys) -> None:
+        ext = _make_ext("bad", Status.READY)
+        ext.entry["check"] = {
+            "command": ["false"],
+            "healthExpect": "never",
+        }
+        _print_extension(ext, Path("/tmp"), "\033[0m", quiet=False, is_tty=False)
+        out = capsys.readouterr().out
+        assert "bad" in out
+
+
+class TestMain:
+    def test_banner_mode(self) -> None:
+        with (
+            patch(
+                "ami.scripts.shell.banner_helper.find_ami_root",
+                return_value=Path("/tmp"),
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.discover_manifests", return_value=[]
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.resolve_extensions", return_value=[]
+            ),
+            patch("ami.scripts.shell.banner_helper.output_banner") as mock_banner,
+            patch("sys.argv", ["banner_helper.py", "--mode", "banner", "--quiet"]),
+        ):
+            main()
+            mock_banner.assert_called_once()
+
+    def test_extra_mode(self) -> None:
+        with (
+            patch(
+                "ami.scripts.shell.banner_helper.find_ami_root",
+                return_value=Path("/tmp"),
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.discover_manifests", return_value=[]
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.resolve_extensions", return_value=[]
+            ),
+            patch("ami.scripts.shell.banner_helper.output_extra") as mock_extra,
+            patch("sys.argv", ["banner_helper.py", "--mode", "extra"]),
+        ):
+            main()
+            mock_extra.assert_called_once()
+
+    def test_quiet_from_env(self) -> None:
+        with (
+            patch(
+                "ami.scripts.shell.banner_helper.find_ami_root",
+                return_value=Path("/tmp"),
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.discover_manifests", return_value=[]
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.resolve_extensions", return_value=[]
+            ),
+            patch("ami.scripts.shell.banner_helper.output_banner") as mock_banner,
+            patch("sys.argv", ["banner_helper.py"]),
+            patch.dict("os.environ", {"AMI_QUIET_MODE": "1"}),
+        ):
+            main()
+            _, kwargs = mock_banner.call_args
+            assert kwargs.get("quiet") is True
