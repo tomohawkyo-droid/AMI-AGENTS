@@ -11,7 +11,8 @@ set -euo pipefail
 GIT_REAL="${GIT_GUARD_REAL_GIT:-}"
 
 if [[ -z "$GIT_REAL" || ! -x "$GIT_REAL" ]]; then
-    for candidate in /usr/bin/git /usr/local/bin/git /snap/bin/git; do
+    # Check git.original first — system guard may have renamed real git
+    for candidate in /usr/bin/git.original /usr/local/bin/git.original /usr/bin/git /usr/local/bin/git /snap/bin/git; do
         if [[ -x "$candidate" ]]; then
             GIT_REAL="$candidate"
             break
