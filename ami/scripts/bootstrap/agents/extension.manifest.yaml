@@ -1,0 +1,50 @@
+extensions:
+  - name: ami-claude
+    binary: .venv/node_modules/.bin/claude
+    description: Claude Code AI assistant
+    category: agents
+    features:
+      - -p
+      - --continue
+      - --resume
+      - --allowedTools
+    bannerPriority: 500
+    check:
+      command: ["{binary}", "--version"]
+      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      healthExpect: "claude"
+      timeout: 5
+
+  - name: ami-gemini
+    binary: .venv/node_modules/.bin/gemini
+    description: Gemini CLI AI assistant
+    category: agents
+    features:
+      - -p
+      - --resume
+      - --yolo
+      - mcp
+      - extensions
+    bannerPriority: 510
+    check:
+      command: ["{binary}", "--version"]
+      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      healthExpect: "gemini"
+      timeout: 5
+
+  - name: ami-qwen
+    binary: .venv/node_modules/.bin/qwen
+    description: Qwen Code AI assistant
+    category: agents
+    features:
+      - -p
+      - --resume
+      - --yolo
+      - mcp
+      - extensions
+    bannerPriority: 520
+    check:
+      command: ["{binary}", "--version"]
+      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      healthExpect: "qwen"
+      timeout: 5

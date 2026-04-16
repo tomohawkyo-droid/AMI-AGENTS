@@ -273,17 +273,13 @@ display_banner() {
     _ami_echo "================================================================================"
     _ami_echo "${NC}"
 
-    # Load extension metadata for display
-    _load_extension_metadata
-
-    # Display each category, skipping excluded ones
-    for cat in "${CATEGORY_ORDER[@]}"; do
-        if [[ -n "$exclude_categories" ]] && echo ",$exclude_categories," | grep -q ",$cat,"; then
-            continue
-        fi
-        local arr_name="EXT_${cat^^}"
-        _display_category "$cat" "$arr_name"
-    done
+    # Display extensions via Python helper (manifest-based discovery)
+    local _banner_helper="$AMI_ROOT/ami/scripts/shell/banner_helper.py"
+    if [[ -f "$_banner_helper" ]]; then
+        local _quiet_flag=""
+        [[ "$AMI_QUIET_MODE" == "1" ]] && _quiet_flag="--quiet"
+        python3 "$_banner_helper" --mode banner $_quiet_flag 2>/dev/null || true
+    fi
 }
 
 # Function to display system status

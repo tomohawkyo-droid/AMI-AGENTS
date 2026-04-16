@@ -2,7 +2,7 @@
 """
 Create symlinks and wrappers in .boot-linux/bin/ for all extensions.
 
-Reads from ami/config/extensions.yaml (single source of truth).
+Uses manifest discovery from extension_registry (extension.manifest.yaml files).
 """
 
 from __future__ import annotations
@@ -11,7 +11,13 @@ import re
 import stat
 from pathlib import Path
 
-import yaml
+from ami.scripts.shell.extension_registry import (
+    ResolvedExtension,
+    Status,
+    discover_manifests,
+    find_ami_root,
+    resolve_extensions,
+)
 
 
 def create_wrapper(path: Path, ami_root: Path, script: str) -> None:
@@ -65,7 +71,7 @@ def fix_stale_shebang(binary: Path, ami_root: Path) -> None:
 
     if stale:
         binary.write_text("\n".join(lines))
-        print(f"  ✓ Fixed stale shebang in {binary.name}")
+        print(f"  \u2713 Fixed stale shebang in {binary.name}")
 
 
 def create_symlink(link: Path, target: Path) -> None:
@@ -74,55 +80,57 @@ def create_symlink(link: Path, target: Path) -> None:
     link.symlink_to(target)
 
 
+def _register_one(ext: ResolvedExtension, bin_dir: Path, ami_root: Path) -> None:
+    """Register a single resolved extension into bin_dir."""
+    entry = ext.entry
+    name = entry["name"]
+    binary = entry["binary"]
+    target_path = bin_dir / name
+    source_path = ami_root / binary
+
+    # Skip if target already exists at same path
+    if target_path.exists() and target_path.resolve() == source_path.resolve():
+        print(f"  \u2713 {name} \u2192 {binary} (already in place)")
+        return
+
+    if binary.endswith(".py"):
+        create_wrapper(target_path, ami_root, binary)
+        print(f"  \u2713 {name} \u2192 wrapper({binary})")
+    else:
+        fix_stale_shebang(source_path, ami_root)
+        create_symlink(target_path, source_path)
+        print(f"  \u2713 {name} \u2192 {binary}")
+
+
 def register_extensions() -> None:
     """Register all extensions as symlinks/wrappers in .boot-linux/bin/."""
-    ami_root = Path.cwd()
+    ami_root = find_ami_root()
     bin_dir = ami_root / ".boot-linux" / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
 
-    # Read extensions config (single source of truth)
-    ext_config = ami_root / "ami/config/extensions.yaml"
-    if not ext_config.exists():
-        print("[ERROR] Extensions configuration not found.")
+    manifests = discover_manifests(ami_root)
+    if not manifests:
+        print("[WARN] No extension.manifest.yaml files found.")
         return
 
-    config = yaml.safe_load(ext_config.read_text())
-    extensions = config.get("extensions", [])
+    resolved = resolve_extensions(manifests, ami_root)
 
-    print("🔗 Creating extension symlinks/wrappers...")
+    print("\U0001f517 Creating extension symlinks/wrappers...")
 
-    for ext in extensions:
-        name = ext.get("name")
-        binary = ext.get("binary")
-
-        if not name or not binary:
-            print(f"  ⚠ Invalid extension entry: {ext}")
+    registered = 0
+    skipped = 0
+    for ext in resolved:
+        if ext.status == Status.UNAVAILABLE:
+            skipped += 1
             continue
+        _register_one(ext, bin_dir, ami_root)
+        registered += 1
 
-        target_path = bin_dir / name
+    print(f"\n\u2705 Registered {registered} commands in {bin_dir}")
+    if skipped:
+        print(f"   Skipped {skipped} unavailable extensions")
 
-        # Skip if target already exists at link path (bootstrap created it)
-        source_path = ami_root / binary
-        if target_path.resolve() == source_path.resolve():
-            print(f"  ✓ {name} → {binary} (already in place)")
-            continue
-
-        if binary.endswith(".py"):
-            # Python script - create wrapper
-            create_wrapper(target_path, ami_root, binary)
-            print(f"  ✓ {name} → wrapper({binary})")
-        else:
-            # Direct binary - fix stale shebangs then create symlink
-            fix_stale_shebang(source_path, ami_root)
-            create_symlink(target_path, source_path)
-            print(f"  ✓ {name} → {binary}")
-
-    print(f"\n✅ Created {len(extensions)} commands in {bin_dir}")
-
-    # Add PATH to TOP of ~/.bashrc (before interactive check, works for ALL shells)
     update_bashrc_path(bin_dir)
-
-    # Remove old shell functions from ~/.bashrc
     remove_bashrc_functions()
 
 
@@ -157,7 +165,7 @@ def update_bashrc_path(bin_dir: Path) -> None:
     content = "\n".join(lines)
 
     bashrc.write_text(content)
-    print("✅ Added PATH to TOP of ~/.bashrc (works for all shells)")
+    print("\u2705 Added PATH to TOP of ~/.bashrc (works for all shells)")
 
 
 def remove_bashrc_functions() -> None:
@@ -178,7 +186,7 @@ def remove_bashrc_functions() -> None:
             end_idx += 1
         content = content[:start_idx].rstrip() + "\n" + content[end_idx:].lstrip()
         bashrc.write_text(content)
-        print("✅ Removed shell functions from ~/.bashrc")
+        print("\u2705 Removed shell functions from ~/.bashrc")
 
 
 if __name__ == "__main__":

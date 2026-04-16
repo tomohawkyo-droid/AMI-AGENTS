@@ -1,0 +1,16 @@
+extensions:
+  - name: ami-docs
+    binary: ami/scripts/bin/ami_docs.py
+    description: Document conversion and PDF generation
+    category: docs
+    features:
+      - pandoc
+      - wkhtmltopdf
+      - pdflatex
+      - xelatex
+      - pdfjam
+    bannerPriority: 400
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "docs"
+      timeout: 5

@@ -1,0 +1,63 @@
+extensions:
+  - name: ami-ssh
+    binary: ami/scripts/bin/ami_ssh.py
+    description: SSH with AMI keys and config
+    category: infra
+    features:
+      - auto-keys
+      - project .ssh/
+      - openssh
+    hidden: true
+    bannerPriority: 300
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "ssh"
+      timeout: 5
+
+  - name: ami-vpn
+    binary: ami/scripts/bin/run_openvpn_client.py
+    description: OpenVPN client with AMI config
+    category: infra
+    features:
+      - --ovpn-file
+      - --action start/health
+      - --daemon
+    hidden: true
+    bannerPriority: 310
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "openvpn"
+      timeout: 5
+
+  - name: ami-tunnel
+    binary: ami/scripts/bin/ami_tunnel.py
+    description: Cloudflare tunnel management
+    category: infra
+    features:
+      - tunnel
+      - access
+      - login
+      - service
+    hidden: true
+    bannerPriority: 320
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "tunnel"
+      timeout: 5
+
+  - name: ami-ssl
+    binary: ami/scripts/bin/ami_ssl.py
+    description: OpenSSL with AMI cert paths
+    category: infra
+    features:
+      - x509
+      - req
+      - genrsa
+      - s_client
+      - verify
+    hidden: true
+    bannerPriority: 330
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "ssl"
+      timeout: 5

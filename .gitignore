@@ -142,7 +142,6 @@ user_app_token.pickle
 learning/forecasting/
 learning/forecasting/
 .env.bot
-agents/
 ami/config/extensions.yaml
 uv.lock
 ami/config/automation.yaml

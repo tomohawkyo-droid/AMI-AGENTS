@@ -1,0 +1,40 @@
+extensions:
+  - name: ami-kcadm
+    binary: ami/scripts/bin/ami-kcadm
+    description: Keycloak Admin CLI (kcadm.sh)
+    category: enterprise
+    features:
+      - config
+      - get
+      - create
+      - update
+      - delete
+    bannerPriority: 130
+    container: ami-keycloak
+    installHint: "make compose-deploy in AMI-DATAOPS"
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "kcadm"
+      timeout: 5
+    deps:
+      - name: ami-keycloak
+        type: container
+        container: ami-keycloak
+        required: false
+
+  - name: ami-browser
+    binary: .venv/bin/playwright
+    description: Browser automation (Playwright)
+    category: enterprise
+    features:
+      - open
+      - codegen
+      - screenshot
+      - pdf
+      - install
+    bannerPriority: 140
+    check:
+      command: ["{binary}", "--version"]
+      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      healthExpect: "playwright"
+      timeout: 5

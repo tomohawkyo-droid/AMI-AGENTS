@@ -148,7 +148,7 @@ sync: sync-package install-hooks ## Sync deps + reinstall hooks
 # --- Config & Utilities ---
 
 .PHONY: setup-config
-setup-config: setup-automation setup-extensions setup-linter-config ## Setup configuration files
+setup-config: setup-automation setup-linter-config ## Setup configuration files
 
 .PHONY: setup-linter-config
 setup-linter-config: ## Create symlinks for linter configs in project root
@@ -182,17 +182,6 @@ setup-automation: ## Setup automation configuration
 		fi \
 	else \
 		echo "ℹ️  Automation configuration already exists at ami/config/automation.yaml"; \
-	fi
-
-.PHONY: setup-extensions
-setup-extensions: ## Setup extensions configuration (always refreshed from template)
-	@echo "⚙️  Setting up extensions configuration..."
-	@if [ -f "ami/config/extensions.template.yaml" ]; then \
-		cp "ami/config/extensions.template.yaml" "ami/config/extensions.yaml"; \
-		echo "✅ Updated ami/config/extensions.yaml from template"; \
-	else \
-		echo "⚠️  Template ami/config/extensions.template.yaml not found"; \
-		[ -f "ami/config/extensions.yaml" ] || echo "extensions: []" > "ami/config/extensions.yaml"; \
 	fi
 
 .PHONY: register-extensions
@@ -251,8 +240,16 @@ dead-code: ## Run AST-based dead code analysis
 	.boot-linux/bin/uv run python -m ami.ci.check_dead_code
 
 .PHONY: update
-update: ## Update dependencies
-	@echo "🔄 Updating dependencies..."
+update: ## Interactive update of all repos (SYSTEM then APPS)
+	@bash ami/scripts/bin/ami-update
+
+.PHONY: update-ci
+update-ci: ## Non-interactive update (origin only, ff-only, fails on diverge)
+	@bash ami/scripts/bin/ami-update --ci
+
+.PHONY: update-deps
+update-deps: ## Update Python dependencies only
+	@echo "🔄 Updating Python dependencies..."
 	.boot-linux/bin/uv update
 
 .PHONY: uninstall

@@ -1,0 +1,32 @@
+extensions:
+  - name: ami-gcloud
+    binary: .gcloud/google-cloud-sdk/bin/gcloud
+    description: Google Cloud CLI (gcloud SDK)
+    category: dev
+    features:
+      - compute
+      - storage
+      - iam
+      - config
+    bannerPriority: 220
+    check:
+      command: ["{binary}", "--version"]
+      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      healthExpect: "Google Cloud SDK"
+      timeout: 5
+
+  - name: ami-kubectl
+    binary: ami/scripts/bin/ami-kubectl
+    description: Kubernetes CLI (kubectl + helm)
+    category: dev
+    features:
+      - get
+      - apply
+      - logs
+      - describe
+      - helm
+    bannerPriority: 230
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "kubectl"
+      timeout: 5

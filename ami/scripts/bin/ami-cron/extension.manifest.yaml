@@ -1,0 +1,16 @@
+extensions:
+  - name: ami-cron
+    binary: ami/scripts/bin/ami_cron.py
+    description: AMI-aware cron job management
+    category: dev
+    features:
+      - list
+      - add
+      - remove
+      - edit
+      - status
+    bannerPriority: 240
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "cron"
+      timeout: 5

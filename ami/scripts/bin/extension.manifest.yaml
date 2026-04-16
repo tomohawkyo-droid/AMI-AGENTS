@@ -1,0 +1,121 @@
+extensions:
+  - name: ami-agent
+    binary: ami-agent
+    description: AMI Orchestrator main entry point
+    category: core
+    features:
+      - --print
+      - --interactive-editor
+      - --query
+    bannerPriority: 10
+    check:
+      command: ["{binary}", "--version"]
+      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      healthExpect: "ami-agent"
+      timeout: 5
+
+  - name: ami
+    binary: ami/scripts/bin/ami-run
+    description: Unified CLI for services and system management
+    category: core
+    features:
+      - ansible
+      - systemd
+      - podman
+      - status
+    bannerPriority: 20
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "ami-run"
+      timeout: 5
+
+  - name: ami-run
+    binary: ami/scripts/bin/ami-run
+    description: Universal project execution wrapper
+    category: core
+    features:
+      - python
+      - uv
+      - npm
+      - npx
+      - rustc
+      - cargo
+      - go
+    bannerPriority: 30
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "ami-run"
+      timeout: 5
+
+  - name: ami-repo
+    binary: ami/scripts/bin/ami-repo
+    description: Git repository and server management
+    category: core
+    features:
+      - git
+      - gitlab-api
+      - github-api
+      - hf-api
+      - status-all
+    bannerPriority: 40
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "ami-repo"
+      timeout: 5
+
+  - name: ami-transcripts
+    binary: ami/scripts/bin/ami_transcripts.py
+    description: Transcript session management and search
+    category: core
+    features:
+      - list
+      - show
+      - search
+      - replay
+      - resume
+    bannerPriority: 50
+
+  - name: ami-update
+    binary: ami/scripts/bin/ami-update
+    description: Update AMI Orchestrator components
+    category: core
+    bannerPriority: 55
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "ami-update"
+      timeout: 5
+
+  - name: ami-extra
+    binary: ami/scripts/bin/ami-extra
+    description: Show hidden, degraded, and unavailable extensions
+    category: core
+    bannerPriority: 56
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "extra"
+      timeout: 5
+
+  - name: ami-welcome
+    binary: ami/scripts/bin/ami-welcome
+    description: Print the AMI Orchestrator banner
+    category: core
+    hidden: true
+    bannerPriority: 60
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "ami-welcome"
+      timeout: 5
+
+  - name: ami-pwd
+    binary: ami/scripts/bin/ami-pwd
+    description: AMI root directory finder
+    category: core
+    features:
+      - find root
+      - export AMI_ROOT
+    hidden: true
+    bannerPriority: 70
+    check:
+      command: ["{binary}", "--help"]
+      healthExpect: "ami-pwd"
+      timeout: 5
