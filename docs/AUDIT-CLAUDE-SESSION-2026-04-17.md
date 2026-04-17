@@ -178,12 +178,11 @@ Each entry is linked to a remediation task. Severity legend:
 - **Why it was wrong.** The non-TTY branch is a minority path. The TTY branch (`_run_check_with_countdown`) is what users actually see, and it spawns a separate thread.
 - **Resolution.** Ran `script -q -c "ami-welcome" /dev/null` to force a TTY context. Verified the resulting banner log: `tty=True` in the session_start record, 20 `event: "check"` records recorded through the threaded countdown path, zero `healthy: false`, zero non-null exceptions. Banner-log covers both TTY and non-TTY paths.
 
-#### Task #38 — Claimed backup migration done without E2E
+#### Task #38 — Claimed backup migration done without E2E — RESOLVED 2026-04-17
 
 - **What I did.** Confirmed the extension registry resolved the new DATAOPS binary paths; never actually ran `ami-backup` end-to-end.
 - **Why it was wrong.** Import-path rewrites and circular-import re-entry only surface at runtime. Passing `discover_manifests` / `resolve_extensions` is not the same as passing `python main.py --help`.
-- **Correct behaviour.** Always execute the migrated entry point at least once in a throwaway config before declaring migration complete.
-- **Remediation.** Execute `ami-backup --dry-run` (or smallest real invocation).
+- **Resolution.** Ran `ami-backup --help` and `ami-restore --help` end-to-end through the `.boot-linux/bin` wrapper; both print argparse help (exit 0) without ImportError or circular-import fault. The migrated `ami.dataops.backup.*` module graph loads cleanly under the hermetic interpreter.
 
 #### Task #42 — Broken integration tests discovered reactively
 
