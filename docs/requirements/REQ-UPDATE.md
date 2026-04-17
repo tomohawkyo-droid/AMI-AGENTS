@@ -78,6 +78,7 @@ Updating the AMI workspace requires manually pulling each project, checking for 
 - **REQ-UPD-073**: `ami-update` shall be registered in the extension manifest
 - **REQ-UPD-074**: `make update` shall invoke interactive mode
 - **REQ-UPD-075**: `make update-ci` shall invoke CI mode using a YAML defaults file (same pattern as `install-defaults.yaml`)
+- **REQ-UPD-076**: `ami-update --ci` shall invoke non-interactive CI mode; when `--defaults FILE` is also supplied, `FILE` is used, otherwise a repository-provided default defaults file is used
 
 ---
 

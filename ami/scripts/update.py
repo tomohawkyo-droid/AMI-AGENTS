@@ -441,12 +441,20 @@ def _run_from_defaults(
 # -- Terminal restore & entry points ----------------------------------------
 
 
+DEFAULT_CI_CONFIG = Path("ami/config/update-defaults.yaml")
+
+
 def _restore_terminal() -> None:
-    sys.stdout.write(f"{RESET}")
-    sys.stdout.write("\033[?25h")
-    sys.stdout.write("\033[r")
-    sys.stdout.write("\033[999E")
-    sys.stdout.flush()
+    if not sys.stdout.isatty():
+        return
+    try:
+        sys.stdout.write(f"{RESET}")
+        sys.stdout.write("\033[?25h")
+        sys.stdout.write("\033[r")
+        sys.stdout.write("\033[999E")
+        sys.stdout.flush()
+    except (OSError, ValueError):
+        pass
 
 
 def main() -> int:
@@ -473,13 +481,24 @@ def _main_impl() -> int:
         metavar="FILE",
         help="Non-interactive mode using YAML config file",
     )
+    parser.add_argument(
+        "--ci",
+        action="store_true",
+        help=(
+            "Non-interactive CI mode; uses "
+            f"{DEFAULT_CI_CONFIG} unless --defaults is also provided"
+        ),
+    )
     args = parser.parse_args()
     root = find_ami_root()
     repos = discover_repos(root)
     system_repos = categorize(repos, tier="system")
     app_repos = categorize(repos, tier="apps")
-    if args.defaults:
-        return _run_from_defaults(args.defaults, system_repos, app_repos, root)
+    defaults_path: Path | None = args.defaults
+    if args.ci and defaults_path is None:
+        defaults_path = root / DEFAULT_CI_CONFIG
+    if defaults_path is not None:
+        return _run_from_defaults(defaults_path, system_repos, app_repos, root)
     if not sys.stdin.isatty():
         print(f"{RED}Error:{RESET} This script requires an interactive terminal.")
         print("Run it directly, not through a pipe.")
