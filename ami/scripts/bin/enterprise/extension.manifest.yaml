@@ -34,7 +34,6 @@ extensions:
       - install
     bannerPriority: 140
     check:
-      command: ["{binary}", "--version"]
-      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      command: ["{binary}", "--help"]
       healthExpect: "playwright"
       timeout: 5

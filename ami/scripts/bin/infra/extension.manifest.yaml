@@ -10,7 +10,7 @@ extensions:
     hidden: true
     bannerPriority: 300
     check:
-      command: ["{binary}", "--help"]
+      command: ["{python}", "{binary}", "--help"]
       healthExpect: "ssh"
       timeout: 5
 
@@ -25,7 +25,7 @@ extensions:
     hidden: true
     bannerPriority: 310
     check:
-      command: ["{binary}", "--help"]
+      command: ["{python}", "{binary}", "--help"]
       healthExpect: "openvpn"
       timeout: 5
 
@@ -41,7 +41,7 @@ extensions:
     hidden: true
     bannerPriority: 320
     check:
-      command: ["{binary}", "--help"]
+      command: ["{python}", "{binary}", "--help"]
       healthExpect: "tunnel"
       timeout: 5
 
@@ -58,6 +58,6 @@ extensions:
     hidden: true
     bannerPriority: 330
     check:
-      command: ["{binary}", "--help"]
+      command: ["{python}", "{binary}", "--help"]
       healthExpect: "ssl"
       timeout: 5

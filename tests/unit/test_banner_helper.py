@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from ami.scripts.shell.banner_helper import (
+    _BannerCtx,
     _color_for,
     _format_features,
     _format_partial_line,
@@ -163,7 +164,12 @@ class TestHasFailedContainerDep:
 class TestPrintExtension:
     def test_no_check_quiet(self, capsys) -> None:
         ext = _make_ext("cmd", Status.READY)
-        _print_extension(ext, Path("/tmp"), "\033[0m", quiet=True, is_tty=False)
+        _print_extension(
+            ext,
+            Path("/tmp"),
+            "\033[0m",
+            _BannerCtx(quiet=True, is_tty=False, log=None),
+        )
         out = capsys.readouterr().out
         assert "cmd" in out
 
@@ -202,7 +208,12 @@ class TestOutputBanner:
             "versionPattern": r"(\d+\.\d+\.\d+)",
             "healthExpect": "1.2.3",
         }
-        _print_extension(ext, Path("/tmp"), "\033[0m", quiet=False, is_tty=False)
+        _print_extension(
+            ext,
+            Path("/tmp"),
+            "\033[0m",
+            _BannerCtx(quiet=False, is_tty=False, log=None),
+        )
         out = capsys.readouterr().out
         assert "cmd" in out
 
@@ -212,7 +223,12 @@ class TestOutputBanner:
             "command": ["false"],
             "healthExpect": "never",
         }
-        _print_extension(ext, Path("/tmp"), "\033[0m", quiet=False, is_tty=False)
+        _print_extension(
+            ext,
+            Path("/tmp"),
+            "\033[0m",
+            _BannerCtx(quiet=False, is_tty=False, log=None),
+        )
         out = capsys.readouterr().out
         assert "bad" in out
 

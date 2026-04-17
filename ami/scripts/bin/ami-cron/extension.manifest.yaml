@@ -11,6 +11,6 @@ extensions:
       - status
     bannerPriority: 240
     check:
-      command: ["{binary}", "--help"]
+      command: ["{python}", "{binary}", "--help"]
       healthExpect: "cron"
       timeout: 5

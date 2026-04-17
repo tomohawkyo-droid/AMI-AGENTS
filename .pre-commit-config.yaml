@@ -45,6 +45,11 @@ repos:
         entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_init_files \"$@\"' --"
         language: system
         files: __init__\.py$
+      - id: check-py-not-executable
+        name: Forbid +x bit on .py modules (hermetic-bootstrap guard)
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_py_not_executable \"$@\"' --"
+        language: system
+        files: \.py$
       - id: mypy
         name: mypy
         entry: uv run python -m mypy

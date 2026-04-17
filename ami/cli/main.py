@@ -40,8 +40,15 @@ load_dotenv(Path.cwd() / ".env")
 def main() -> int:
     """Main entry point - Route to appropriate mode."""
     parser = argparse.ArgumentParser(
+        prog="ami-agent",
         description="AMI Agent - Unified automation entry point",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="ami-agent",
     )
 
     parser.add_argument(

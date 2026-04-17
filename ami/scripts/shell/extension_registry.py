@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import enum
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +12,11 @@ from pathlib import Path
 from typing import NamedTuple, TypedDict
 
 import yaml
+
+# Re-export so callers can keep using extension_registry.{run_check,HealthCheckResult}.
+from ami.scripts.shell.run_check import HealthCheckResult, run_check
+
+__all__ = ["HealthCheckResult", "run_check"]
 
 # Typed structures for manifest data
 
@@ -65,13 +69,6 @@ class DepCheckResult(NamedTuple):
 
     status: Status
     reason: str
-
-
-class HealthCheckResult(NamedTuple):
-    """Result of a health + version check."""
-
-    healthy: bool
-    version: str | None
 
 
 class CategoryGroup(NamedTuple):
@@ -336,50 +333,6 @@ def check_additional_deps(deps: list[DepConfig], root: Path) -> DepCheckResult:
             reason="; ".join(degraded_reasons),
         )
     return DepCheckResult(status=Status.READY, reason="")
-
-
-# Health / version check
-
-
-def run_check(entry: ExtensionEntry, root: Path) -> HealthCheckResult:
-    """Run health + version check. One subprocess call. Max 5 s."""
-    check = entry.get("check")
-    if not check:
-        return HealthCheckResult(healthy=True, version=None)
-
-    binary = str(root / entry["binary"])
-    cmd = [arg.replace("{binary}", binary) for arg in check["command"]]
-    timeout = min(
-        check.get("timeout", _MAX_CHECK_TIMEOUT),
-        _MAX_CHECK_TIMEOUT,
-    )
-
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-        output = result.stdout + result.stderr
-    except subprocess.TimeoutExpired:
-        return HealthCheckResult(healthy=False, version=None)
-    except OSError:
-        return HealthCheckResult(healthy=False, version=None)
-
-    # Health: substring match
-    health_ok = True
-    if "healthExpect" in check:
-        health_ok = check["healthExpect"] in output
-
-    # Version: regex extraction
-    version = None
-    if "versionPattern" in check:
-        match = re.search(check["versionPattern"], output)
-        version = match.group(1) if match else None
-
-    return HealthCheckResult(healthy=health_ok, version=version)
 
 
 # Resolution pipeline

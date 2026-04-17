@@ -474,6 +474,7 @@ def main() -> int:
 
 def _main_impl() -> int:
     parser = argparse.ArgumentParser(
+        prog="ami-update",
         description="Auto-update AMI repos (SYSTEM then APPS)",
     )
     parser.add_argument(
@@ -485,10 +486,7 @@ def _main_impl() -> int:
     parser.add_argument(
         "--ci",
         action="store_true",
-        help=(
-            "Non-interactive CI mode; uses "
-            f"{DEFAULT_CI_CONFIG} unless --defaults is also provided"
-        ),
+        help=f"Non-interactive CI; uses {DEFAULT_CI_CONFIG} unless --defaults given",
     )
     args = parser.parse_args()
     root = find_ami_root()

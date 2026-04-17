@@ -11,8 +11,9 @@ import os
 import sys
 import threading
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
+from ami.scripts.shell.banner_log import banner_log_session, make_check_hook
 from ami.scripts.shell.extension_registry import (
     DEFAULT_CATEGORY_PROPS,
     HealthCheckResult,
@@ -28,6 +29,7 @@ from ami.scripts.shell.extension_registry import (
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ami.scripts.shell.banner_log import LogFn
     from ami.scripts.shell.extension_registry import ResolvedExtension
 
 # ANSI color codes matching ami-banner.sh
@@ -107,14 +109,16 @@ def _run_check_with_countdown(
     ext: ResolvedExtension,
     root: Path,
     color: str,
+    log: LogFn | None = None,
 ) -> tuple[bool, str | None]:
     """Run check in a background thread with animated countdown."""
     result_holder: list[HealthCheckResult | None] = [None]
     check_cfg = ext.entry.get("check", {})
     timeout = min(check_cfg.get("timeout", 5), 5)
+    hook = make_check_hook(log, ext.entry["name"]) if log is not None else None
 
     def _do_check() -> None:
-        result_holder[0] = run_check(ext.entry, root)
+        result_holder[0] = run_check(ext.entry, root, log_hook=hook)
 
     thread = threading.Thread(target=_do_check, daemon=True)
     thread.start()
@@ -137,30 +141,52 @@ def _run_check_with_countdown(
     return result_holder[0].healthy, result_holder[0].version
 
 
+class _BannerCtx(NamedTuple):
+    """Rendering context passed through the banner pipeline."""
+
+    quiet: bool
+    is_tty: bool
+    log: LogFn | None
+
+
 def _print_extension(
     ext: ResolvedExtension,
     root: Path,
     color: str,
-    *,
-    quiet: bool,
-    is_tty: bool,
+    ctx: _BannerCtx,
 ) -> None:
     """Print a single extension line with optional health check."""
-    has_check = bool(ext.entry.get("check")) and not quiet
+    has_check = bool(ext.entry.get("check")) and not ctx.quiet
     skip_check = _has_failed_container_dep(ext, root)
 
     version: str | None = None
     health_ok = True
 
     if has_check and not skip_check:
-        if is_tty:
-            health_ok, version = _run_check_with_countdown(ext, root, color)
+        hook = (
+            make_check_hook(ctx.log, ext.entry["name"]) if ctx.log is not None else None
+        )
+        if ctx.is_tty:
+            health_ok, version = _run_check_with_countdown(ext, root, color, ctx.log)
             # Clear the countdown line before printing final result
             sys.stdout.write("\r\033[2K")
             sys.stdout.flush()
         else:
-            result = run_check(ext.entry, root)
+            result = run_check(ext.entry, root, log_hook=hook)
             health_ok, version = result.healthy, result.version
+    elif ctx.log is not None:
+        reason = (
+            "quiet"
+            if ctx.quiet
+            else ("container-dep failed" if skip_check else "no check")
+        )
+        ctx.log(
+            {
+                "event": "check_skipped",
+                "name": ext.entry["name"],
+                "reason": reason,
+            },
+        )
 
     # Build status suffix
     green = _COLORS["green"]
@@ -180,6 +206,22 @@ def _print_extension(
         print(feat_line)
 
 
+def _log_resolution_snapshot(resolved: list[ResolvedExtension], log: LogFn) -> None:
+    """Emit one 'resolved' record per extension, including status and reason."""
+    for ext in resolved:
+        log(
+            {
+                "event": "resolved",
+                "name": ext.entry["name"],
+                "manifest": str(ext.manifest_path),
+                "status": ext.status.value,
+                "reason": ext.reason,
+                "binary": ext.entry.get("binary", ""),
+                "category": ext.entry.get("category", ""),
+            },
+        )
+
+
 def output_banner(
     resolved: list[ResolvedExtension],
     root: Path,
@@ -190,25 +232,30 @@ def output_banner(
     is_tty = sys.stdout.isatty()
     by_category = group_by_category(resolved)
 
-    for cat_name, extensions in by_category:
-        # Check if any visible extensions exist in this category
-        visible = [
-            e for e in extensions if e.status not in (Status.UNAVAILABLE, Status.HIDDEN)
-        ]
-        if not visible:
-            continue
+    with banner_log_session(root, "banner") as log:
+        _log_resolution_snapshot(resolved, log)
+        ctx = _BannerCtx(quiet=quiet, is_tty=is_tty, log=log)
+        for cat_name, extensions in by_category:
+            # Check if any visible extensions exist in this category
+            visible = [
+                e
+                for e in extensions
+                if e.status not in (Status.UNAVAILABLE, Status.HIDDEN)
+            ]
+            if not visible:
+                continue
 
-        color = _color_for(cat_name)
-        icon = _icon_for(cat_name)
-        title = _title_for(cat_name)
-        print(f"{color}{icon} {title}:{_NC}")
-        print()
-
-        for ext in visible:
-            _print_extension(ext, root, color, quiet=quiet, is_tty=is_tty)
+            color = _color_for(cat_name)
+            icon = _icon_for(cat_name)
+            title = _title_for(cat_name)
+            print(f"{color}{icon} {title}:{_NC}")
             print()
 
-        sys.stdout.flush()
+            for ext in visible:
+                _print_extension(ext, root, color, ctx)
+                print()
+
+            sys.stdout.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -218,8 +265,11 @@ def output_banner(
 _STATUS_PAD = 18  # column width for name in extra output
 
 
-def output_extra(resolved: list[ResolvedExtension]) -> None:
+def output_extra(resolved: list[ResolvedExtension], root: Path | None = None) -> None:
     """List hidden, degraded, and unavailable extensions."""
+    if root is not None:
+        with banner_log_session(root, "extra") as log:
+            _log_resolution_snapshot(resolved, log)
     hidden = [e for e in resolved if e.status == Status.HIDDEN]
     degraded = [e for e in resolved if e.status == Status.DEGRADED]
     unavailable = [e for e in resolved if e.status == Status.UNAVAILABLE]
@@ -271,7 +321,8 @@ def output_extra(resolved: list[ResolvedExtension]) -> None:
 def main() -> None:
     """CLI entry point for banner_helper."""
     parser = argparse.ArgumentParser(
-        description="AMI banner helper -- extension display",
+        prog="ami-extra",
+        description="AMI banner helper -- extension display (ami-welcome / ami-extra)",
     )
     parser.add_argument(
         "--mode",
@@ -295,7 +346,7 @@ def main() -> None:
     if args.mode == "banner":
         output_banner(resolved, root, quiet=quiet)
     elif args.mode == "extra":
-        output_extra(resolved)
+        output_extra(resolved, root)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ extensions:
     check:
       command: ["{binary}", "--version"]
       versionPattern: "(\\d+\\.\\d+\\.\\d+)"
-      healthExpect: "claude"
+      healthExpect: "Claude Code"
       timeout: 5
 
   - name: ami-gemini
@@ -27,9 +27,8 @@ extensions:
       - extensions
     bannerPriority: 510
     check:
-      command: ["{binary}", "--version"]
-      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
-      healthExpect: "gemini"
+      command: ["{binary}", "--help"]
+      healthExpect: "Gemini CLI"
       timeout: 5
 
   - name: ami-qwen
@@ -44,7 +43,6 @@ extensions:
       - extensions
     bannerPriority: 520
     check:
-      command: ["{binary}", "--version"]
-      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
-      healthExpect: "qwen"
+      command: ["{binary}", "--help"]
+      healthExpect: "Qwen Code"
       timeout: 5

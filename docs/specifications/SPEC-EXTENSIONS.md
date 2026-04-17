@@ -36,6 +36,9 @@ extensions:
     check:                                  # Optional. Combined health + version.
       command: ["{binary}", "--version"]    # REQUIRED in check. List of args (no shell).
                                             # {binary} → resolved absolute path.
+                                            # {python} → AMI_ROOT/.venv/bin/python
+                                            # (fallback .boot-linux/python-env/bin/python).
+                                            # Use {python} {binary} when binary is a .py.
       versionPattern: "v(\\d+\\.\\d+\\.\\d+)"  # Optional. Regex capture group.
       healthExpect: "himalaya"              # Optional. Substring match.
       timeout: 5                            # Optional. Default: 5. Max: 5.
@@ -107,6 +110,14 @@ def validate_entry(entry: dict, manifest_path: Path) -> list[str]:
         errors.append(f"{manifest_path}: check timeout {timeout}s exceeds max of 5s")
     return errors
 ```
+
+---
+
+### 1.1 File-mode rule
+
+Tracked `.py` files in this repo must not have the exec bit set. `.py` modules are invoked through the universal `ami-run` wrapper (which resolves `$AMI_ROOT/.venv/bin/python`), or through the manifest `check:` command using the `{python}` substitution. An executable `.py` relies on `/usr/bin/env python3` at the top of the file, which resolves to **system Python** and bypasses the project's pinned dependencies.
+
+Enforced by the `ci_check_py_not_executable` pre-commit hook in AMI-CI.
 
 ---
 
