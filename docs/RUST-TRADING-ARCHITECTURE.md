@@ -15,11 +15,14 @@ workspace; the split is load-bearing, not an accident.
 
 ## Why four workspaces, not one
 
-- **Toolchain divergence.** `rust-ta` uses Edition 2024 / rust 1.85+ to get the
-  latest language features. The three ZK workspaces must stay on Edition 2021 /
-  rust 1.84 because Solana's `cargo build-sbf` platform tooling only supports
-  that rustc line. A single workspace would force the lowest common denominator
-  on everyone.
+- **Toolchain divergence.** `rust-ta` uses Edition 2024 / rust 1.85+
+  (`rust-ta/Cargo.toml:33`) to get the latest language features. The ZK
+  workspaces stay on Edition 2021 / rust 1.84
+  (`rust-zk-compliance-api/Cargo.toml:22`) because Solana's `cargo build-sbf`
+  platform tooling is pinned to that rustc line — documented at
+  `projects/RUST-TRADING/rust-zk-protocol/README.md:188` ("Rust 1.84+
+  (matches Solana platform-tools toolchain)"). A single workspace would
+  force the lowest common denominator on everyone.
 - **Dependency cones don't overlap.** `rust-ta` pulls heavy numeric / TA crates;
   the ZK workspaces pull arkworks / poseidon / solana-sdk. Merging would produce
   a much larger resolver graph with no reuse benefit.

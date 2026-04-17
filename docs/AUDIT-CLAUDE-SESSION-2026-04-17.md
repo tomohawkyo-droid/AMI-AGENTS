@@ -159,12 +159,11 @@ Each entry is linked to a remediation task. Severity legend:
   - §3.5: "Extended Catalog (Future Work)" moved wholesale to `BACKLOG-OPERATIONS.md` as forward-looking roadmap; subsection re-numbered to §3.5 "Service Configuration".
   The remaining R-* requirement rows are contract-level (they describe what the system must do when built) and correctly live in REQUIREMENTS; progress tracking for them already lives in BACKLOG.
 
-#### Task #35 — Unverified RUST-TRADING architecture claim
+#### Task #35 — Unverified RUST-TRADING architecture claim — RESOLVED 2026-04-17
 
-- **What I did.** Wrote `docs/RUST-TRADING-ARCHITECTURE.md` asserting the Solana platform-tools rustc pin as the load-bearing reason for keeping four separate Cargo workspaces. Cited the constraint from memory, not from a source.
-- **Why it was wrong.** "Solana forces rust 1.84" may or may not still be true at the current platform-tools release. I presented it as given.
-- **Correct behaviour.** Verify the constraint at the currently-used Solana SDK version; cite a link or version number.
-- **Remediation.** Verify or retract.
+- **What I did.** Wrote `docs/RUST-TRADING-ARCHITECTURE.md` asserting the Solana platform-tools rustc pin as the load-bearing reason for keeping four separate Cargo workspaces. Cited the constraint from memory.
+- **Why it was wrong.** Presented a technical constraint without a citation.
+- **Resolution.** Verified in-repo: `projects/RUST-TRADING/rust-zk-protocol/README.md:188` states "Rust 1.84+ (matches Solana platform-tools toolchain)". `rust-zk-compliance-api/Cargo.toml:22` pins `rust-version = "1.84"`. `rust-ta/Cargo.toml:33` pins `rust-version = "1.85"`. Architecture doc updated with the file-line citations.
 
 #### Task #36 — Bundled commits mixing concerns
 
