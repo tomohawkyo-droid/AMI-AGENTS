@@ -172,12 +172,11 @@ Each entry is linked to a remediation task. Severity legend:
 - **Correct behaviour.** One concern per commit.
 - **Remediation.** Adopt the rule going forward; document it.
 
-#### Task #37 — banner-log smoke-tested non-TTY only
+#### Task #37 — banner-log smoke-tested non-TTY only — RESOLVED 2026-04-17
 
 - **What I did.** Ran `ami-welcome` in a non-TTY subshell once, confirmed the log file appeared, called it verified.
 - **Why it was wrong.** The non-TTY branch is a minority path. The TTY branch (`_run_check_with_countdown`) is what users actually see, and it spawns a separate thread.
-- **Correct behaviour.** Exercise both branches before declaring verification done.
-- **Remediation.** Run the TTY path and confirm nothing regressed.
+- **Resolution.** Ran `script -q -c "ami-welcome" /dev/null` to force a TTY context. Verified the resulting banner log: `tty=True` in the session_start record, 20 `event: "check"` records recorded through the threaded countdown path, zero `healthy: false`, zero non-null exceptions. Banner-log covers both TTY and non-TTY paths.
 
 #### Task #38 — Claimed backup migration done without E2E
 
