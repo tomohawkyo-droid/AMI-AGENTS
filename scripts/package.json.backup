@@ -14,8 +14,8 @@
   "author": "AMI Orchestrator",
   "license": "ISC",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.89",
-    "@google/gemini-cli": "0.35.3",
-    "@qwen-code/qwen-code": "0.13.2"
+    "@anthropic-ai/claude-code": "2.1.100",
+    "@google/gemini-cli": "0.37.1",
+    "@qwen-code/qwen-code": "0.14.2"
   }
 }

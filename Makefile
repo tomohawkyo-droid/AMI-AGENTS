@@ -142,6 +142,12 @@ install-node-agents: ## Install Node.js CLI agents (claude, gemini, qwen)
 	@bash ami/scripts/bootstrap/bootstrap_agents.sh
 	@echo "✅ Node.js CLI agents installed"
 
+.PHONY: update-node-agents
+update-node-agents: ## Update Node.js CLI agents to latest versions and reinstall
+	@echo "🔍 Checking for CLI updates..."
+	@uv run ami/tools/update_cli_versions.py --auto-update --force
+	@$(MAKE) install-node-agents
+
 .PHONY: sync
 sync: sync-package install-hooks ## Sync deps + reinstall hooks
 
