@@ -231,7 +231,7 @@ def pull_updates(updates: list[RemoteUpdate]) -> list[PullResult]:
 
 
 def run_post_system_update(root: Path) -> None:
-    """Sync deps and reinstall hooks after SYSTEM tier pull."""
+    """Sync deps and reinstall hooks in every SYSTEM repo after pull."""
     boot_uv = root / ".boot-linux" / "bin" / "uv"
     ci_hooks = root / "projects" / "AMI-CI" / "scripts" / "generate-hooks"
     print(f"\n  {CYAN}Syncing Python dependencies...{RESET}")
@@ -244,8 +244,15 @@ def run_post_system_update(root: Path) -> None:
             check=False,
         )
     if ci_hooks.exists():
-        print(f"  {CYAN}Reinstalling git hooks...{RESET}")
-        subprocess.run(["bash", str(ci_hooks)], cwd=str(root), check=False)
+        print(f"  {CYAN}Reinstalling git hooks in SYSTEM repos...{RESET}")
+        for sys_name in SYSTEM_NAMES:
+            repo_path = root if sys_name == "AMI-AGENTS" else root / sys_name
+            if (repo_path / ".pre-commit-config.yaml").exists():
+                subprocess.run(
+                    ["bash", str(ci_hooks)],
+                    cwd=str(repo_path),
+                    check=False,
+                )
 
 
 # -- Display helpers --------------------------------------------------------
@@ -461,12 +468,6 @@ def main() -> int:
     """Entry point with terminal restore on any exit path."""
     try:
         return _main_impl()
-    except (KeyboardInterrupt, SystemExit):
-        _restore_terminal()
-        raise
-    except Exception:
-        _restore_terminal()
-        raise
     finally:
         _restore_terminal()
 

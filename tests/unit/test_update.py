@@ -444,6 +444,33 @@ class TestRunPostSystemUpdate:
         _min_calls = 2
         assert mock_run.call_count >= _min_calls
 
+    def test_regenerates_hooks_in_every_system_repo(self, tmp_path: Path) -> None:
+        boot_uv = tmp_path / ".boot-linux" / "bin" / "uv"
+        boot_uv.parent.mkdir(parents=True)
+        boot_uv.write_text("")
+        ci_hooks = tmp_path / "projects" / "AMI-CI" / "scripts" / "generate-hooks"
+        ci_hooks.parent.mkdir(parents=True)
+        ci_hooks.write_text("")
+        (tmp_path / ".pre-commit-config.yaml").write_text("")
+        (tmp_path / "projects" / "AMI-CI" / ".pre-commit-config.yaml").write_text("")
+        dataops_dir = tmp_path / "projects" / "AMI-DATAOPS"
+        dataops_dir.mkdir(parents=True, exist_ok=True)
+        (dataops_dir / "pyproject.toml").write_text("")
+        (dataops_dir / ".pre-commit-config.yaml").write_text("")
+
+        with patch("ami.scripts.update.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            run_post_system_update(tmp_path)
+
+        hook_cwds = {
+            call.kwargs.get("cwd")
+            for call in mock_run.call_args_list
+            if call.args and call.args[0][0] == "bash"
+        }
+        assert str(tmp_path) in hook_cwds
+        assert str(tmp_path / "projects" / "AMI-CI") in hook_cwds
+        assert str(tmp_path / "projects" / "AMI-DATAOPS") in hook_cwds
+
 
 class TestRunFromDefaults:
     def test_missing_file(self, tmp_path: Path) -> None:
