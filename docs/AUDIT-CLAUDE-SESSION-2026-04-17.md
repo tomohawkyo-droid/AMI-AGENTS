@@ -149,12 +149,15 @@ Each entry is linked to a remediation task. Severity legend:
 
 ### S2 — Medium
 
-#### Task #34 — DATAOPS PLANNED bureaucratic shuffle
+#### Task #34 — DATAOPS PLANNED bureaucratic shuffle — RESOLVED 2026-04-17
 
-- **What I did.** Moved the IMPLEMENTED/PLANNED status table from `REQUIREMENTS-OPERATIONS.md` to a new `BACKLOG-OPERATIONS.md`. Did not triage the detailed sections (§1.1 rclone, §1.2 borgmatic, §1.3 docker-volume, §2 sync, §3 catalog, §4.2 instance CLI, §5 monitoring) — all of which describe PLANNED features as REQUIREMENTS.
-- **Why it was wrong.** Requirements should describe what the system must do today. The bulk of the REQUIREMENTS doc still reads as a wishlist. Moving the table without triaging the sections is bureaucratic motion.
-- **Correct behaviour.** Triage each section: either tighten to describe a real contract the system honours today, or move to BACKLOG as roadmap.
-- **Remediation.** Triage and split.
+- **What I did.** Moved the IMPLEMENTED/PLANNED status table from `REQUIREMENTS-OPERATIONS.md` to a new `BACKLOG-OPERATIONS.md`. Did not triage the detailed sections.
+- **Why it was wrong.** Requirements should describe what the system must do today; status ("implemented", "planned", "Phase 1", "Future Work") belongs elsewhere.
+- **Resolution.** Triaged the residual status leakage:
+  - §1.1: replaced the "Current capabilities (keep)" inline list with normalised `R-BACKUP-000*` requirements that state contract, not status.
+  - §3.4: dropped the "(Phase 1)" suffix from the heading — the initial catalog is a requirement, not a roadmap label.
+  - §3.5: "Extended Catalog (Future Work)" moved wholesale to `BACKLOG-OPERATIONS.md` as forward-looking roadmap; subsection re-numbered to §3.5 "Service Configuration".
+  The remaining R-* requirement rows are contract-level (they describe what the system must do when built) and correctly live in REQUIREMENTS; progress tracking for them already lives in BACKLOG.
 
 #### Task #35 — Unverified RUST-TRADING architecture claim
 
