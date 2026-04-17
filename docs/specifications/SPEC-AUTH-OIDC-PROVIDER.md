@@ -45,7 +45,7 @@ The AUTH-FRAGMENTATION-AUDIT (February 2026) identified:
 | 3 | AMI-TRADING | `projects/AMI-TRADING/src/` | Python, FastAPI, HS256 JWT | Active (Trading only) |
 | 4 | Matrix/MAS | `projects/AMI-STREAMS/ansible/` | Ansible-deployed OAuth2 | Active (Matrix only) |
 | 5 | AMI-PORTAL | `projects/AMI-PORTAL/` | Delegates to AMI-AUTH TS | Active |
-| 6 | Backup OAuth | `ami/scripts/backup/` | Google OAuth2 (standalone) | Active |
+| 6 | Backup OAuth | `projects/AMI-DATAOPS/ami/dataops/backup/` | Google OAuth2 (standalone) | Active |
 
 **Critical failures:**
 - Zero SSO: A Portal user cannot access Trading. A Trading user cannot access Portal.

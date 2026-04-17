@@ -579,7 +579,7 @@ Manifests live where the component's install chain originates:
 | Manifest Path | Extensions | Install Chain |
 |---------------|-----------|---------------|
 | `ami/scripts/bin/extension.manifest.yaml` | ami-agent, ami, ami-run, ami-repo, ami-transcripts, ami-welcome, ami-pwd | Direct scripts in AMI-AGENTS |
-| `ami/scripts/backup/extension.manifest.yaml` | ami-backup, ami-restore | Python scripts (moving to DATAOPS) |
+| `projects/AMI-DATAOPS/extension.manifest.yaml` | ami-backup, ami-restore | Python scripts (DATAOPS) |
 | `ami/scripts/bin/ami-cron/extension.manifest.yaml` | ami-cron | Python script |
 | `ami/scripts/bin/enterprise/extension.manifest.yaml` | ami-kcadm, ami-browser | Wrappers (kcadm=container, browser=pip) |
 | `ami/scripts/bin/infra/extension.manifest.yaml` | ami-ssh, ami-vpn, ami-tunnel, ami-ssl | Python scripts (all hidden) |
