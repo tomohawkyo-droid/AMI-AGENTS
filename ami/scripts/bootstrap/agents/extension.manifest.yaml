@@ -9,6 +9,7 @@ extensions:
       - --resume
       - --allowedTools
     bannerPriority: 500
+    minVersion: "2.0.0"
     check:
       command: ["{binary}", "--version"]
       versionPattern: "(\\d+\\.\\d+\\.\\d+)"
@@ -26,9 +27,11 @@ extensions:
       - mcp
       - extensions
     bannerPriority: 510
+    minVersion: "0.30.0"
     check:
-      command: ["{binary}", "--help"]
-      healthExpect: "Gemini CLI"
+      command: ["{binary}", "--version"]
+      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      healthExpect: ""
       timeout: 5
 
   - name: ami-qwen
@@ -42,7 +45,9 @@ extensions:
       - mcp
       - extensions
     bannerPriority: 520
+    minVersion: "0.10.0"
     check:
-      command: ["{binary}", "--help"]
-      healthExpect: "Qwen Code"
+      command: ["{binary}", "--version"]
+      versionPattern: "(\\d+\\.\\d+\\.\\d+)"
+      healthExpect: ""
       timeout: 5

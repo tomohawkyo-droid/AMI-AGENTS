@@ -69,7 +69,8 @@ _RUN_PATH = "ami.scripts.shell.extension_registry.subprocess.run"
 class TestRunCheck:
     def test_no_check_block(self, tmp_path: Path) -> None:
         entry = _valid_entry()
-        ok, version = run_check(entry, tmp_path)
+        result = run_check(entry, tmp_path)
+        ok, version = result.healthy, result.version
         assert ok is True
         assert version is None
 
@@ -88,7 +89,8 @@ class TestRunCheck:
                 stdout="myapp v1.2.3\n",
                 stderr="",
             )
-            ok, version = run_check(entry, tmp_path)
+            result = run_check(entry, tmp_path)
+        ok, version = result.healthy, result.version
 
         assert ok is True
         assert version == "1.2.3"
@@ -107,7 +109,7 @@ class TestRunCheck:
                 stdout="something else\n",
                 stderr="",
             )
-            ok, _version = run_check(entry, tmp_path)
+            ok = run_check(entry, tmp_path).healthy
 
         assert ok is False
 
@@ -117,7 +119,8 @@ class TestRunCheck:
             _RUN_PATH,
             side_effect=subprocess.TimeoutExpired(cmd=["x"], timeout=1),
         ):
-            ok, version = run_check(entry, tmp_path)
+            result = run_check(entry, tmp_path)
+        ok, version = result.healthy, result.version
 
         assert ok is False
         assert version is None
@@ -128,7 +131,8 @@ class TestRunCheck:
             _RUN_PATH,
             side_effect=OSError("no such file"),
         ):
-            ok, version = run_check(entry, tmp_path)
+            result = run_check(entry, tmp_path)
+        ok, version = result.healthy, result.version
 
         assert ok is False
         assert version is None
@@ -147,7 +151,8 @@ class TestRunCheck:
                 stdout="no version here\n",
                 stderr="",
             )
-            ok, version = run_check(entry, tmp_path)
+            result = run_check(entry, tmp_path)
+        ok, version = result.healthy, result.version
 
         assert ok is True
         assert version is None

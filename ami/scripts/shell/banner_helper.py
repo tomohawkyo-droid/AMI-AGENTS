@@ -25,6 +25,7 @@ from ami.scripts.shell.extension_registry import (
     resolve_extensions,
     run_check,
 )
+from ami.scripts.shell.version_enforcer import enforce_versions
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -110,7 +111,7 @@ def _run_check_with_countdown(
     root: Path,
     color: str,
     log: LogFn | None = None,
-) -> tuple[bool, str | None]:
+) -> HealthCheckResult:
     """Run check in a background thread with animated countdown."""
     result_holder: list[HealthCheckResult | None] = [None]
     check_cfg = ext.entry.get("check", {})
@@ -137,8 +138,13 @@ def _run_check_with_countdown(
     thread.join(timeout=0.5)
 
     if result_holder[0] is None:
-        return False, None
-    return result_holder[0].healthy, result_holder[0].version
+        return HealthCheckResult(
+            healthy=False,
+            version=None,
+            version_ok=None,
+            version_reason=None,
+        )
+    return result_holder[0]
 
 
 class _BannerCtx(NamedTuple):
@@ -161,19 +167,22 @@ def _print_extension(
 
     version: str | None = None
     health_ok = True
+    version_ok: bool | None = None
+    version_reason: str | None = None
 
     if has_check and not skip_check:
         hook = (
             make_check_hook(ctx.log, ext.entry["name"]) if ctx.log is not None else None
         )
         if ctx.is_tty:
-            health_ok, version = _run_check_with_countdown(ext, root, color, ctx.log)
+            result = _run_check_with_countdown(ext, root, color, ctx.log)
             # Clear the countdown line before printing final result
             sys.stdout.write("\r\033[2K")
             sys.stdout.flush()
         else:
             result = run_check(ext.entry, root, log_hook=hook)
-            health_ok, version = result.healthy, result.version
+        health_ok, version = result.healthy, result.version
+        version_ok, version_reason = result.version_ok, result.version_reason
     elif ctx.log is not None:
         reason = (
             "quiet"
@@ -190,12 +199,16 @@ def _print_extension(
 
     # Build status suffix
     green = _COLORS["green"]
-    if version:
+    red = _COLORS["red"]
+    yellow = _COLORS["gold"]
+    if version_ok is False:
+        label = version_reason or "version mismatch"
+        suffix = f"{yellow}v{version or '?'} \u26a0 {label}{_NC}"
+    elif version:
         suffix = f"{green}v{version}{_NC}"
     elif health_ok:
         suffix = f"{green}\u2713{_NC}"
     else:
-        red = _COLORS["red"]
         suffix = f"{red}\u2717{_NC}"
 
     line = _format_partial_line(ext, color, suffix)
@@ -265,6 +278,55 @@ def output_banner(
 _STATUS_PAD = 18  # column width for name in extra output
 
 
+def _print_hidden(exts: list[ResolvedExtension]) -> None:
+    print(f"{_BOLD}Hidden Extensions:{_NC}")
+    for ext in exts:
+        name = ext.entry["name"]
+        desc = ext.entry.get("description", "")
+        pad = max(1, _STATUS_PAD - len(name))
+        print(f"  {name}{' ' * pad}{desc}")
+    print()
+
+
+def _print_degraded(exts: list[ResolvedExtension]) -> None:
+    print(f"{_BOLD}Degraded Extensions:{_NC}")
+    yellow = _COLORS["gold"]
+    for ext in exts:
+        name = ext.entry["name"]
+        desc = ext.entry.get("description", "")
+        pad = max(1, _STATUS_PAD - len(name))
+        print(f"  {name}{' ' * pad}{desc}  {yellow}DEGRADED{_NC} ({ext.reason})")
+    print()
+
+
+def _print_mismatched(exts: list[ResolvedExtension]) -> None:
+    print(f"{_BOLD}Version-Mismatched Extensions:{_NC}")
+    yellow = _COLORS["gold"]
+    for ext in exts:
+        name = ext.entry["name"]
+        desc = ext.entry.get("description", "")
+        pad = max(1, _STATUS_PAD - len(name))
+        print(
+            f"  {name}{' ' * pad}{desc}  {yellow}VERSION_MISMATCH{_NC} ({ext.reason})",
+        )
+    print()
+
+
+def _print_unavailable(exts: list[ResolvedExtension]) -> None:
+    print(f"{_BOLD}Unavailable Extensions:{_NC}")
+    red = _COLORS["red"]
+    for ext in exts:
+        name = ext.entry["name"]
+        desc = ext.entry.get("description", "")
+        hint = ext.entry.get("installHint", "")
+        pad = max(1, _STATUS_PAD - len(name))
+        line = f"  {name}{' ' * pad}{desc}  {red}UNAVAILABLE{_NC} ({ext.reason})"
+        if hint:
+            line += f" (install: {hint})"
+        print(line)
+    print()
+
+
 def output_extra(resolved: list[ResolvedExtension], root: Path | None = None) -> None:
     """List hidden, degraded, and unavailable extensions."""
     if root is not None:
@@ -272,45 +334,20 @@ def output_extra(resolved: list[ResolvedExtension], root: Path | None = None) ->
             _log_resolution_snapshot(resolved, log)
     hidden = [e for e in resolved if e.status == Status.HIDDEN]
     degraded = [e for e in resolved if e.status == Status.DEGRADED]
+    mismatched = [e for e in resolved if e.status == Status.VERSION_MISMATCH]
     unavailable = [e for e in resolved if e.status == Status.UNAVAILABLE]
 
     if hidden:
-        print(f"{_BOLD}Hidden Extensions:{_NC}")
-        for ext in hidden:
-            name = ext.entry["name"]
-            desc = ext.entry.get("description", "")
-            pad = max(1, _STATUS_PAD - len(name))
-            print(f"  {name}{' ' * pad}{desc}")
-        print()
-
+        _print_hidden(hidden)
     if degraded:
-        print(f"{_BOLD}Degraded Extensions:{_NC}")
-        for ext in degraded:
-            name = ext.entry["name"]
-            desc = ext.entry.get("description", "")
-            reason = ext.reason
-            pad = max(1, _STATUS_PAD - len(name))
-            yellow = _COLORS["gold"]
-            print(f"  {name}{' ' * pad}{desc}  {yellow}DEGRADED{_NC} ({reason})")
-        print()
-
+        _print_degraded(degraded)
+    if mismatched:
+        _print_mismatched(mismatched)
     if unavailable:
-        print(f"{_BOLD}Unavailable Extensions:{_NC}")
-        for ext in unavailable:
-            name = ext.entry["name"]
-            desc = ext.entry.get("description", "")
-            reason = ext.reason
-            hint = ext.entry.get("installHint", "")
-            pad = max(1, _STATUS_PAD - len(name))
-            red = _COLORS["red"]
-            line = f"  {name}{' ' * pad}{desc}  {red}UNAVAILABLE{_NC} ({reason})"
-            if hint:
-                line += f" (install: {hint})"
-            print(line)
-        print()
+        _print_unavailable(unavailable)
 
-    if not hidden and not degraded and not unavailable:
-        print("No hidden, degraded, or unavailable extensions.")
+    if not hidden and not degraded and not unavailable and not mismatched:
+        print("No hidden, degraded, version-mismatched, or unavailable extensions.")
 
 
 # ---------------------------------------------------------------------------
@@ -342,6 +379,10 @@ def main() -> None:
     root = find_ami_root()
     manifests = discover_manifests(root)
     resolved = resolve_extensions(manifests, root)
+    # Extra mode shows full taxonomy including version mismatches;
+    # enforce constraints once up front so `extra` and `banner` agree.
+    if args.mode == "extra":
+        resolved = enforce_versions(resolved, root)
 
     if args.mode == "banner":
         output_banner(resolved, root, quiet=quiet)

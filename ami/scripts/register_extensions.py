@@ -18,6 +18,7 @@ from ami.scripts.shell.extension_registry import (
     find_ami_root,
     resolve_extensions,
 )
+from ami.scripts.shell.version_enforcer import enforce_versions
 
 
 def create_wrapper(path: Path, ami_root: Path, script: str) -> None:
@@ -113,22 +114,30 @@ def register_extensions() -> None:
         print("[WARN] No extension.manifest.yaml files found.")
         return
 
-    resolved = resolve_extensions(manifests, ami_root)
+    resolved = enforce_versions(resolve_extensions(manifests, ami_root), ami_root)
 
     print("\U0001f517 Creating extension symlinks/wrappers...")
 
     registered = 0
-    skipped = 0
+    skipped_unavailable = 0
+    skipped_mismatch = 0
     for ext in resolved:
         if ext.status == Status.UNAVAILABLE:
-            skipped += 1
+            skipped_unavailable += 1
+            continue
+        if ext.status == Status.VERSION_MISMATCH:
+            name = ext.entry["name"]
+            print(f"  \u26a0 {name} skipped: {ext.reason}")
+            skipped_mismatch += 1
             continue
         _register_one(ext, bin_dir, ami_root)
         registered += 1
 
     print(f"\n\u2705 Registered {registered} commands in {bin_dir}")
-    if skipped:
-        print(f"   Skipped {skipped} unavailable extensions")
+    if skipped_unavailable:
+        print(f"   Skipped {skipped_unavailable} unavailable extensions")
+    if skipped_mismatch:
+        print(f"   Skipped {skipped_mismatch} version-mismatched extensions")
 
     update_bashrc_path(bin_dir)
     remove_bashrc_functions()

@@ -91,21 +91,18 @@ _uninstall_from_bashrc() {
 # ============================================================================
 # Verify extensions are available in PATH
 # ============================================================================
+# Delegates to the Python manifest registry — single source of truth for what
+# extensions exist (see ami/scripts/shell/extension_registry.py).
 _verify_extensions() {
-    local config="$AMI_ROOT/ami/config/extensions.yaml"
-    [[ -f "$config" ]] || return 0
-
-    local missing=0
-    while IFS= read -r name; do
-        [[ -z "$name" ]] && continue
-        if ! command -v "$name" &>/dev/null; then
-            echo "  ⚠ Missing: $name" >&2
-            missing=$((missing + 1))
-        fi
-    done < <(grep -v "^#" "$config" | grep "name:" | sed 's/.*name: *//')
-
-    if [[ $missing -gt 0 ]]; then
-        echo "  Run 'make register-extensions' to install missing commands" >&2
+    local helper="$AMI_ROOT/ami/scripts/shell/banner_helper.py"
+    [[ -f "$helper" ]] || return 0
+    # Use --mode extra with --quiet: prints hidden/degraded/mismatched/unavailable
+    # lists without running per-extension health checks. Any output means the
+    # user has something to look at.
+    local extra
+    extra=$(AMI_QUIET_MODE=1 python3 "$helper" --mode extra 2>/dev/null) || return 0
+    if grep -qE 'Unavailable|Version-Mismatched' <<<"$extra"; then
+        echo "  Run 'make register-extensions' to install/repair commands" >&2
     fi
 }
 

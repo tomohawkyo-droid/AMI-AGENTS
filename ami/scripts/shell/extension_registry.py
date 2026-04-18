@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import enum
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -60,6 +61,8 @@ class ExtensionEntry(TypedDict, total=False):
     hidden: bool
     container: str
     installHint: str
+    minVersion: str
+    maxVersion: str
     check: CheckConfig
     deps: list[DepConfig]
 
@@ -87,9 +90,13 @@ KNOWN_FIELDS = REQUIRED_FIELDS | {
     "hidden",
     "container",
     "installHint",
+    "minVersion",
+    "maxVersion",
     "check",
     "deps",
 }
+
+_SEMVER_FIELD_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+].+)?$")
 
 EXCLUDE_DIRS = {
     ".git",
@@ -157,6 +164,7 @@ DEFAULT_CATEGORY_PROPS = {
 class Status(enum.Enum):
     READY = "ready"
     DEGRADED = "degraded"
+    VERSION_MISMATCH = "version_mismatch"
     UNAVAILABLE = "unavailable"
     HIDDEN = "hidden"
 
@@ -236,6 +244,20 @@ def validate_entry(entry: ExtensionEntry, manifest_path: Path) -> list[str]:
                 f"{manifest_path}: check timeout "
                 f"{timeout}s exceeds max of "
                 f"{_MAX_CHECK_TIMEOUT}s"
+            )
+    for field in ("minVersion", "maxVersion"):
+        value = entry.get(field)
+        if value is not None and not _SEMVER_FIELD_RE.match(str(value)):
+            errors.append(
+                f"{manifest_path}: {field}={value!r} is not a semver "
+                "(expected MAJOR.MINOR.PATCH[-pre][+build])"
+            )
+    if entry.get("minVersion") or entry.get("maxVersion"):
+        check = entry.get("check")
+        if not (isinstance(check, dict) and check.get("versionPattern")):
+            errors.append(
+                f"{manifest_path}: minVersion/maxVersion requires "
+                "check.versionPattern to extract the version at runtime"
             )
     return errors
 

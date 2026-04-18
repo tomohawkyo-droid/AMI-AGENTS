@@ -97,7 +97,7 @@ disallow_untyped_calls = false
 
 # Google auth caller - external library has incomplete type stubs
 [[tool.mypy.overrides]]
-module = "ami.scripts.backup.common.auth"
+module = ["ami.scripts.backup.common.auth", "ami.dataops.backup.common.auth"]
 disallow_untyped_calls = false
 
 # AMI cli_components - internal package without py.typed marker

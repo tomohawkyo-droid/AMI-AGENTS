@@ -2,8 +2,7 @@
 
 Exercises: types/status.py, cli_components/format_utils.py,
 cli_components/stream_renderer.py, cli_components/cursor_manager.py,
-cli/config.py, scripts/utils/component_status.py,
-cli_components/status_utils.py
+cli/config.py, cli_components/status_utils.py
 """
 
 import pytest
@@ -23,7 +22,6 @@ from ami.cli_components.stream_renderer import (
     StreamRenderer,
 )
 from ami.core.config import _ConfigSingleton
-from ami.scripts.utils.component_status import check_binary, check_command
 from ami.types.status import (
     PodmanContainer,
     PortMapping,
@@ -365,33 +363,6 @@ class TestAgentConfigPresets:
         cfg = AgentConfigPresets.interactive()
         assert cfg.enable_hooks is True
         assert cfg.timeout is None
-
-
-# ---------------------------------------------------------------------------
-# Component status (check_binary / check_command)
-# ---------------------------------------------------------------------------
-
-
-class TestComponentStatus:
-    """Test component status detection functions."""
-
-    def test_check_binary_existing(self):
-        found, _version = check_binary("/usr/bin/python3")
-        assert found is True
-
-    def test_check_binary_nonexistent(self):
-        found, version = check_binary("/nonexistent/binary/xyz")
-        assert found is False
-        assert version is None
-
-    def test_check_command_existing(self):
-        found, version = check_command(["python3", "--version"])
-        assert found is True
-        assert version is not None  # Should have version info
-
-    def test_check_command_nonexistent(self):
-        found, _version = check_command(["nonexistent_cmd_xyz", "--version"])
-        assert found is False
 
 
 # ---------------------------------------------------------------------------

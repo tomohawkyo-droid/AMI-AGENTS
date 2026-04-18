@@ -1,4 +1,4 @@
-"""Integration tests for extensions defined in ami/config/extensions.yaml.
+"""Integration tests for extensions discovered from extension.manifest.yaml files.
 
 Tests that extensions have valid metadata, binaries exist, and commands
 are properly installed in .boot-linux/bin/.
@@ -237,7 +237,7 @@ class TestExtensionHelp:
 
 @pytest.mark.integration
 class TestExtensionMetadata:
-    """Test that all extensions have valid metadata in extensions.yaml."""
+    """Test that all extensions have valid metadata in their manifest."""
 
     @pytest.mark.parametrize("ext_name", EXTENSION_NAMES)
     def test_extension_category_valid(self, ext_name: str):

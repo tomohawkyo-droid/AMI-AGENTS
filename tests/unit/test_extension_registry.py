@@ -77,6 +77,7 @@ class TestStatus:
             Status.DEGRADED,
             Status.UNAVAILABLE,
             Status.HIDDEN,
+            Status.VERSION_MISMATCH,
         }
         assert set(Status) == expected
 
