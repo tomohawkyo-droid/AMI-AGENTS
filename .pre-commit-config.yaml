@@ -50,6 +50,12 @@ repos:
         entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_py_not_executable \"$@\"' --"
         language: system
         files: \.py$
+      - id: check-no-dead-imports
+        name: Forbid deleting .py modules that are still imported
+        entry: "bash -c 'source projects/AMI-CI/lib/checks.sh && ci_check_no_dead_imports'"
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: mypy
         name: mypy
         entry: uv run python -m mypy
