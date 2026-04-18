@@ -200,12 +200,15 @@ Each entry is linked to a remediation task. Severity legend:
 
 ### S3 — Low
 
-#### Task #39 — Punted 8 rot-audit items as "judgment required"
+#### Task #39 — Punted 8 rot-audit items as "judgment required" — PARTIALLY RESOLVED 2026-04-17
 
 - **What I did.** Labeled #8 Rust edition, #10 Merkle, #12 portal lib, #13 Prettier, #15 himalaya, #16 ZK errors, #17 rust-ta orphans, #18 TSTF stubs as "needs user decision". Stopped work.
 - **Why it was wrong.** At least #13, #15, #17 are small and executable without architectural direction. Treating all eight as equal-weight "ask user" is defensive laziness.
-- **Correct behaviour.** For each punted item, either present a concrete first-draft diff the user can approve/reject, or state precisely what ambiguity blocks the work.
-- **Remediation.** Take a first swing at the three small items.
+- **First swings:**
+  - **#13 Prettier** — On second look this is a *symptom*, not a standalone problem. The portals are independent repos with no shared code; reformatting AMI-PORTAL to ZK-PORTAL's style (or vice versa) produces a massive diff with zero correctness benefit. The right fix is contingent on #12 (shared portal library): once the portals share code, the shared lib's style wins and the portals align around it. Until then, divergence is acceptable. Closing #13 as blocked-by-#12.
+  - **#15 himalaya submodule fork** — see separate task commit.
+  - **#17 rust-ta orphan scripts** — see separate task commit.
+- **Status.** #13 closed as blocked-by-#12; #15 and #17 executed in follow-up commits. #8, #10, #12, #16, #18 still need your direction.
 
 #### Task #40 — Coverage padded to cross 90% gate
 
