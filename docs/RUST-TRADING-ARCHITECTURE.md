@@ -62,3 +62,12 @@ done
 ```
 
 Each workspace has its own README / docs with workspace-specific details.
+
+## Decision log
+
+**2026-04-17: Keep the four-workspace split.**
+`rust-ta` stays on Edition 2024 / rust 1.85+ for language features;
+`rust-zk-compliance-api`, `rust-zk-protocol`, and `rust-zk-provider`
+stay on Edition 2021 / rust 1.84 because Solana platform-tools enforces
+that rustc line (cited above). Revisit only if one of those constraints
+changes.
