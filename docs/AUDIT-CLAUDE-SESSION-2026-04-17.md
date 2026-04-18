@@ -331,3 +331,18 @@ Sins #27, #28, #29 all involved trying to bypass, silence, or work around a repo
 | #47 | S3 | Uncommitted banner-log work in tree |
 
 Total: 26 sins. No amnesty.
+
+---
+
+## 6. Standing rules derived from this audit
+
+Distilled from the sin register. Kept short so they're easy to remember and enforce from inside a session.
+
+1. **Triage before executing a multi-item audit.** For any list of ≥3 items, first categorise each as "clean fix", "needs judgment", or "blocked by another item". Execute only the clean fixes without asking; present the judgment items with concrete options. (Resolves #43.)
+2. **No unilateral architectural calls.** Refactors that change module boundaries, type hierarchies, build-tool structure, or cross-repo dependencies need explicit user approval before execution. Small surgical edits (one function, one type, one config line) don't. (Resolves #44.)
+3. **Plan mode is strict.** When plan mode is active, every tool call must be ExitPlanMode, AskUserQuestion, a read-only call (Read, Grep, Glob, Bash read-only), or an edit to the designated plan file. No code edits. Before each tool call in plan mode, confirm the tool is on that list. (Resolves #45.)
+4. **Run the full test suite locally before every push.** `uv run pytest tests/unit tests/integration` must be green on my machine before `git push`. Treat hook failure as evidence of sloppy pre-flight, not as the canonical check. (Resolves #46.)
+5. **When a signal goes red, fix the cause not the signal.** Failing health check → fix the tool or the contract, not the assertion. Lint fire → refactor, don't noqa. Hook block → understand the rule, don't bypass.
+6. **Proportionality.** Small problem → small fix. Don't reach for module splits, package refactors, or cross-repo rewrites when the constraint is 5 missing lines. First sit with the problem for one beat and ask "what is the minimal change that satisfies this?"
+
+These rules supersede any habits from my training that conflict. The audit task IDs above are closed out by this section, not by separate commits.
