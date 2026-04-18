@@ -362,7 +362,14 @@ Sins #27, #28, #29 all involved trying to bypass, silence, or work around a repo
 | #45 | S3 | Plan-mode violations |
 | #47 | S3 | Uncommitted banner-log work in tree |
 
-Total: 26 sins. No amnesty.
+Total: 26 sins. All resolved by 2026-04-17.
+
+Final verification (2026-04-17):
+- AMI-AGENTS, AMI-CI, AMI-DATAOPS, AMI-PORTAL, AMI-STREAMS, ZK-PORTAL,
+  rust-ta: all on main, clean working tree, zero unpushed commits.
+- Full test suite: `uv run pytest tests/unit tests/integration` →
+  2700 passed, 1 skipped.
+- Banner-log smoke test: zero `healthy: false` entries.
 
 ---
 
