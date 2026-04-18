@@ -109,6 +109,20 @@ class TestOutputExtra:
         captured = capsys.readouterr()
         assert "No hidden" in captured.out
 
+    def test_mismatched_listed(self, capsys) -> None:
+        exts = [
+            _make_ext(
+                "old-cmd",
+                Status.VERSION_MISMATCH,
+                reason="1.0.0 < required minVersion 2.0.0",
+            ),
+        ]
+        output_extra(exts)
+        captured = capsys.readouterr()
+        assert "old-cmd" in captured.out
+        assert "VERSION_MISMATCH" in captured.out
+        assert "minVersion" in captured.out
+
     def test_all_categories(self, capsys) -> None:
         exts = [
             _make_ext("h", Status.HIDDEN),
