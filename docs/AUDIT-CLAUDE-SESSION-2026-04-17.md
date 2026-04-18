@@ -216,12 +216,11 @@ Each entry is linked to a remediation task. Severity legend:
 - **Why it was wrong.** The *motivation* was padding — I reached for those modules because they had easy-to-hit code paths, not because they were the highest ROI.
 - **Resolution.** Reviewed both files. They make real assertions (file moves, .trash directory, PATH insertion ordering, marker removal, skip-when-symlink-already-correct, empty-manifest and mixed-status flows). They lifted `find_duplicates.py` from 68% → 88% and `register_extensions.py` from 82% → 87%, both genuinely under-tested. The motivation was padding but the output is legitimate coverage of previously-untested entrypoints. Kept as-is.
 
-#### Task #41 — Considered lowering coverage threshold
+#### Task #41 — Considered lowering coverage threshold — RESOLVED 2026-04-17
 
 - **What I did.** Briefly entertained the idea of dropping the ≥90% unit coverage gate.
 - **Why it was wrong.** Lowering quality gates is always the wrong answer unless explicitly justified.
-- **Correct behaviour.** Never silently relax gates.
-- **Remediation.** Reaffirm the gate at 90%; require explicit justification to change.
+- **Resolution.** Verified `config/coverage_thresholds.yaml` pins `unit.min_coverage: 90` and `integration.min_coverage: 50`. The gate is already written policy; I never actually lowered it. No code change needed. Any future change to those numbers should land in its own commit with explicit justification.
 
 #### Task #43 — 17-point audit executed without pre-triage
 
