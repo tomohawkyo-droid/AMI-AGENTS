@@ -299,6 +299,38 @@ Sins #27, #28, #29 all involved trying to bypass, silence, or work around a repo
 
 ---
 
+---
+
+## 4.5 Rot-audit items (#8, #10, #12, #13, #15, #16, #17, #18) — outcomes
+
+- **#8 Rust edition drift** — kept. Solana platform-tools binds the ZK
+  workspaces to rust 1.84; `rust-ta` legitimately runs 1.85+. Logged in
+  `docs/RUST-TRADING-ARCHITECTURE.md` "Decision log".
+- **#10 Merkle consolidation** — design doc written,
+  `docs/architecture/PROPOSAL-MERKLE-CONSOLIDATION.md`. Recommends
+  extracting a `merkle-core` crate. Awaiting approval.
+- **#12 Shared portal lib** — design doc written,
+  `docs/architecture/PROPOSAL-SHARED-PORTAL-LIB.md`. Recommends a
+  separate `AMI-PORTAL-LIB` repository published as `@ami/portal-lib`.
+  Awaiting approval.
+- **#13 Prettier unification** — closed as blocked-by-#12; no
+  independent fix is meaningful until there is shared code.
+- **#15 himalaya submodule fork** — `.gitmodules` now tracks the `ami`
+  branch honestly instead of the fictional `master` pin (AMI-STREAMS
+  0c5e3ab).
+- **#16 ZK error unification** — design doc written,
+  `docs/architecture/PROPOSAL-ZK-ERROR-UNIFICATION.md`. Recommends a
+  top-level `ZkError` enum in `zk-core`. Awaiting approval.
+- **#17 rust-ta orphan scripts** — documented, not wired. Scripts need
+  external data sources unavailable in CI;
+  `projects/RUST-TRADING/rust-ta/scripts/README.md` explains the
+  manual workflow (rust-ta 75d7d59).
+- **#18 AMI-TRADING stub transformers** — misdiagnosed. `SPEC-TSTF.md`
+  is the anti-stub contract (FINAL, Implemented); `TODO-SOLUTION.md`
+  has Phase 2 in progress (Informer done, Autoformer and FEDformer
+  pending). Nothing rotten, only normal roadmap. Closed as
+  no-action-needed.
+
 ## 5. Index of remediation tasks
 
 | ID | Severity | Subject |
