@@ -165,12 +165,11 @@ Each entry is linked to a remediation task. Severity legend:
 - **Why it was wrong.** Presented a technical constraint without a citation.
 - **Resolution.** Verified in-repo: `projects/RUST-TRADING/rust-zk-protocol/README.md:188` states "Rust 1.84+ (matches Solana platform-tools toolchain)". `rust-zk-compliance-api/Cargo.toml:22` pins `rust-version = "1.84"`. `rust-ta/Cargo.toml:33` pins `rust-version = "1.85"`. Architecture doc updated with the file-line citations.
 
-#### Task #36 — Bundled commits mixing concerns
+#### Task #36 — Bundled commits mixing concerns — RESOLVED 2026-04-17
 
 - **What I did.** The backup-consolidation commit bundled: delete source, delete tests, move REQ+SPEC, bump pydantic in DATAOPS, update three unrelated docs, add a manifest. Should have been 3+ commits.
 - **Why it was wrong.** Violates commit hygiene. Makes bisect and revert painful.
-- **Correct behaviour.** One concern per commit.
-- **Remediation.** Adopt the rule going forward; document it.
+- **Resolution.** Added a "Commit scope rule" section to `projects/AMI-CI/docs/HOOKS.md` (AMI-CI commit 9a0399d). Rule: one concern per commit; good and bad examples; rule-of-thumb "would a reviewer want to revert the behaviour change but keep the refactor" decides ambiguity. Programmatic enforcement out of scope — the rule is editorial.
 
 #### Task #37 — banner-log smoke-tested non-TTY only — RESOLVED 2026-04-17
 
