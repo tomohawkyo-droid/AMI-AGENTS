@@ -13,7 +13,17 @@ BOOT_DIR="$AMI_ROOT/.boot-linux"
 [[ -f "$AMI_ROOT/.env" ]] && export $(grep -v '^#' "$AMI_ROOT/.env" | xargs) || true
 
 export PATH="$BOOT_DIR/bin:$VENV_DIR/bin:$PATH"
-export PYTHONPATH="$AMI_ROOT:${PYTHONPATH:-}"
+
+# Extension modules live under projects/<PROJECT>/ami/<pkg>/...
+# Add every projects/<PROJECT> dir to PYTHONPATH so `ami.<pkg>` namespace
+# imports resolve against the workspace venv.
+PROJECT_PATHS=""
+if [[ -d "$AMI_ROOT/projects" ]]; then
+    for project_dir in "$AMI_ROOT/projects"/*/; do
+        [[ -d "${project_dir%/}/ami" ]] && PROJECT_PATHS="${project_dir%/}:${PROJECT_PATHS}"
+    done
+fi
+export PYTHONPATH="${PROJECT_PATHS}$AMI_ROOT:${PYTHONPATH:-}"
 
 if [[ "$#" -gt 0 && ("$1" == "-h" || "$1" == "--help") ]]; then
     echo "ami-run: Universal execution wrapper for AMI Orchestrator"
