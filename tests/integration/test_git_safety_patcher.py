@@ -122,7 +122,12 @@ def test_guard_blocks_destructive_subcommands(mock_env: MockEnv) -> None:
 
 
 def test_guard_allows_safe_commands(mock_env: MockEnv) -> None:
-    """Verify safe commands pass through to real-git."""
+    """Verify safe commands pass through to real-git.
+
+    Runs in `mock_env.bin_dir` — no `.git` dir present — so the P0/P1/P2
+    history-safety checks skip (their `_is_on_remote` / `_current_branch`
+    helpers return non-zero when there is no repo to query).
+    """
     safe_cmds = [
         "git status",
         "git log --oneline -1",
@@ -130,7 +135,8 @@ def test_guard_allows_safe_commands(mock_env: MockEnv) -> None:
         "git add .",
         "git commit -m 'msg'",
         "git push origin main",
-        "git pull",
+        "git pull --ff-only",
+        "git pull --rebase",
         "git fetch",
         "git branch -d feature",
         "git stash",
@@ -164,3 +170,179 @@ def test_guard_fails_without_git_real(mock_env: MockEnv) -> None:
     assert res.returncode == 1
     combined = res.stdout + res.stderr
     assert "not found" in combined.lower()
+
+
+# ---------------------------------------------------------------------------
+# P0/P1/P2/P3 history-safety fixtures + tests
+# ---------------------------------------------------------------------------
+
+
+def _resolve_system_git() -> Path:
+    """Pick the real git binary to use as the wrapper's underlying executable."""
+    for candidate in (
+        "/usr/bin/git.original",
+        "/usr/local/bin/git.original",
+        "/usr/bin/git",
+        "/usr/local/bin/git",
+        "/snap/bin/git",
+    ):
+        if Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return Path(candidate)
+    msg = "no system git binary found for history-safety tests"
+    raise RuntimeError(msg)
+
+
+class HistoryEnv(NamedTuple):
+    """Working repo + env wired to run git-guard against real system git."""
+
+    env: dict
+    work_dir: Path
+    origin_dir: Path
+    pushed_sha: str
+
+
+@pytest.fixture
+def history_env(tmp_path: Path) -> HistoryEnv:
+    """Set up bare `origin` + working repo with one pushed commit on main."""
+    real_git = _resolve_system_git()
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    guard_dest = bin_dir / "git"
+    guard_dest.write_text(GIT_GUARD.read_text())
+    guard_dest.chmod(0o755)
+
+    origin_dir = tmp_path / "origin.git"
+    work_dir = tmp_path / "work"
+
+    base_env = {
+        **os.environ,
+        "GIT_GUARD_REAL_GIT": str(real_git),
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+        "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
+    }
+
+    def run(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [str(real_git), *args],
+            cwd=cwd,
+            env=base_env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    subprocess.run(
+        [str(real_git), "init", "--bare", "-b", "main", str(origin_dir)],
+        env=base_env,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [str(real_git), "clone", str(origin_dir), str(work_dir)],
+        env=base_env,
+        check=True,
+        capture_output=True,
+    )
+    (work_dir / "README.md").write_text("seed\n")
+    run(["add", "README.md"], work_dir)
+    run(["-c", "commit.gpgsign=false", "commit", "-m", "seed"], work_dir)
+    run(["push", "-u", "origin", "main"], work_dir)
+    pushed_sha = run(["rev-parse", "HEAD"], work_dir).stdout.strip()
+
+    # Ensure the wrapper (guard_dest) is what gets picked by PATH.
+    env = {**base_env, "PWD": str(work_dir)}
+    return HistoryEnv(
+        env=env, work_dir=work_dir, origin_dir=origin_dir, pushed_sha=pushed_sha
+    )
+
+
+def _run_in(env: HistoryEnv, cmd: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", "-c", cmd],
+        cwd=env.work_dir,
+        env=env.env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+class TestCommitAmendOnPushedHead:
+    def test_amend_on_pushed_head_blocked(self, history_env: HistoryEnv) -> None:
+        res = _run_in(history_env, "git commit --amend --no-edit --allow-empty")
+        combined = res.stdout + res.stderr
+        assert res.returncode == 1, f"amend should block; got: {combined}"
+        assert "BLOCKED" in combined
+        assert "already on origin" in combined
+
+    def test_amend_on_local_only_commit_allowed(self, history_env: HistoryEnv) -> None:
+        (history_env.work_dir / "note.txt").write_text("local-only\n")
+        _run_in(history_env, "git add note.txt && git commit -m 'local'")
+        res = _run_in(history_env, "git commit --amend --no-edit")
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" not in combined, combined
+        assert res.returncode == 0
+
+
+class TestRevertSafety:
+    def test_revert_unpushed_commit_blocked(self, history_env: HistoryEnv) -> None:
+        (history_env.work_dir / "local.txt").write_text("x\n")
+        _run_in(history_env, "git add local.txt && git commit -m 'local only'")
+        res = _run_in(history_env, "git revert --no-edit HEAD")
+        combined = res.stdout + res.stderr
+        assert res.returncode == 1, f"revert should block; got: {combined}"
+        assert "BLOCKED" in combined
+        assert "not on origin" in combined
+
+    def test_revert_pushed_commit_allowed(self, history_env: HistoryEnv) -> None:
+        res = _run_in(history_env, f"git revert --no-edit {history_env.pushed_sha}")
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" not in combined, combined
+        assert res.returncode == 0
+
+
+class TestPullOnProtectedBranch:
+    def test_pull_without_flag_blocked_on_main(self, history_env: HistoryEnv) -> None:
+        res = _run_in(history_env, "git pull")
+        combined = res.stdout + res.stderr
+        assert res.returncode == 1, combined
+        assert "BLOCKED" in combined
+        assert "--ff-only or --rebase" in combined
+
+    def test_pull_ff_only_allowed(self, history_env: HistoryEnv) -> None:
+        res = _run_in(history_env, "git pull --ff-only")
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" not in combined, combined
+
+    def test_pull_rebase_allowed(self, history_env: HistoryEnv) -> None:
+        res = _run_in(history_env, "git pull --rebase")
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" not in combined, combined
+
+    def test_pull_on_feature_branch_allowed_without_flag(
+        self, history_env: HistoryEnv
+    ) -> None:
+        _run_in(history_env, "git switch -c feature")
+        res = _run_in(history_env, "git pull")
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" not in combined, combined
+
+
+class TestMergeOnProtectedBranch:
+    def test_merge_without_ff_only_blocked_on_main(
+        self, history_env: HistoryEnv
+    ) -> None:
+        res = _run_in(history_env, "git merge origin/main")
+        combined = res.stdout + res.stderr
+        assert res.returncode == 1, combined
+        assert "BLOCKED" in combined
+        assert "--ff-only" in combined
+
+    def test_merge_ff_only_allowed(self, history_env: HistoryEnv) -> None:
+        res = _run_in(history_env, "git merge --ff-only origin/main")
+        combined = res.stdout + res.stderr
+        assert "BLOCKED" not in combined, combined

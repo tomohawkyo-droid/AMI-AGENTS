@@ -100,5 +100,91 @@ if [[ -n "${SKIP:-}" || -n "${PRE_COMMIT_ALLOW_NO_CONFIG:-}" ]]; then
     block "SKIP / PRE_COMMIT_ALLOW_NO_CONFIG environment variable (hook bypass)"
 fi
 
+# Helpers for P0-P2 (history-safety blocks). Each returns empty output and
+# a non-zero exit code when the query cannot be answered (no repo, no remote,
+# detached HEAD) — in that case the check is skipped rather than blocking.
+_current_branch() {
+    "$GIT_REAL" rev-parse --abbrev-ref HEAD 2>/dev/null
+}
+
+_is_on_remote() {
+    # Returns 0 when $1 (commit-ish, default HEAD) is reachable from origin/<branch>.
+    local target="${1:-HEAD}"
+    local branch
+    branch="$(_current_branch)"
+    [[ -z "$branch" || "$branch" == "HEAD" ]] && return 1
+    "$GIT_REAL" merge-base --is-ancestor "$target" "origin/$branch" 2>/dev/null
+}
+
+_is_protected_branch() {
+    local branch
+    branch="$(_current_branch)"
+    [[ "$branch" == "main" || "$branch" == "master" ]]
+}
+
+# 5. P0 — Block `git commit --amend` when HEAD is already on origin.
+# Amending a pushed commit rewrites its SHA and diverges local from remote,
+# forcing a force-push or a revert+merge unwind. Make a new commit instead.
+if [[ "$cmd" == "commit" ]]; then
+    for arg in "$@"; do
+        if [[ "$arg" == "--amend" ]]; then
+            if _is_on_remote HEAD; then
+                block "git commit --amend on a commit already on origin/$(_current_branch) (would rewrite pushed history — make a new commit instead)"
+            fi
+        fi
+    done
+fi
+
+# 6. P1 — Block `git revert` on a commit not yet on origin.
+# Reverting un-pushed work creates a noisy revert commit for something that
+# should just be edited forward. Revert is for pushed history only.
+if [[ "$cmd" == "revert" ]]; then
+    # Pick the first non-flag argument as the revert target (default HEAD).
+    revert_target="HEAD"
+    for arg in "$@"; do
+        [[ "$arg" == "revert" ]] && continue
+        [[ "$arg" == -* ]] && continue
+        revert_target="$arg"
+        break
+    done
+    if ! _is_on_remote "$revert_target"; then
+        # Only block when we can verify the commit exists locally. If
+        # rev-parse fails, fall through so real git emits its own error.
+        if "$GIT_REAL" rev-parse --verify "$revert_target^{commit}" >/dev/null 2>&1; then
+            block "git revert on $revert_target which is not on origin/$(_current_branch) (edit forward with a new commit instead)"
+        fi
+    fi
+fi
+
+# 7. P2 — Block `git pull` on a protected branch without --ff-only/--rebase.
+# A default pull creates a merge commit on main when local has diverged,
+# polluting the protected-branch history. Require explicit intent.
+if [[ "$cmd" == "pull" ]] && _is_protected_branch; then
+    has_safe_flag=0
+    for arg in "$@"; do
+        case "$arg" in
+            --ff-only|--rebase|--rebase=true|--rebase=interactive|--rebase=merges)
+                has_safe_flag=1 ;;
+        esac
+    done
+    if [[ $has_safe_flag -eq 0 ]]; then
+        block "git pull on $(_current_branch) requires --ff-only or --rebase (default pull can create merge commits on protected branch)"
+    fi
+fi
+
+# 8. P3 — Block `git merge` on a protected branch without --ff-only.
+# Belt-and-suspenders for the `pull` rule: catches explicit `git merge
+# origin/main` on main from a divergent state, which would create the same
+# unwanted merge commit.
+if [[ "$cmd" == "merge" ]] && _is_protected_branch; then
+    has_ff_only=0
+    for arg in "$@"; do
+        [[ "$arg" == "--ff-only" ]] && has_ff_only=1
+    done
+    if [[ $has_ff_only -eq 0 ]]; then
+        block "git merge on $(_current_branch) requires --ff-only (merge commits on protected branch forbidden)"
+    fi
+fi
+
 # Safe - pass through to real git
 exec "$GIT_REAL" "$@"
