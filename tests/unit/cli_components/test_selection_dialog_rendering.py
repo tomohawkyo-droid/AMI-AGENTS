@@ -9,6 +9,18 @@ from ami.cli_components.selection_dialog import (
     SelectionDialog,
     SelectionDialogConfig,
 )
+from ami.cli_components.selection_dialog_render import (
+    build_checkbox_prefix,
+    build_cursor_prefix,
+    build_footer_text,
+    build_group_checkbox_prefix,
+    item_description,
+    item_label,
+    render_header_item,
+    render_regular_item,
+    render_scroll_indicators,
+    truncate_text,
+)
 
 EXPECTED_TRUNCATED_LENGTH = 8
 EXPECTED_RENDER_LINES = 5
@@ -101,28 +113,25 @@ class TestItemAccessors:
 
     def test_get_label_from_dict(self):
         """Test getting label from dict item."""
-        dialog = SelectionDialog(["dummy"])
         item = {"label": "Test Label", "value": "v"}
 
-        result = dialog._get_item_label(item)
+        result = item_label(item)
 
         assert result == "Test Label"
 
     def test_get_description_from_dict(self):
         """Test getting description from dict item."""
-        dialog = SelectionDialog(["dummy"])
         item = {"label": "L", "description": "Test Description"}
 
-        result = dialog._get_item_description(item)
+        result = item_description(item)
 
         assert result == "Test Description"
 
     def test_get_description_missing(self):
         """Test getting description when missing."""
-        dialog = SelectionDialog(["dummy"])
         item = {"label": "L", "value": "v"}
 
-        result = dialog._get_item_description(item)
+        result = item_description(item)
 
         assert result == ""
 
@@ -132,18 +141,16 @@ class TestPrefixBuilders:
 
     def test_cursor_prefix_selected(self):
         """Test cursor prefix when selected."""
-        dialog = SelectionDialog(["dummy"])
 
-        formatted, visible = dialog._build_cursor_prefix(True)
+        formatted, visible = build_cursor_prefix(True)
 
         assert "> " in visible
         assert "\033[" in formatted  # Contains ANSI codes
 
     def test_cursor_prefix_not_selected(self):
         """Test cursor prefix when not selected."""
-        dialog = SelectionDialog(["dummy"])
 
-        _formatted, visible = dialog._build_cursor_prefix(False)
+        _formatted, visible = build_cursor_prefix(False)
 
         assert visible == "  "
 
@@ -153,7 +160,7 @@ class TestPrefixBuilders:
         dialog = SelectionDialog(["A"], config)
         dialog.selected = {0}
 
-        formatted, visible = dialog._build_checkbox_prefix(0)
+        formatted, visible = build_checkbox_prefix(dialog, 0)
 
         assert "[x]" in visible
         assert "\033[" in formatted  # Contains ANSI codes
@@ -162,7 +169,7 @@ class TestPrefixBuilders:
         """Test checkbox prefix when item not selected."""
         dialog = SelectionDialog(["A"])
 
-        _formatted, visible = dialog._build_checkbox_prefix(0)
+        _formatted, visible = build_checkbox_prefix(dialog, 0)
 
         assert visible == "[ ] "
 
@@ -176,7 +183,7 @@ class TestPrefixBuilders:
         dialog = SelectionDialog(items, config)
         dialog.selected = {1}
 
-        _formatted, visible = dialog._build_group_checkbox_prefix(0)
+        _formatted, visible = build_group_checkbox_prefix(dialog, 0)
 
         assert "[■]" in visible
 
@@ -191,7 +198,7 @@ class TestPrefixBuilders:
         dialog = SelectionDialog(items, config)
         dialog.selected = {1}
 
-        _formatted, visible = dialog._build_group_checkbox_prefix(0)
+        _formatted, visible = build_group_checkbox_prefix(dialog, 0)
 
         assert "[◧]" in visible
 
@@ -204,7 +211,7 @@ class TestPrefixBuilders:
         ]
         dialog = SelectionDialog(items, config)
 
-        _formatted, visible = dialog._build_group_checkbox_prefix(0)
+        _formatted, visible = build_group_checkbox_prefix(dialog, 0)
 
         assert "[□]" in visible
 
@@ -214,17 +221,15 @@ class TestTruncateText:
 
     def test_no_truncation_needed(self):
         """Test text not truncated when fits."""
-        dialog = SelectionDialog(["dummy"])
 
-        result = dialog._truncate_text("Hello", 10)
+        result = truncate_text("Hello", 10)
 
         assert result == "Hello"
 
     def test_truncation_applied(self):
         """Test text truncated when too long."""
-        dialog = SelectionDialog(["dummy"])
 
-        result = dialog._truncate_text("Hello World", 8)
+        result = truncate_text("Hello World", 8)
 
         assert result == "Hello..."
         assert len(result) == EXPECTED_TRUNCATED_LENGTH
@@ -235,66 +240,42 @@ class TestRenderItems:
 
     def test_render_header_item(self):
         """Test rendering header item."""
-        dialog = SelectionDialog(["dummy"])
         item = {"id": "_header_1", "label": "Group Header", "is_header": True}
+        dialog = SelectionDialog([item])
 
-        result = dialog._render_header_item(item, 0, False)
+        result = render_header_item(dialog, item, 0, is_cursor=False)
 
         assert "Group Header" in result
         assert "\033[" in result  # Contains ANSI codes
 
     def test_render_regular_item(self):
         """Test rendering regular item."""
-        dialog = SelectionDialog(["dummy"])
         item = {"label": "Regular Item", "is_header": False}
+        dialog = SelectionDialog([item])
 
-        result = dialog._render_regular_item(item, 0, False)
+        result = render_regular_item(dialog, item, 0, is_cursor=False)
 
         assert "Regular Item" in result
         assert INDENT_CHILD in result
 
     def test_render_regular_item_with_description(self):
         """Test rendering regular item with description."""
-        dialog = SelectionDialog(["dummy"])
         item = {"label": "Item", "description": "Desc", "is_header": False}
+        dialog = SelectionDialog([item])
 
-        result = dialog._render_regular_item(item, 0, False)
+        result = render_regular_item(dialog, item, 0, is_cursor=False)
 
         assert "Item" in result
         assert "Desc" in result
         assert " - " in result
 
 
-class TestFormatItemLine:
-    """Tests for _format_item_line method."""
-
-    def test_format_without_description(self):
-        """Test formatting line without description."""
-        dialog = SelectionDialog(["dummy"])
-
-        result = dialog._format_item_line(">> ", "Label", "", 50)
-
-        assert result == ">> Label"
-
-    def test_format_with_description(self):
-        """Test formatting line with description."""
-        dialog = SelectionDialog(["dummy"])
-
-        result = dialog._format_item_line(">> ", "Label", "Desc", 50)
-
-        assert "Label" in result
-        assert "Desc" in result
-        assert " - " in result
-
-
 class TestBuildFooterText:
-    """Tests for _build_footer_text method."""
+    """Tests for build_footer_text helper."""
 
     def test_single_mode_footer(self):
         """Test footer text in single mode."""
-        dialog = SelectionDialog(["A"])
-
-        result = dialog._build_footer_text()
+        result = build_footer_text(multi=False)
 
         assert "navigate" in result
         assert "Enter" in result
@@ -303,10 +284,7 @@ class TestBuildFooterText:
 
     def test_multi_mode_footer(self):
         """Test footer text in multi mode."""
-        config = SelectionDialogConfig(multi=True)
-        dialog = SelectionDialog(["A"], config)
-
-        result = dialog._build_footer_text()
+        result = build_footer_text(multi=True)
 
         assert "toggle" in result
         assert "all" in result
@@ -352,7 +330,7 @@ class TestRenderScrollIndicators:
         dialog = SelectionDialog(["A", "B"], config)
         content = ["line1", "line2"]
 
-        dialog._render_scroll_indicators(content)
+        render_scroll_indicators(dialog, content)
 
         assert len(content) == EXPECTED_CONTENT_LENGTH
 
@@ -363,7 +341,7 @@ class TestRenderScrollIndicators:
         dialog.scroll_offset = 2
         content = ["line1", "line2"]
 
-        dialog._render_scroll_indicators(content)
+        render_scroll_indicators(dialog, content)
 
         assert any("above" in line for line in content)
 
@@ -374,7 +352,7 @@ class TestRenderScrollIndicators:
         dialog.scroll_offset = 0
         content = ["line1", "line2"]
 
-        dialog._render_scroll_indicators(content)
+        render_scroll_indicators(dialog, content)
 
         assert any("below" in line for line in content)
 
@@ -412,7 +390,7 @@ class TestRun:
         """Test run returns None on KeyboardInterrupt."""
         mock_tui.draw_box.return_value = 3
         mock_read_key.side_effect = KeyboardInterrupt()
-        dialog = SelectionDialog(["A"])
+        dialog = SelectionDialog(["A", "B"])
 
         result = dialog.run()
 
@@ -424,7 +402,7 @@ class TestRun:
         """Test run ignores non-string key values."""
         mock_tui.draw_box.return_value = 3
         mock_read_key.side_effect = [None, 123, ENTER]  # Non-strings then Enter
-        dialog = SelectionDialog(["A"])
+        dialog = SelectionDialog(["A", "B"])
 
         result = dialog.run()
 

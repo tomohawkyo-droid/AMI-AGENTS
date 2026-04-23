@@ -7,9 +7,15 @@ from typing import Protocol, TypedDict, cast, runtime_checkable
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ami.cli_components.keys import BACKSPACE, DOWN, ENTER, ESC, UP
-from ami.cli_components.text_input_utils import Colors, read_key_sequence
+from ami.cli_components.selection_dialog_render import (
+    build_footer_text,
+    render_header_item,
+    render_regular_item,
+    render_scroll_indicators,
+)
+from ami.cli_components.text_input_utils import read_key_sequence
 from ami.cli_components.tui import TUI, BoxStyle
-from ami.types.results import FormattedPrefix, GroupRange, KeyHandleResult
+from ami.types.results import GroupRange, KeyHandleResult
 
 
 @runtime_checkable
@@ -22,6 +28,7 @@ class SelectableItem(Protocol):
     is_header: bool
     value: str | object
     disabled: bool  # If True, item is greyed out and permanently selected
+    parent_id: str | None  # If set, toggling the parent cascades to this item
 
 
 class SelectableItemDict(TypedDict, total=False):
@@ -33,6 +40,7 @@ class SelectableItemDict(TypedDict, total=False):
     is_header: bool
     value: str | object
     disabled: bool  # If True, item is greyed out and permanently selected
+    parent_id: str | None  # If set, toggling the parent cascades to this item
 
 
 # Type alias for selectable items union (without str for internal use)
@@ -82,9 +90,13 @@ class SelectionDialog:
         self.items: list[SelectableUnion] = []
         self.group_ranges: list[GroupRange] = []
         self._preselected_ids = config.preselected
+        # parent_id-based descendants (nested trees). Populated after items
+        # are processed; empty when callers don't set parent_id anywhere.
+        self._descendants: dict[int, list[int]] = {}
 
         self._process_items(items)
         self._build_group_ranges()
+        self._build_descendants()
 
         self.multi = config.multi
         self.cursor = self._first_selectable_index()
@@ -137,6 +149,51 @@ class SelectionDialog:
     def _close_group(self, header_idx: int, group_start: int, end_idx: int) -> None:
         if header_idx >= 0 and group_start >= 0:
             self.group_ranges.append(GroupRange(header_idx, group_start, end_idx))
+
+    def _item_id(self, item: SelectableItem | SelectableItemDict) -> str | None:
+        if isinstance(item, dict):
+            value = item.get("id")
+            return value if isinstance(value, str) else None
+        return getattr(item, "id", None)
+
+    def _item_parent_id(self, item: SelectableItem | SelectableItemDict) -> str | None:
+        if isinstance(item, dict):
+            value = item.get("parent_id")
+            return value if isinstance(value, str) else None
+        return getattr(item, "parent_id", None)
+
+    def _build_descendants(self) -> None:
+        """Resolve `parent_id` links into `idx -> [descendant_idx, ...]`."""
+        idx_by_id: dict[str, int] = {}
+        for idx, item in enumerate(self.items):
+            item_id = self._item_id(item)
+            if item_id is not None:
+                idx_by_id[item_id] = idx
+        children: dict[int, list[int]] = {}
+        for idx, item in enumerate(self.items):
+            parent_id = self._item_parent_id(item)
+            if parent_id is None:
+                continue
+            parent_idx = idx_by_id.get(parent_id)
+            if parent_idx is None or parent_idx == idx:
+                continue
+            children.setdefault(parent_idx, []).append(idx)
+        if not children:
+            return
+        # Expand to transitive descendants so a toggle cascades through the tree.
+        for root_idx in children:
+            stack = list(children.get(root_idx, []))
+            seen: set[int] = set()
+            while stack:
+                node = stack.pop()
+                if node in seen:
+                    continue
+                seen.add(node)
+                stack.extend(children.get(node, []))
+            self._descendants[root_idx] = sorted(seen)
+
+    def _has_descendants(self, idx: int) -> bool:
+        return bool(self._descendants.get(idx))
 
     def _initialize_preselected(self) -> None:
         """Initialize selected set with preselected and disabled items."""
@@ -199,8 +256,8 @@ class SelectionDialog:
             return False
 
     def _first_selectable_index(self) -> int:
-        for i, item in enumerate(self.items):
-            if not self._is_header(item):
+        for i in range(len(self.items)):
+            if not self._should_skip_cursor(i):
                 return i
         return 0
 
@@ -231,20 +288,26 @@ class SelectionDialog:
             return KeyHandleResult(False, None)
         return KeyHandleResult(True, None)
 
+    def _should_skip_cursor(self, idx: int) -> bool:
+        """Pure decorative headers are skipped; parents with descendants stay."""
+        if not self._is_header(self.items[idx]):
+            return False
+        return not self._has_descendants(idx)
+
     def _move_cursor_up(self) -> None:
-        """Move cursor up, skipping header items."""
+        """Move cursor up, skipping pure-decoration headers."""
         if self.cursor > 0:
             self.cursor -= 1
-            while self.cursor > 0 and self._is_header(self.items[self.cursor]):
+            while self.cursor > 0 and self._should_skip_cursor(self.cursor):
                 self.cursor -= 1
             self._scroll_up()
 
     def _move_cursor_down(self) -> None:
-        """Move cursor down, skipping header items."""
+        """Move cursor down, skipping pure-decoration headers."""
         if self.cursor < len(self.items) - 1:
             self.cursor += 1
-            while self.cursor < len(self.items) - 1 and self._is_header(
-                self.items[self.cursor]
+            while self.cursor < len(self.items) - 1 and self._should_skip_cursor(
+                self.cursor
             ):
                 self.cursor += 1
             self._scroll_down()
@@ -257,12 +320,31 @@ class SelectionDialog:
         if self._is_disabled(current_item):
             return
 
-        if self._is_header(current_item):
+        if self._has_descendants(self.cursor):
+            self._toggle_descendants(self.cursor)
+        elif self._is_header(current_item):
             self._toggle_group_selection()
         elif self.cursor in self.skippable:
             self._toggle_skippable_item()
         else:
             self._toggle_normal_item()
+
+    def _toggle_descendants(self, parent_idx: int) -> None:
+        """Cascade-toggle `parent_idx` + every descendant via parent_id."""
+        affected = [parent_idx, *self._descendants[parent_idx]]
+        toggleable = [i for i in affected if not self._is_disabled(self.items[i])]
+        if not toggleable:
+            return
+        all_selected = all(i in self.selected for i in toggleable)
+        if all_selected:
+            for i in toggleable:
+                self.selected.discard(i)
+                if i in self.skippable:
+                    self.skipped.add(i)
+        else:
+            for i in toggleable:
+                self.selected.add(i)
+                self.skipped.discard(i)
 
     def _toggle_group_selection(self) -> None:
         """Toggle all non-disabled items in the current group."""
@@ -341,147 +423,18 @@ class SelectionDialog:
             self.scroll_offset = self.cursor - self.max_height + 1
 
     def _get_group_selection_state(self, header_idx: int) -> str:
-        group_items = self._get_group_items(header_idx)
-        if not group_items:
+        if header_idx in self._descendants:
+            member_ids = self._descendants[header_idx]
+        else:
+            member_ids = self._get_group_items(header_idx)
+        if not member_ids:
             return "none"
-        selected_count = sum(1 for i in group_items if i in self.selected)
+        selected_count = sum(1 for i in member_ids if i in self.selected)
         if selected_count == 0:
             return "none"
-        if selected_count == len(group_items):
+        if selected_count == len(member_ids):
             return "all"
         return "some"
-
-    def _get_item_label(self, item: SelectableItem | SelectableItemDict) -> str:
-        if isinstance(item, SelectableItem):
-            return item.label
-        return item["label"]
-
-    def _get_item_description(self, item: SelectableItem | SelectableItemDict) -> str:
-        if isinstance(item, SelectableItem):
-            return item.description or ""
-        if isinstance(item, dict) and item.get("description"):
-            return item["description"]
-        return ""
-
-    def _build_cursor_prefix(self, is_cursor: bool) -> FormattedPrefix:
-        if is_cursor:
-            return FormattedPrefix(
-                f"{Colors.BOLD}{Colors.REVERSE}>{Colors.RESET} ", "> "
-            )
-        return FormattedPrefix("  ", "  ")
-
-    def _build_checkbox_prefix(
-        self, real_idx: int, is_disabled: bool = False
-    ) -> FormattedPrefix:
-        if is_disabled:
-            return FormattedPrefix("\033[2m[✓]\033[0m ", "[✓] ")
-        if real_idx in self.selected:
-            return FormattedPrefix(f"{Colors.GREEN}[x]{Colors.RESET} ", "[x] ")
-        return FormattedPrefix("[ ] ", "[ ] ")
-
-    def _build_group_checkbox_prefix(self, real_idx: int) -> FormattedPrefix:
-        state = self._get_group_selection_state(real_idx)
-        if state == "all":
-            return FormattedPrefix(f"{Colors.GREEN}[■]{Colors.RESET} ", "[■] ")
-        if state == "some":
-            return FormattedPrefix(f"{Colors.YELLOW}[◧]{Colors.RESET} ", "[◧] ")
-        return FormattedPrefix(f"{Colors.CYAN}[□]{Colors.RESET} ", "[□] ")
-
-    def _build_skip_checkbox_prefix(self) -> FormattedPrefix:
-        return FormattedPrefix(f"{Colors.CYAN}[■]{Colors.RESET} ", "[■] ")
-
-    def _truncate_text(self, text: str, max_width: int) -> str:
-        if len(text) <= max_width:
-            return text
-        return text[: max_width - len(TRUNCATION_SUFFIX)] + TRUNCATION_SUFFIX
-
-    def _render_header_item(
-        self, item: SelectableItem | SelectableItemDict, real_idx: int, is_cursor: bool
-    ) -> str:
-        """Render a group header item."""
-        cursor_result = self._build_cursor_prefix(is_cursor)
-        prefix, prefix_visible = cursor_result.formatted, cursor_result.visible
-
-        if self.multi:
-            chk_result = self._build_group_checkbox_prefix(real_idx)
-            prefix += chk_result.formatted
-            prefix_visible += chk_result.visible
-
-        label = self._get_item_label(item)
-        available_width = self.width - 4 - len(prefix_visible)
-        label = self._truncate_text(label, available_width)
-
-        return f"{prefix}{Colors.CYAN}{Colors.BOLD}{label}{Colors.RESET}"
-
-    def _render_regular_item(
-        self, item: SelectableItem | SelectableItemDict, real_idx: int, is_cursor: bool
-    ) -> str:
-        """Render a regular (non-header) item."""
-        prefix = INDENT_CHILD
-        prefix_visible = INDENT_CHILD
-        is_disabled = self._is_disabled(item)
-
-        cursor_result = self._build_cursor_prefix(is_cursor)
-        prefix += cursor_result.formatted
-        prefix_visible += cursor_result.visible
-
-        if self.multi:
-            # Tri-state: skipped shows [■], selected shows [x], unselected shows [ ]
-            if real_idx in self.skipped:
-                chk_result = self._build_skip_checkbox_prefix()
-            else:
-                chk_result = self._build_checkbox_prefix(real_idx, is_disabled)
-            prefix += chk_result.formatted
-            prefix_visible += chk_result.visible
-
-        label = self._get_item_label(item)
-        desc_text = self._get_item_description(item)
-
-        # Add "(Reinstall)" suffix for skippable items that are selected
-        if real_idx in self.skippable and real_idx in self.selected:
-            desc_text = f"{desc_text} (Reinstall)" if desc_text else "(Reinstall)"
-
-        available_width = self.width - 4 - len(prefix_visible)
-
-        line = self._format_item_line(prefix, label, desc_text, available_width)
-
-        # Wrap entire line in dim styling if disabled
-        if is_disabled:
-            return f"\033[2m{line}\033[0m"
-        return line
-
-    def _format_item_line(
-        self, prefix: str, label: str, desc_text: str, available_width: int
-    ) -> str:
-        if not desc_text:
-            return f"{prefix}{self._truncate_text(label, available_width)}"
-
-        full_text = f"{label} - {desc_text}"
-        full_text = self._truncate_text(full_text, available_width)
-
-        if " - " in full_text:
-            label_part, desc_part = full_text.split(" - ", 1)
-            return f"{prefix}{label_part} - {Colors.YELLOW}{desc_part}{Colors.RESET}"
-        return f"{prefix}{full_text}"
-
-    def _render_scroll_indicators(self, content: list[str]) -> None:
-        has_items_above = self.scroll_offset > 0
-        has_items_below = self.scroll_offset + self.max_height < len(self.items)
-
-        if has_items_above:
-            content.insert(
-                0, f"  {Colors.CYAN}▲ {self.scroll_offset} more above{Colors.RESET}"
-            )
-        if has_items_below:
-            remaining = len(self.items) - self.scroll_offset - self.max_height
-            content.append(f"  {Colors.CYAN}▼ {remaining} more below{Colors.RESET}")
-
-    def _build_footer_text(self) -> str:
-        instr = "↑/↓: navigate"
-        if self.multi:
-            instr += ", Space: toggle, a: all, n: none"
-        instr += ", Enter: ok, Esc: cancel"
-        return f"{Colors.GREEN}{instr}{Colors.RESET}"
 
     def _render(self) -> None:
         self.clear()
@@ -494,19 +447,19 @@ class SelectionDialog:
         for idx, item in enumerate(visible_items):
             real_idx = self.scroll_offset + idx
             is_cursor = real_idx == self.cursor
-            is_header = self._is_header(item)
-
-            if is_header:
-                line_str = self._render_header_item(item, real_idx, is_cursor)
+            if self._is_header(item):
+                line_str = render_header_item(self, item, real_idx, is_cursor=is_cursor)
             else:
-                line_str = self._render_regular_item(item, real_idx, is_cursor)
+                line_str = render_regular_item(
+                    self, item, real_idx, is_cursor=is_cursor
+                )
             content.append(line_str)
 
-        self._render_scroll_indicators(content)
+        render_scroll_indicators(self, content)
 
         self._last_render_lines = TUI.draw_box(
             content=content,
             title=self.title,
-            footer=self._build_footer_text(),
+            footer=build_footer_text(multi=self.multi),
             style=BoxStyle(width=self.width, center_content=False),
         )

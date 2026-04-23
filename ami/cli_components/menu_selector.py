@@ -17,7 +17,15 @@ class MenuItem(Generic[T]):
     Uses **kwargs to stay under 5 positional args limit while supporting protocol.
     """
 
-    __slots__ = ("description", "disabled", "id", "is_header", "label", "value")
+    __slots__ = (
+        "description",
+        "disabled",
+        "id",
+        "is_header",
+        "label",
+        "parent_id",
+        "value",
+    )
 
     def __init__(
         self, id: str, label: str, value: T | None = None, **kwargs: object
@@ -28,6 +36,8 @@ class MenuItem(Generic[T]):
         self.description: str = str(kwargs.get("description", ""))
         self.is_header: bool = bool(kwargs.get("is_header", False))
         self.disabled: bool = bool(kwargs.get("disabled", False))
+        raw_parent = kwargs.get("parent_id")
+        self.parent_id: str | None = raw_parent if isinstance(raw_parent, str) else None
 
 
 class MenuSelector(Generic[T]):

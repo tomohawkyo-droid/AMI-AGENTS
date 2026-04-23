@@ -16,6 +16,10 @@ from ami.cli_components.selection_dialog import (
     SelectionDialog,
     SelectionDialogConfig,
 )
+from ami.cli_components.selection_dialog_render import (
+    build_footer_text,
+    truncate_text,
+)
 from ami.cli_components.text_input_utils import (
     BACKSPACE,
     BRACKETED_PASTE_DISABLE,
@@ -372,9 +376,8 @@ class TestSelectionDialogConstruction:
         assert len(result) == EXPECTED_DIALOG_ITEM_COUNT_2
 
     def test_truncate_text(self):
-        dialog = SelectionDialog(["a"])
-        assert dialog._truncate_text("hello", 10) == "hello"
-        assert dialog._truncate_text("hello world long", 10) == "hello w..."
+        assert truncate_text("hello", 10) == "hello"
+        assert truncate_text("hello world long", 10) == "hello w..."
 
     def test_scroll_down(self):
         config = SelectionDialogConfig(max_height=2)
@@ -384,8 +387,7 @@ class TestSelectionDialogConstruction:
         assert dialog.scroll_offset == 1
 
     def test_build_footer_text(self):
-        dialog = SelectionDialog(["a"])
-        footer = dialog._build_footer_text()
+        footer = build_footer_text(multi=False)
         assert "navigate" in footer
         assert "Enter" in footer
 
