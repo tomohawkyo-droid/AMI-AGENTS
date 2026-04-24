@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-# ami-extra: list hidden, degraded, and unavailable extensions
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-AMI_ROOT="$("$SCRIPT_DIR/ami-pwd")"
-
-exec "$AMI_ROOT/.venv/bin/python" "$AMI_ROOT/ami/scripts/shell/banner_helper.py" --mode extra "$@"

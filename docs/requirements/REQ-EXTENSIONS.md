@@ -58,7 +58,8 @@ The current extension system uses a single centralized `extensions.yaml` file li
 - **REQ-EXT-041**: Lower priority values display first
 - **REQ-EXT-042**: The current banner display order shall be preserved via default priority assignments
 - **REQ-EXT-043**: Extensions with `hidden: true` shall not appear in the default banner
-- **REQ-EXT-044**: A new `ami-extra` command shall list all hidden, degraded, and unavailable extensions with their status and reasons
+- **REQ-EXT-044a**: An `ami extras` subcommand shall list hidden extensions (the opt-in extras menu) — nothing else
+- **REQ-EXT-044b**: An `ami doctor` subcommand shall list degraded, version-mismatched, and unavailable extensions with their status and reasons — nothing else
 - **REQ-EXT-045**: Banner display shall be driven by a single Python process — bash only renders the output, no YAML parsing in bash
 - **REQ-EXT-046**: During banner load, each extension being checked shall display a countdown timer (e.g., `00:05`) in place until the check completes, then replaced with the result
 - **REQ-EXT-047**: Each extension may declare an `installHint` string shown when unavailable, telling the user how to install it

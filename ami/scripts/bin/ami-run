@@ -34,7 +34,7 @@ if [[ "$#" -gt 0 && ("$1" == "-h" || "$1" == "--help") ]]; then
     exit 0
 fi
 
-KNOWN_CMDS="python uv podman docker node npm npx java wrap bash sh tests ansible ansible-playbook ansible-galaxy status systemd cargo rustc go"
+KNOWN_CMDS="python uv podman docker node npm npx java wrap bash sh tests ansible ansible-playbook ansible-galaxy status systemd cargo rustc go kubectl helm extras doctor"
 if [[ $# -gt 0 ]] && [[ " $KNOWN_CMDS " == *" $1 "* ]]; then
     SUBCOMMAND="$1"
     shift
@@ -122,5 +122,18 @@ case "$SUBCOMMAND" in
         ;;
     go)
         exec "$BOOT_DIR/go/bin/go" "${ARGS[@]}"
+        ;;
+    kubectl)
+        export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/config:./.kube/config}"
+        exec "$BOOT_DIR/bin/kubectl" "${ARGS[@]}"
+        ;;
+    helm)
+        exec "$BOOT_DIR/bin/helm" "${ARGS[@]}"
+        ;;
+    extras)
+        exec "$VENV_PYTHON" "$AMI_ROOT/ami/scripts/shell/banner_helper.py" --mode extras "${ARGS[@]}"
+        ;;
+    doctor)
+        exec "$VENV_PYTHON" "$AMI_ROOT/ami/scripts/shell/banner_helper.py" --mode doctor "${ARGS[@]}"
         ;;
 esac

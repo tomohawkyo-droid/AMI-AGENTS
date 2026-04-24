@@ -22,7 +22,11 @@ extensions:
       - ansible
       - systemd
       - podman
+      - kubectl
+      - helm
       - status
+      - extras
+      - doctor
     bannerPriority: 20
     check:
       command: ["{binary}", "--help"]
@@ -83,16 +87,6 @@ extensions:
     check:
       command: ["{binary}", "--help"]
       healthExpect: "ami-update"
-      timeout: 5
-
-  - name: ami-extra
-    binary: ami/scripts/bin/ami-extra
-    description: Show hidden, degraded, and unavailable extensions
-    category: core
-    bannerPriority: 56
-    check:
-      command: ["{binary}", "--help"]
-      healthExpect: "extra"
       timeout: 5
 
   - name: ami-welcome

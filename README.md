@@ -258,16 +258,19 @@ make bootstrap-core       # Core only: uv, python, gcc, git-xet
 
 ## Extensions
 
-25 `ami-*` shell commands across 6 categories:
+23 `ami-*` shell commands across 6 categories:
 
 | Category | Commands |
 |----------|----------|
 | **Core** | `ami-agent` (`@`), `ami`, `ami-run`, `ami-repo`, `ami-transcripts` |
 | **Enterprise** | `ami-mail`, `ami-chat`, `ami-synadm`, `ami-kcadm`, `ami-browser` |
-| **Dev** | `ami-backup`, `ami-restore`, `ami-gcloud`, `ami-kubectl`, `ami-cron` |
+| **Dev** | `ami-backup`, `ami-restore`, `ami-cron` |
 | **Infra** (hidden) | `ami-ssh`, `ami-vpn`, `ami-tunnel`, `ami-ssl` |
+| **Extras** (hidden) | `ami-gcloud` |
 | **Docs** | `ami-docs` |
 | **Agents** | `ami-claude`, `ami-gemini`, `ami-qwen` |
+
+`ami kubectl` and `ami helm` are subcommands of the unified `ami` CLI (not standalone extensions).
 
 ```bash
 make register-extensions   # Creates symlinks/wrappers in .boot-linux/bin/

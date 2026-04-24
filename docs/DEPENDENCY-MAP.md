@@ -167,9 +167,9 @@ graph LR
     e_backup(ami-backup):::ext --> python[Python]:::boot
     e_backup -. "optional" .-> gcloud[gcloud]:::boot
     e_restore(ami-restore):::ext --> python
-    e_gcloud(ami-gcloud):::ext --> gcloud
-    e_kubectl(ami-kubectl):::ext --> k8s[kubectl]:::boot
+    e_gcloud(ami-gcloud):::hidden --> gcloud
     e_cron(ami-cron):::ext --> python
+    e_ami(ami):::ext --> k8s[kubectl + helm]:::boot
 
     %% Infra (hidden)
     e_ssh(ami-ssh):::hidden --> openssh[openssh]:::sys
@@ -283,7 +283,7 @@ graph TB
 | Extension | Category | Bootstrap Deps | Dep Type | Project |
 |-----------|----------|---------------|----------|---------|
 | ami-agent | core | python | binary | AGENTS |
-| ami / ami-run | core | python | binary | AGENTS |
+| ami / ami-run | core | python, kubectl, helm | binary | AGENTS |
 | ami-repo | core | python, git | binary, system | AGENTS |
 | ami-transcripts | core | python | binary | AGENTS |
 | ami-mail | enterprise | rust, gcc-glibc | binary + submodule | STREAMS |
@@ -293,8 +293,7 @@ graph TB
 | ami-browser | enterprise | python (playwright) | binary | AGENTS |
 | ami-backup | dev | python, gcloud (opt) | binary | DATAOPS |
 | ami-restore | dev | python | binary | DATAOPS |
-| ami-gcloud | dev | gcloud SDK | binary | AGENTS |
-| ami-kubectl | dev | kubectl | binary | AGENTS |
+| ami-gcloud | dev (hidden) | gcloud SDK | binary | AGENTS |
 | ami-cron | dev | python | binary | AGENTS |
 | ami-ssh | infra (hidden) | openssh | system | AGENTS |
 | ami-vpn | infra (hidden) | openvpn | system | AGENTS |

@@ -1,4 +1,4 @@
-"""Debug log writer for ami-banner / ami-extra tool-check runs.
+"""Debug log writer for ami-banner / ami doctor tool-check runs.
 
 Opens a JSON-lines log file under AMI_ROOT/logs/ each time the banner
 runs its tool health checks. The log captures every tool's status,

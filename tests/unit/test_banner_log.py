@@ -29,12 +29,12 @@ class TestBannerLogSession:
         assert "session_end" in events
 
     def test_logs_session_metadata(self, tmp_path: Path) -> None:
-        with banner_log_session(tmp_path, "extra") as _:
+        with banner_log_session(tmp_path, "doctor") as _:
             pass
-        files = list((tmp_path / "logs").glob("banner-extra-*.log"))
+        files = list((tmp_path / "logs").glob("banner-doctor-*.log"))
         first = json.loads(files[0].read_text().splitlines()[0])
         assert first["event"] == "session_start"
-        assert first["mode"] == "extra"
+        assert first["mode"] == "doctor"
         assert first["root"] == str(tmp_path)
         assert "python" in first
         assert "pid" in first

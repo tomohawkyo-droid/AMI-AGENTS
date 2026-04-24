@@ -166,12 +166,13 @@ def check_container(name: str) -> bool:
 
 ## 3. Extension Status Model
 
-| Status | Meaning | Banner | `ami-extra` |
-|--------|---------|--------|-------------|
-| `READY` | Binary exists, all required deps present, health passes | Shown (name + desc + version) | — |
-| `DEGRADED` | Binary exists, optional dep missing OR health fails | Shown with ⚠ indicator | Listed with reason |
-| `UNAVAILABLE` | Binary missing OR required dep missing | Not shown | Listed with reason + installHint |
-| `HIDDEN` | Explicitly `hidden: true`, deps satisfied | Not shown | Listed |
+| Status | Meaning | Banner | `ami extras` | `ami doctor` |
+|--------|---------|--------|--------------|--------------|
+| `READY` | Binary exists, all required deps present, health passes | Shown (name + desc + version) | — | — |
+| `DEGRADED` | Binary exists, optional dep missing OR health fails | Shown with ⚠ indicator | — | Listed with reason |
+| `VERSION_MISMATCH` | Binary exists but violates minVersion/maxVersion | Not shown (downgraded in doctor) | — | Listed with reason |
+| `UNAVAILABLE` | Binary missing OR required dep missing | Not shown | — | Listed with reason + installHint |
+| `HIDDEN` | Explicitly `hidden: true`, deps satisfied | Not shown | Listed | — |
 
 ---
 
@@ -345,7 +346,7 @@ def run_check(entry: dict, root: Path) -> tuple[bool, str | None]:
 
 ### Shared Library: `ami/scripts/shell/extension_registry.py`
 
-Core logic shared between `register_extensions.py`, `banner_helper.py`, and `ami-extra`. Contains:
+Core logic shared between `register_extensions.py` and `banner_helper.py` (which backs both `ami-welcome` and the `ami extras` / `ami doctor` subcommands). Contains:
 
 - `find_ami_root()` — `AMI_ROOT` env var, fallback walk-up for `pyproject.toml`
 - `discover_manifests(root)` — recursive discovery
@@ -371,7 +372,7 @@ def find_ami_root() -> Path:
 
 ### Banner Helper: `ami/scripts/shell/banner_helper.py`
 
-Imports from `extension_registry.py`. Accepts `--mode banner|extra` and `--quiet` flags.
+Imports from `extension_registry.py`. Accepts `--mode banner|extras|doctor` and `--quiet` flags.
 
 ```python
 from extension_registry import (
@@ -380,7 +381,7 @@ from extension_registry import (
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', choices=['banner', 'extra'], default='banner')
+    parser.add_argument('--mode', choices=['banner', 'extras', 'doctor'], default='banner')
     parser.add_argument('--quiet', action='store_true',
                         help='Skip health/version checks for faster output')
     args = parser.parse_args()
@@ -394,8 +395,11 @@ def main():
 
     if args.mode == 'banner':
         output_banner(resolved, root, quiet=quiet)
-    elif args.mode == 'extra':
-        output_extra(resolved)
+    elif args.mode == 'extras':
+        output_extras(resolved, root)
+    elif args.mode == 'doctor':
+        resolved = enforce_versions(resolved, root)
+        output_doctor(resolved, root)
 ```
 
 ### Registration Script: `ami/scripts/register_extensions.py`
@@ -507,32 +511,42 @@ _display_extensions() {
 }
 ```
 
-### `ami-extra` Command
+### `ami extras` and `ami doctor` Subcommands
 
-Same helper, different mode:
+Two subcommands of the unified `ami` CLI, both dispatching to the same helper with different modes:
 
 ```bash
-#!/usr/bin/env bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AMI_ROOT="${AMI_ROOT:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
-python3 "$AMI_ROOT/ami/scripts/shell/banner_helper.py" --mode extra
+ami extras   # -> banner_helper.py --mode extras
+ami doctor   # -> banner_helper.py --mode doctor
 ```
 
-Outputs all hidden, degraded, and unavailable extensions:
+**`ami extras`** lists only hidden extensions (intentional extras):
 
 ```
 Hidden Extensions:
-  ami-ssh          SSH with AMI keys and config                    READY
-  ami-vpn          OpenVPN client with AMI config                  UNAVAILABLE (install: make pre-req)
-  ami-tunnel       Cloudflare tunnel management                    READY
-  ami-ssl          OpenSSL with AMI cert paths                     READY
+  ami-ssh          SSH with AMI keys and config
+  ami-vpn          OpenVPN client with AMI config
+  ami-tunnel       Cloudflare tunnel management
+  ami-ssl          OpenSSL with AMI cert paths
+  ami-gcloud       Google Cloud CLI (gcloud SDK)
+```
 
+Prints `No hidden extensions.` when the list is empty.
+
+**`ami doctor`** diagnoses problem extensions (degraded, version-mismatched, unavailable). Runs `enforce_versions` so version constraints are surfaced:
+
+```
 Degraded Extensions:
-  ami-kcadm        Keycloak Admin CLI                              DEGRADED (optional dep missing: ami-keycloak container)
+  ami-kcadm        Keycloak Admin CLI  DEGRADED (optional dep missing: ami-keycloak container)
+
+Version-Mismatched Extensions:
+  ami-claude       Claude Code AI assistant  VERSION_MISMATCH (1.5.0 < required minVersion 2.0.0)
 
 Unavailable Extensions:
-  ami-kubectl      Kubernetes CLI                                  UNAVAILABLE (binary not found: .boot-linux/bin/kubectl) (install: make install-bootstrap)
+  ami-chat         Matrix chat client  UNAVAILABLE (binary not found: .boot-linux/bin/matrix-commander) (install: make bootstrap-communication)
 ```
+
+Prints `No problems detected.` when everything is healthy.
 
 ---
 
@@ -569,8 +583,7 @@ Unknown categories: icon 🔹, color green, appended alphabetically after known 
 | ami-browser | enterprise | 140 |
 | ami-backup | dev | 200 |
 | ami-restore | dev | 210 |
-| ami-gcloud | dev | 220 |
-| ami-kubectl | dev | 230 |
+| ami-gcloud | dev | 220 (hidden) |
 | ami-cron | dev | 240 |
 | ami-ssh | infra | 300 (hidden) |
 | ami-vpn | infra | 310 (hidden) |
@@ -597,7 +610,7 @@ Manifests live where the component's install chain originates:
 | `ami/scripts/bin/docs/extension.manifest.yaml` | ami-docs | Wrapper for bootstrapped pandoc |
 | `ami/scripts/bootstrap/agents/extension.manifest.yaml` | ami-claude, ami-gemini, ami-qwen | Node.js agents |
 | `projects/AMI-STREAMS/extension.manifest.yaml` | ami-mail, ami-chat, ami-synadm | himalaya fork + pip packages |
-| `ami/scripts/bootstrap/dev/extension.manifest.yaml` | ami-gcloud, ami-kubectl | Bootstrapped external tools |
+| `ami/scripts/bootstrap/dev/extension.manifest.yaml` | ami-gcloud (hidden) | Bootstrapped external tools |
 
 ---
 
@@ -640,9 +653,9 @@ The wrapper script (`ami/scripts/bin/ami-kcadm`) always exists in the repo, so `
 |------|--------|
 | `ami/scripts/shell/extension_registry.py` | NEW: shared library (discover, validate, resolve, check) |
 | `ami/scripts/register_extensions.py` | Rewrite: imports from extension_registry, creates symlinks/wrappers |
-| `ami/scripts/shell/banner_helper.py` | NEW: imports from extension_registry, --mode banner\|extra, --quiet |
+| `ami/scripts/shell/banner_helper.py` | NEW: imports from extension_registry, --mode banner\|extras\|doctor, --quiet |
 | `ami/scripts/shell/ami-banner.sh` | Simplify: call banner_helper.py --mode banner |
-| `ami/scripts/bin/ami-extra` | NEW: calls banner_helper.py --mode extra |
+| `ami/scripts/bin/ami-run` | Dispatches `ami extras` / `ami doctor` subcommands to banner_helper.py |
 | `ami/config/extensions.yaml` | DELETE |
 | `ami/config/extensions.template.yaml` | DELETE |
 | ~10 `extension.manifest.yaml` files | NEW: one per component group |
@@ -657,7 +670,7 @@ The wrapper script (`ami/scripts/bin/ami-kcadm`) always exists in the repo, so `
 2. Create all `extension.manifest.yaml` files with current data + bannerPriority + check + deps + installHint
 3. Rewrite `register_extensions.py` to use manifest discovery
 4. Simplify `ami-banner.sh` to call `banner_helper.py --mode banner`
-5. Create `ami-extra` command
+5. Wire `ami extras` and `ami doctor` subcommands into `ami-run`
 6. Delete `extensions.yaml` and `extensions.template.yaml`
 7. Update tests
 8. Diff test: verify banner output matches current output (minus countdown animation)

@@ -272,10 +272,10 @@ def output_banner(
 
 
 # ---------------------------------------------------------------------------
-# Extra mode
+# Extras and doctor modes
 # ---------------------------------------------------------------------------
 
-_STATUS_PAD = 18  # column width for name in extra output
+_STATUS_PAD = 18  # column width for name in extras/doctor output
 
 
 def _print_hidden(exts: list[ResolvedExtension]) -> None:
@@ -327,18 +327,28 @@ def _print_unavailable(exts: list[ResolvedExtension]) -> None:
     print()
 
 
-def output_extra(resolved: list[ResolvedExtension], root: Path | None = None) -> None:
-    """List hidden, degraded, and unavailable extensions."""
-    if root is not None:
-        with banner_log_session(root, "extra") as log:
-            _log_resolution_snapshot(resolved, log)
+def output_extras(resolved: list[ResolvedExtension], root: Path | None = None) -> None:
+    """List hidden extensions (the opt-in 'extras' menu)."""
+    del root  # no log session for a pure readout
     hidden = [e for e in resolved if e.status == Status.HIDDEN]
+    if hidden:
+        _print_hidden(hidden)
+    else:
+        print("No hidden extensions.")
+
+
+def output_doctor(
+    resolved: list[ResolvedExtension],
+    root: Path | None = None,
+) -> None:
+    """Diagnose degraded, version-mismatched, and unavailable extensions."""
+    if root is not None:
+        with banner_log_session(root, "doctor") as log:
+            _log_resolution_snapshot(resolved, log)
     degraded = [e for e in resolved if e.status == Status.DEGRADED]
     mismatched = [e for e in resolved if e.status == Status.VERSION_MISMATCH]
     unavailable = [e for e in resolved if e.status == Status.UNAVAILABLE]
 
-    if hidden:
-        _print_hidden(hidden)
     if degraded:
         _print_degraded(degraded)
     if mismatched:
@@ -346,8 +356,8 @@ def output_extra(resolved: list[ResolvedExtension], root: Path | None = None) ->
     if unavailable:
         _print_unavailable(unavailable)
 
-    if not hidden and not degraded and not unavailable and not mismatched:
-        print("No hidden, degraded, version-mismatched, or unavailable extensions.")
+    if not degraded and not mismatched and not unavailable:
+        print("No problems detected.")
 
 
 # ---------------------------------------------------------------------------
@@ -358,14 +368,14 @@ def output_extra(resolved: list[ResolvedExtension], root: Path | None = None) ->
 def main() -> None:
     """CLI entry point for banner_helper."""
     parser = argparse.ArgumentParser(
-        prog="ami-extra",
-        description="AMI banner helper -- extension display (ami-welcome / ami-extra)",
+        prog="ami",
+        description="AMI banner helper -- extension display (banner / extras / doctor)",
     )
     parser.add_argument(
         "--mode",
-        choices=["banner", "extra"],
+        choices=["banner", "extras", "doctor"],
         default="banner",
-        help="Output mode: banner (default) or extra",
+        help="Output mode: banner (default), extras, or doctor",
     )
     parser.add_argument(
         "--quiet",
@@ -379,15 +389,17 @@ def main() -> None:
     root = find_ami_root()
     manifests = discover_manifests(root)
     resolved = resolve_extensions(manifests, root)
-    # Extra mode shows full taxonomy including version mismatches;
-    # enforce constraints once up front so `extra` and `banner` agree.
-    if args.mode == "extra":
+    # Doctor mode shows full taxonomy including version mismatches;
+    # enforce constraints once up front so `doctor` and `banner` agree.
+    if args.mode == "doctor":
         resolved = enforce_versions(resolved, root)
 
     if args.mode == "banner":
         output_banner(resolved, root, quiet=quiet)
-    elif args.mode == "extra":
-        output_extra(resolved, root)
+    elif args.mode == "extras":
+        output_extras(resolved, root)
+    elif args.mode == "doctor":
+        output_doctor(resolved, root)
 
 
 if __name__ == "__main__":

@@ -16,7 +16,8 @@ from ami.scripts.shell.banner_helper import (
     _title_for,
     main,
     output_banner,
-    output_extra,
+    output_doctor,
+    output_extras,
 )
 from ami.scripts.shell.extension_registry import (
     ResolvedExtension,
@@ -72,17 +73,36 @@ def _make_ext(
     )
 
 
-class TestOutputExtra:
+class TestOutputExtras:
     def test_hidden_listed(self, capsys) -> None:
         exts = [_make_ext("hidden-cmd", Status.HIDDEN)]
-        output_extra(exts)
+        output_extras(exts)
         captured = capsys.readouterr()
         assert "hidden-cmd" in captured.out
         assert "Hidden" in captured.out
 
+    def test_extras_empty(self, capsys) -> None:
+        exts = [_make_ext("ok-cmd", Status.READY)]
+        output_extras(exts)
+        captured = capsys.readouterr()
+        assert "No hidden extensions" in captured.out
+
+    def test_extras_ignores_problems(self, capsys) -> None:
+        exts = [
+            _make_ext("d", Status.DEGRADED, reason="r"),
+            _make_ext("u", Status.UNAVAILABLE, reason="r"),
+        ]
+        output_extras(exts)
+        captured = capsys.readouterr()
+        assert "DEGRADED" not in captured.out
+        assert "UNAVAILABLE" not in captured.out
+        assert "No hidden extensions" in captured.out
+
+
+class TestOutputDoctor:
     def test_degraded_listed(self, capsys) -> None:
         exts = [_make_ext("bad-cmd", Status.DEGRADED, reason="dep missing")]
-        output_extra(exts)
+        output_doctor(exts)
         captured = capsys.readouterr()
         assert "bad-cmd" in captured.out
         assert "DEGRADED" in captured.out
@@ -97,17 +117,11 @@ class TestOutputExtra:
                 hint="make install",
             ),
         ]
-        output_extra(exts)
+        output_doctor(exts)
         captured = capsys.readouterr()
         assert "miss-cmd" in captured.out
         assert "UNAVAILABLE" in captured.out
         assert "make install" in captured.out
-
-    def test_no_issues(self, capsys) -> None:
-        exts = [_make_ext("ok-cmd", Status.READY)]
-        output_extra(exts)
-        captured = capsys.readouterr()
-        assert "No hidden" in captured.out
 
     def test_mismatched_listed(self, capsys) -> None:
         exts = [
@@ -117,23 +131,36 @@ class TestOutputExtra:
                 reason="1.0.0 < required minVersion 2.0.0",
             ),
         ]
-        output_extra(exts)
+        output_doctor(exts)
         captured = capsys.readouterr()
         assert "old-cmd" in captured.out
         assert "VERSION_MISMATCH" in captured.out
         assert "minVersion" in captured.out
 
-    def test_all_categories(self, capsys) -> None:
+    def test_doctor_clean(self, capsys) -> None:
+        exts = [_make_ext("ok-cmd", Status.READY), _make_ext("h", Status.HIDDEN)]
+        output_doctor(exts)
+        captured = capsys.readouterr()
+        assert "No problems detected" in captured.out
+
+    def test_all_problem_categories(self, capsys) -> None:
         exts = [
-            _make_ext("h", Status.HIDDEN),
             _make_ext("d", Status.DEGRADED, reason="r"),
+            _make_ext("m", Status.VERSION_MISMATCH, reason="r"),
             _make_ext("u", Status.UNAVAILABLE, reason="r"),
         ]
-        output_extra(exts)
+        output_doctor(exts)
         captured = capsys.readouterr()
-        assert "Hidden" in captured.out
         assert "Degraded" in captured.out
+        assert "Version-Mismatched" in captured.out
         assert "Unavailable" in captured.out
+
+    def test_doctor_ignores_hidden(self, capsys) -> None:
+        exts = [_make_ext("h", Status.HIDDEN)]
+        output_doctor(exts)
+        captured = capsys.readouterr()
+        assert "Hidden" not in captured.out
+        assert "No problems detected" in captured.out
 
 
 class TestFormatFeatures:
@@ -266,7 +293,7 @@ class TestMain:
             main()
             mock_banner.assert_called_once()
 
-    def test_extra_mode(self) -> None:
+    def test_extras_mode(self) -> None:
         with (
             patch(
                 "ami.scripts.shell.banner_helper.find_ami_root",
@@ -278,11 +305,34 @@ class TestMain:
             patch(
                 "ami.scripts.shell.banner_helper.resolve_extensions", return_value=[]
             ),
-            patch("ami.scripts.shell.banner_helper.output_extra") as mock_extra,
-            patch("sys.argv", ["banner_helper.py", "--mode", "extra"]),
+            patch("ami.scripts.shell.banner_helper.output_extras") as mock_extras,
+            patch("sys.argv", ["banner_helper.py", "--mode", "extras"]),
         ):
             main()
-            mock_extra.assert_called_once()
+            mock_extras.assert_called_once()
+
+    def test_doctor_mode(self) -> None:
+        with (
+            patch(
+                "ami.scripts.shell.banner_helper.find_ami_root",
+                return_value=Path("/tmp"),
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.discover_manifests", return_value=[]
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.resolve_extensions", return_value=[]
+            ),
+            patch(
+                "ami.scripts.shell.banner_helper.enforce_versions",
+                side_effect=lambda exts, _root: exts,
+            ) as mock_enforce,
+            patch("ami.scripts.shell.banner_helper.output_doctor") as mock_doctor,
+            patch("sys.argv", ["banner_helper.py", "--mode", "doctor"]),
+        ):
+            main()
+            mock_doctor.assert_called_once()
+            mock_enforce.assert_called_once()
 
     def test_quiet_from_env(self) -> None:
         with (

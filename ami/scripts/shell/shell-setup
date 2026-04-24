@@ -96,12 +96,12 @@ _uninstall_from_bashrc() {
 _verify_extensions() {
     local helper="$AMI_ROOT/ami/scripts/shell/banner_helper.py"
     [[ -f "$helper" ]] || return 0
-    # Use --mode extra with --quiet: prints hidden/degraded/mismatched/unavailable
+    # Use --mode doctor with --quiet: prints degraded/mismatched/unavailable
     # lists without running per-extension health checks. Any output means the
     # user has something to look at.
-    local extra
-    extra=$(AMI_QUIET_MODE=1 python3 "$helper" --mode extra 2>/dev/null) || return 0
-    if grep -qE 'Unavailable|Version-Mismatched' <<<"$extra"; then
+    local doctor
+    doctor=$(AMI_QUIET_MODE=1 python3 "$helper" --mode doctor 2>/dev/null) || return 0
+    if grep -qE 'Unavailable|Version-Mismatched' <<<"$doctor"; then
         echo "  Run 'make register-extensions' to install/repair commands" >&2
     fi
 }

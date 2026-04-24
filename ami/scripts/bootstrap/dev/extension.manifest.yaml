@@ -8,28 +8,11 @@ extensions:
       - storage
       - iam
       - config
+    hidden: true
     bannerPriority: 220
     minVersion: "500.0.0"
     check:
       command: ["{binary}", "--version"]
       versionPattern: "Google Cloud SDK\\s+(\\d+\\.\\d+\\.\\d+)"
       healthExpect: "Google Cloud SDK"
-      timeout: 5
-
-  - name: ami-kubectl
-    binary: ami/scripts/bin/ami-kubectl
-    description: Kubernetes CLI (kubectl + helm)
-    category: dev
-    features:
-      - get
-      - apply
-      - logs
-      - describe
-      - helm
-    bannerPriority: 230
-    minVersion: "1.28.0"
-    check:
-      command: ["{binary}", "version", "--client"]
-      versionPattern: "Client Version:\\s+v(\\d+\\.\\d+\\.\\d+)"
-      healthExpect: "Client Version"
       timeout: 5
