@@ -24,7 +24,7 @@ from ami.cli_components.legend import (
 from ami.cli_components.tui import BoxStyle
 from ami.core.config import _ConfigSingleton
 
-# -- Constants for expected test values --------------------------------------
+# Constants for expected test values
 
 EXPECTED_ASCII_WIDTH = 5
 EXPECTED_WIDE_EMOJI_WIDTH = 2

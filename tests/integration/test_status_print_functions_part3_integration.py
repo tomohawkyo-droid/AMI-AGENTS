@@ -58,7 +58,7 @@ def _find_service_by_name(
     return None
 
 
-# -- 6. _print_system_docker_section -----------------------------------------
+# 6. _print_system_docker_section
 class TestPrintSystemDockerSection:
     def test_not_found(self, capsys):
         with patch(CONT_EXISTS, return_value=False):
@@ -106,7 +106,7 @@ class TestPrintSystemDockerSection:
         assert "nginx:1.27" in out
 
 
-# -- 7. get_systemd_services -------------------------------------------------
+# 7. get_systemd_services
 _SHOW_TPL = (
     "Id={name}\nActiveState={a}\nSubState={s}\n"
     "FragmentPath={p}\nMainPID={pid}\nExecStart={ex}\n"
@@ -227,7 +227,7 @@ class TestGetSystemdServices:
         assert traefik.scope == "system"
 
 
-# -- 8. _print_orphan_services -----------------------------------------------
+# 8. _print_orphan_services
 class TestPrintOrphanServices:
     def test_none(self, capsys):
         _print_orphan_services([_svc("ami-web.service")], {"ami-web.service"})
@@ -289,7 +289,7 @@ class TestPrintOrphanServices:
         assert out.index("ami-a.service") < out.index("ami-z.service")
 
 
-# -- 9. get_managed_service_names --------------------------------------------
+# 9. get_managed_service_names
 class TestGetManagedServiceNames:
     def test_root_and_projects(self, tmp_path):
         # Root inventory

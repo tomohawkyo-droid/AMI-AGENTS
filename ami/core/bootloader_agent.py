@@ -10,7 +10,6 @@ from collections.abc import Callable
 from threading import Event
 from typing import Any, ClassVar, NamedTuple, cast
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
 from ami.cli.provider_type import ProviderType
@@ -81,9 +80,6 @@ class BootloaderAgent:
         self.prompt_template = (
             self.project_root / "ami/config/prompts/bootloader_agent.txt"
         )
-        self.extensions_config = (
-            self.project_root / "ami/config/extensions.template.yaml"
-        )
         self.runtime = runtime
         self._hook_manager: HookManager | None = None
 
@@ -127,25 +123,6 @@ class BootloaderAgent:
             return "System Context: Banner generation timed out."
         except Exception as e:
             return f"Error loading context: {e}"
-
-    def _load_extensions(self) -> str:
-        """Generate shell setup command from extensions registry."""
-        if not self.extensions_config.exists():
-            return ""
-
-        try:
-            with open(self.extensions_config) as f:
-                data = yaml.safe_load(f)
-
-            extensions = data.get("extensions", [])
-            if not extensions:
-                return ""
-
-            cmds = [f'eval "$({ext})"' for ext in extensions if isinstance(ext, str)]
-            return " && ".join(cmds)
-        except Exception as e:
-            sys.stderr.write(f"Error loading extensions: {e}\n")
-            return ""
 
     def _handle_user_confirmation(
         self,
@@ -280,12 +257,9 @@ class BootloaderAgent:
             return validation_error
 
         try:
-            setup_cmd = self._load_extensions()
-            full_command = f"{setup_cmd} && {script}" if setup_cmd else script
-
             executor = ProcessExecutor(work_dir=self.project_root)
             raw_result = executor.run(
-                ["/bin/bash", "-c", full_command],
+                ["/bin/bash", "-c", script],
                 timeout=300,
             )
             # Convert raw dict result to ExecutionResult

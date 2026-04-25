@@ -33,31 +33,24 @@ class TestBootloaderAgent:
         """execute_shell executes command if safe (noop hooks)."""
         hook_manager = HookManager.noop()
 
-        # Mock extensions setup
-        with patch.object(
-            BootloaderAgent, "_load_extensions", return_value='eval "$(./ami-agent -i)"'
-        ):
-            # Mock executor result
-            mock_instance = MockExecutor.return_value
-            mock_instance.run.return_value = {
-                "stdout": "\x1b[31moutput\x1b[0m",
-                "stderr": "",
-                "returncode": 0,
-            }
+        mock_instance = MockExecutor.return_value
+        mock_instance.run.return_value = {
+            "stdout": "\x1b[31moutput\x1b[0m",
+            "stderr": "",
+            "returncode": 0,
+        }
 
-            result = agent.execute_shell("echo test", hook_manager=hook_manager)
+        result = agent.execute_shell("echo test", hook_manager=hook_manager)
 
-            assert "output" in result
-            assert "\x1b" not in result  # No ANSI codes
+        assert "output" in result
+        assert "\x1b" not in result
 
-            # Verify call arguments
-            mock_instance.run.assert_called_once()
-            args, _kwargs = mock_instance.run.call_args
-            cmd_list = args[0]
-            assert cmd_list[0] == "/bin/bash"
-            assert cmd_list[1] == "-c"
-            assert 'eval "$(./ami-agent -i)"' in cmd_list[2]
-            assert "echo test" in cmd_list[2]
+        mock_instance.run.assert_called_once()
+        args, _kwargs = mock_instance.run.call_args
+        cmd_list = args[0]
+        assert cmd_list[0] == "/bin/bash"
+        assert cmd_list[1] == "-c"
+        assert cmd_list[2] == "echo test"
 
     @patch("ami.core.bootloader_agent.ProcessExecutor")
     def test_execute_shell_blocked_by_hook(self, MockExecutor, agent):
@@ -75,10 +68,7 @@ class TestBootloaderAgent:
 
     def test_execute_shell_no_hook_manager(self, agent):
         """execute_shell with no hook_manager skips validation."""
-        with (
-            patch("ami.core.bootloader_agent.ProcessExecutor") as MockExecutor,
-            patch.object(BootloaderAgent, "_load_extensions", return_value=""),
-        ):
+        with patch("ami.core.bootloader_agent.ProcessExecutor") as MockExecutor:
             mock_instance = MockExecutor.return_value
             mock_instance.run.return_value = {
                 "stdout": "ok",

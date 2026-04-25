@@ -173,7 +173,7 @@ Run after the SYSTEM tier has at least one successful pull:
 
 Triggered by `--defaults FILE` or `--ci` (which selects the repo-provided default file):
 
-- Load the YAML. Default keys: `remote: origin`, `tiers: [system, apps]`, `fail_on_diverge: true`, `fail_on_dirty: true`.
+- Load the YAML. Default keys: `remote: origin`, `tiers: [system]`, `fail_on_diverge: true`, `fail_on_dirty: true`.
 - Run discovery, dirty check, fetch, analyse — but **filter every triple to the configured remote only**.
 - If any repo is dirty and `fail_on_dirty` is true → exit 1.
 - If any triple is diverged and `fail_on_diverge` is true → exit 1.
@@ -181,6 +181,18 @@ Triggered by `--defaults FILE` or `--ci` (which selects the repo-provided defaul
 - Run post-SYSTEM update if the SYSTEM tier had at least one success.
 - Print summary.
 - Exit 0 iff every attempted pull succeeded.
+
+### 3.9 Scope flags
+
+The CLI exposes a mutually-exclusive scope group; if both `--projects` and `--all` are passed, argparse rejects the invocation. The selected scope plumbs through both interactive and CI paths.
+
+| Invocation | Scope |
+|------------|-------|
+| `ami-update` (no flag) | SYSTEM only (AMI-CI, AMI-DATAOPS, AMI-AGENTS) |
+| `ami-update --projects` | APPS only (everything in `projects/*` minus the SYSTEM trio) |
+| `ami-update --all` | SYSTEM + APPS |
+
+When `--ci` / `--defaults` is also set, an explicit scope flag overrides the YAML's `tiers:` list. With no scope flag, the YAML `tiers:` value wins.
 
 ---
 
@@ -197,12 +209,13 @@ update-ci:  @bash ami/scripts/bin/ami-update --ci --defaults ami/config/update-d
 
 ```yaml
 remote: origin          # Only pull from this remote
-tiers:                  # Which tiers to update
+tiers:                  # Which tiers to update (default: SYSTEM only)
   - system
-  - apps
 fail_on_diverge: true   # Exit non-zero if any repo has diverged history
 fail_on_dirty: true     # Exit non-zero if any repo is dirty
 ```
+
+CLI flags `--projects` / `--all` override the `tiers:` value above.
 
 ---
 
@@ -251,11 +264,16 @@ Registered in `ami/scripts/bin/extension.manifest.yaml` as a core extension.
 Usage:
 
 ```
-ami-update                                      # interactive
-ami-update --ci                                 # CI mode, repo default YAML
+ami-update                                      # interactive, SYSTEM only (default scope)
+ami-update --projects                           # interactive, APPS only
+ami-update --all                                # interactive, SYSTEM + APPS
+ami-update --ci                                 # CI mode, repo default YAML (SYSTEM only)
+ami-update --ci --all                           # CI mode, both tiers (CLI overrides YAML)
 ami-update --ci --defaults path/to/config.yaml  # CI mode, custom YAML
 ami-update --defaults path/to/config.yaml       # equivalent to --ci --defaults ...
 ```
+
+`--projects` and `--all` are mutually exclusive.
 
 ---
 

@@ -25,6 +25,7 @@ extensions:
       - kubectl
       - helm
       - status
+      - storage
       - extras
       - doctor
     bannerPriority: 20
@@ -81,8 +82,13 @@ extensions:
 
   - name: ami-update
     binary: ami/scripts/bin/ami-update
-    description: Update AMI Orchestrator components
+    description: "Update AMI Orchestrator components (default: SYSTEM only)"
     category: core
+    features:
+      - default (SYSTEM only)
+      - --projects
+      - --all
+      - --ci
     bannerPriority: 55
     check:
       command: ["{binary}", "--help"]

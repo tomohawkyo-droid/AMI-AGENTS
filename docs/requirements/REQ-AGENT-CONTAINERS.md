@@ -21,7 +21,7 @@ Run AI coding agents (Claude, Qwen, Gemini) in isolated Podman containers with c
 - `ami-agentd create/start/stop/list/sync/...`: CLI commands (run podman, exit)
 - `ami-agentd serve`: starts the A2A gateway server (long-running, port `:8900`)
 
-Registered in `extensions.yaml` as an alias to `.boot-linux/bin/ami-agentd` (the compiled Rust binary).
+Registered via an `extension.manifest.yaml` entry as an alias to `.boot-linux/bin/ami-agentd` (the compiled Rust binary).
 
 Inside containers, `ami-agentd` MUST exit with: `"ami-agentd is not available inside containers"`. Detection: `AMI_CONTAINER=1` env var (set in Dockerfile).
 

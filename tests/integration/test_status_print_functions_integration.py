@@ -69,7 +69,7 @@ def _di(**kw: Any) -> ServiceDisplayInfo:
     )
 
 
-# -- 1. _print_header -------------------------------------------------------
+# 1. _print_header
 class TestPrintHeader:
     def test_contains_title(self, capsys):
         _print_header()
@@ -94,7 +94,7 @@ class TestPrintHeader:
         assert "manual" in capsys.readouterr().out
 
 
-# -- 2. _print_footer -------------------------------------------------------
+# 2. _print_footer
 class TestPrintFooter:
     def test_closing_corner(self, capsys):
         _print_footer()
@@ -105,7 +105,7 @@ class TestPrintFooter:
         assert "\u2500" in capsys.readouterr().out
 
 
-# -- 3. _print_service_entry ------------------------------------------------
+# 3. _print_service_entry
 class TestPrintServiceEntry:
     def test_active_running_green(self, capsys):
         with patch(CONT_VOL, return_value=[]):
@@ -197,7 +197,7 @@ class TestPrintServiceEntry:
         assert "\U0001f4a4" in capsys.readouterr().out
 
 
-# -- 4. _print_service_children ----------------------------------------------
+# 4. _print_service_children
 class TestPrintServiceChildren:
     def test_empty(self, capsys):
         with patch(CONT_VOL, return_value=[]):
@@ -272,7 +272,7 @@ class TestPrintServiceChildren:
         assert "1.2GB" in out
 
 
-# -- 5. _print_orphans -------------------------------------------------------
+# 5. _print_orphans
 class TestPrintOrphans:
     def test_none(self, capsys):
         _print_orphans([_ct("a")], {"a"})

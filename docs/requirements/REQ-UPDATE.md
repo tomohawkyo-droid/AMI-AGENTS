@@ -23,6 +23,8 @@ Updating the AMI workspace requires pulling each project, checking for conflicts
 - **REQ-UPD-002**: SYSTEM tier shall always be updated before APPS tier (APPS depend on SYSTEM).
 - **REQ-UPD-003**: Within SYSTEM, update order shall be `AMI-CI → AMI-DATAOPS → AMI-AGENTS` — CI first because hooks depend on it, DATAOPS second because services depend on CI, AGENTS last because it depends on both.
 - **REQ-UPD-004**: Within APPS, there is no required order; APPS are independent and may be pulled in any order (or in parallel).
+- **REQ-UPD-005**: Default scope shall be SYSTEM only. The user must opt in to APPS via `--projects` (APPS only) or `--all` (SYSTEM + APPS). The two flags shall be mutually exclusive.
+- **REQ-UPD-006**: When a CLI scope flag is supplied alongside `--ci` / `--defaults`, the CLI flag overrides the YAML's `tiers:` value. With no scope flag, the YAML value is used (with `[system]` as the in-code fallback).
 
 ### 2. Pre-Update Safety Checks
 

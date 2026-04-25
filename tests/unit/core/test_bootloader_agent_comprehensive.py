@@ -96,9 +96,7 @@ class TestBootloaderAgentInit:
         assert agent.prompt_template == Path(
             "/project/ami/config/prompts/bootloader_agent.txt"
         )
-        assert agent.extensions_config == Path(
-            "/project/ami/config/extensions.template.yaml"
-        )
+        assert not hasattr(agent, "extensions_config")
         assert agent.runtime is None
         mock_setup_env.assert_called_once()
 
@@ -233,72 +231,6 @@ class TestGetBanner:
         assert "Green" in result
         assert "Normal" in result
         assert "Bold Blue" in result
-
-
-class TestLoadExtensions:
-    """Tests for _load_extensions method."""
-
-    @patch("ami.core.bootloader_agent.setup_agent_env")
-    @patch("ami.core.bootloader_agent.get_project_root")
-    def test_returns_empty_when_no_config(
-        self, mock_get_root, mock_setup_env, tmp_path
-    ):
-        """Test returns empty when config doesn't exist."""
-        mock_get_root.return_value = tmp_path
-
-        agent = BootloaderAgent()
-        result = agent._load_extensions()
-
-        assert result == ""
-
-    @patch("ami.core.bootloader_agent.setup_agent_env")
-    @patch("ami.core.bootloader_agent.get_project_root")
-    def test_loads_extensions(self, mock_get_root, mock_setup_env, tmp_path):
-        """Test loads and formats extensions."""
-        mock_get_root.return_value = tmp_path
-
-        # Create config file
-        config_dir = tmp_path / "ami" / "config"
-        config_dir.mkdir(parents=True)
-        config_file = config_dir / "extensions.template.yaml"
-        config_file.write_text("""
-extensions:
-  - ext1 --setup
-  - ext2 --init
-""")
-
-        agent = BootloaderAgent()
-        agent.extensions_config = config_file
-
-        result = agent._load_extensions()
-
-        assert 'eval "$(ext1 --setup)"' in result
-        assert 'eval "$(ext2 --init)"' in result
-        assert " && " in result
-
-    @patch("ami.core.bootloader_agent.setup_agent_env")
-    @patch("ami.core.bootloader_agent.get_project_root")
-    def test_skips_dict_extensions(self, mock_get_root, mock_setup_env, tmp_path):
-        """Dict entries in extensions list are skipped (not eval'd)."""
-        mock_get_root.return_value = tmp_path
-
-        config_dir = tmp_path / "ami" / "config"
-        config_dir.mkdir(parents=True)
-        config_file = config_dir / "extensions.template.yaml"
-        config_file.write_text(
-            "extensions:\n"
-            "  - name: ami-agent\n"
-            "    binary: ami-agent\n"
-            "    description: Main entry point\n"
-            "    category: core\n"
-        )
-
-        agent = BootloaderAgent()
-        agent.extensions_config = config_file
-
-        result = agent._load_extensions()
-
-        assert result == ""
 
 
 class TestHandleUserConfirmation:

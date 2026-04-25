@@ -9,7 +9,7 @@ from ami.cli_components.editor_display import EditorDisplay
 from ami.cli_components.text_editor import TextEditor
 from ami.core.config import _ConfigSingleton
 
-# -- Constants for expected test values --------------------------------------
+# Constants for expected test values
 
 EXPECTED_COL_HELLO_WORLD = 11
 EXPECTED_LINE_MULTILINE_END = 2

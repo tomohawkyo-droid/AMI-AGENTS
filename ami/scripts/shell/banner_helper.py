@@ -369,7 +369,7 @@ def main() -> None:
     """CLI entry point for banner_helper."""
     parser = argparse.ArgumentParser(
         prog="ami",
-        description="AMI banner helper -- extension display (banner / extras / doctor)",
+        description=("AMI banner helper: extension display (banner, extras, doctor)."),
     )
     parser.add_argument(
         "--mode",

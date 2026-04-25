@@ -56,7 +56,7 @@ function parseArgs() {
   if (opts.network) {
     page.on('requestfailed', req => {
       const failure = req.failure();
-      console.log(`[NETFAIL] ${req.method()} ${req.url()} -- ${failure ? failure.errorText : 'unknown'}`);
+      console.log(`[NETFAIL] ${req.method()} ${req.url()}: ${failure ? failure.errorText : 'unknown'}`);
     });
 
     page.on('response', res => {

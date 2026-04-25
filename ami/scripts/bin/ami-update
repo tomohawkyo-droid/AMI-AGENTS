@@ -6,4 +6,5 @@ SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 AMI_ROOT="$("$SCRIPT_DIR/ami-pwd")"
 
 cd "$AMI_ROOT"
-exec "$AMI_ROOT/.venv/bin/python" "$AMI_ROOT/ami/scripts/update.py" "$@"
+export PYTHONPATH="$AMI_ROOT:${PYTHONPATH:-}"
+exec "$AMI_ROOT/.venv/bin/python" -m ami.scripts.update "$@"

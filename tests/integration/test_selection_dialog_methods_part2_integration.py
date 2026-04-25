@@ -38,7 +38,7 @@ from ami.cli_components.selector import (
 )
 from ami.core.config import _ConfigSingleton
 
-# -- Constants for expected test values --------------------------------------
+# Constants for expected test values
 
 EXPECTED_TRUNCATED_LENGTH = 7
 EXPECTED_FILE_ID_THRESHOLD = 12

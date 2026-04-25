@@ -68,7 +68,7 @@ def _reset_config_singleton():
     _ConfigSingleton.instance = None
 
 
-# -- 1. AnsiTerminal static methods -----------------------------------------
+# 1. AnsiTerminal static methods
 
 
 class TestAnsiTerminalStaticMethods:
@@ -131,7 +131,7 @@ class TestAnsiTerminalStaticMethods:
         assert AnsiTerminal.colorize("", AnsiTerminal.GREEN) == "\033[32m\033[0m"
 
 
-# -- 2. AnsiTerminal constants ----------------------------------------------
+# 2. AnsiTerminal constants
 
 
 class TestAnsiTerminalConstants:
@@ -215,7 +215,7 @@ class TestAnsiTerminalConstants:
         assert fg.isdisjoint(bg)
 
 
-# -- 3. AlertDialog construction --------------------------------------------
+# 3. AlertDialog construction
 
 
 class TestAlertDialogConstruction:
@@ -241,7 +241,7 @@ class TestAlertDialogConstruction:
         assert AlertDialog("text")._last_render_lines == 0
 
 
-# -- 4. ConfirmationDialog construction -------------------------------------
+# 4. ConfirmationDialog construction
 
 
 class TestConfirmationDialogConstruction:
@@ -266,7 +266,7 @@ class TestConfirmationDialogConstruction:
         assert ConfirmationDialog("msg")._last_render_lines == 0
 
 
-# -- 5. EditorDisplay construction ------------------------------------------
+# 5. EditorDisplay construction
 
 
 class TestEditorDisplayConstruction:
@@ -290,7 +290,7 @@ class TestEditorDisplayConstruction:
         )
 
 
-# -- 6. _handle_control_characters ------------------------------------------
+# 6. _handle_control_characters
 
 
 class TestHandleControlCharacters:
@@ -322,7 +322,7 @@ class TestHandleControlCharacters:
         assert _handle_control_characters(ordinal) is None
 
 
-# -- 7. display_final_output ------------------------------------------------
+# 7. display_final_output
 
 
 class TestDisplayFinalOutput:
@@ -389,7 +389,7 @@ class TestDisplayFinalOutput:
         assert buf.getvalue().endswith("\n")
 
 
-# -- 8. text_input_utils constants ------------------------------------------
+# 8. text_input_utils constants
 
 
 class TestTextInputUtilsConstants:
@@ -440,7 +440,7 @@ class TestTextInputUtilsConstants:
         assert BRACKETED_PASTE_DISABLE == "\033[?2004l"
 
 
-# -- Extra: dialogs utility functions ----------------------------------------
+# Extra: dialogs utility functions
 
 
 class TestDialogsUtilities:

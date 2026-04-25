@@ -83,6 +83,18 @@ class TestMainEntry:
         assert mock_restore.called
 
 
+def _ns(**overrides: object) -> argparse.Namespace:
+    """Return a default-shaped argparse.Namespace with optional overrides."""
+    base = {
+        "defaults": None,
+        "ci": False,
+        "projects": False,
+        "all_tiers": False,
+    }
+    base.update(overrides)
+    return argparse.Namespace(**base)
+
+
 class TestCiFlag:
     def test_ci_without_defaults_uses_repo_default(self, tmp_path: Path) -> None:
         default_yaml = tmp_path / DEFAULT_CI_CONFIG
@@ -91,11 +103,11 @@ class TestCiFlag:
         with (
             patch(
                 "ami.scripts.update.argparse.ArgumentParser.parse_args",
-                return_value=argparse.Namespace(defaults=None, ci=True),
+                return_value=_ns(ci=True),
             ),
             patch("ami.scripts.update.find_ami_root", return_value=tmp_path),
             patch("ami.scripts.update.discover_repos", return_value=[]),
-            patch("ami.scripts.update._run_from_defaults", return_value=0) as mock_run,
+            patch("ami.scripts.update.run_from_defaults", return_value=0) as mock_run,
         ):
             rc = _main_impl()
         assert rc == 0
@@ -106,11 +118,95 @@ class TestCiFlag:
         with (
             patch(
                 "ami.scripts.update.argparse.ArgumentParser.parse_args",
-                return_value=argparse.Namespace(defaults=explicit, ci=True),
+                return_value=_ns(defaults=explicit, ci=True),
             ),
             patch("ami.scripts.update.find_ami_root", return_value=tmp_path),
             patch("ami.scripts.update.discover_repos", return_value=[]),
-            patch("ami.scripts.update._run_from_defaults", return_value=0) as mock_run,
+            patch("ami.scripts.update.run_from_defaults", return_value=0) as mock_run,
         ):
             _main_impl()
         assert mock_run.call_args.args[0] == explicit
+
+
+class TestScopeFlags:
+    def test_default_scope_is_system_only(self, tmp_path: Path) -> None:
+        with (
+            patch(
+                "ami.scripts.update.argparse.ArgumentParser.parse_args",
+                return_value=_ns(),
+            ),
+            patch("ami.scripts.update.find_ami_root", return_value=tmp_path),
+            patch("ami.scripts.update.discover_repos", return_value=[]),
+            patch("ami.scripts.update.sys.stdin.isatty", return_value=True),
+            patch("ami.scripts.update.run_interactive", return_value=0) as mock_run,
+        ):
+            _main_impl()
+        assert mock_run.call_args.args[3] == ["system"]
+
+    def test_projects_flag_apps_only(self, tmp_path: Path) -> None:
+        with (
+            patch(
+                "ami.scripts.update.argparse.ArgumentParser.parse_args",
+                return_value=_ns(projects=True),
+            ),
+            patch("ami.scripts.update.find_ami_root", return_value=tmp_path),
+            patch("ami.scripts.update.discover_repos", return_value=[]),
+            patch("ami.scripts.update.sys.stdin.isatty", return_value=True),
+            patch("ami.scripts.update.run_interactive", return_value=0) as mock_run,
+        ):
+            _main_impl()
+        assert mock_run.call_args.args[3] == ["apps"]
+
+    def test_all_flag_both_tiers(self, tmp_path: Path) -> None:
+        with (
+            patch(
+                "ami.scripts.update.argparse.ArgumentParser.parse_args",
+                return_value=_ns(all_tiers=True),
+            ),
+            patch("ami.scripts.update.find_ami_root", return_value=tmp_path),
+            patch("ami.scripts.update.discover_repos", return_value=[]),
+            patch("ami.scripts.update.sys.stdin.isatty", return_value=True),
+            patch("ami.scripts.update.run_interactive", return_value=0) as mock_run,
+        ):
+            _main_impl()
+        assert mock_run.call_args.args[3] == ["system", "apps"]
+
+    def test_projects_and_all_mutex(self) -> None:
+        with (
+            patch("sys.argv", ["ami-update", "--projects", "--all"]),
+            pytest.raises(SystemExit),
+        ):
+            _main_impl()
+
+    def test_cli_scope_overrides_yaml_in_ci_mode(self, tmp_path: Path) -> None:
+        default_yaml = tmp_path / DEFAULT_CI_CONFIG
+        default_yaml.parent.mkdir(parents=True, exist_ok=True)
+        default_yaml.write_text("remote: origin\ntiers: [system, apps]\n")
+        with (
+            patch(
+                "ami.scripts.update.argparse.ArgumentParser.parse_args",
+                return_value=_ns(ci=True, projects=True),
+            ),
+            patch("ami.scripts.update.find_ami_root", return_value=tmp_path),
+            patch("ami.scripts.update.discover_repos", return_value=[]),
+            patch("ami.scripts.update.run_from_defaults", return_value=0) as mock_run,
+        ):
+            _main_impl()
+        # cli_scope_tiers kwarg should be ["apps"]
+        assert mock_run.call_args.kwargs["cli_scope_tiers"] == ["apps"]
+
+    def test_no_scope_flag_passes_none_to_defaults(self, tmp_path: Path) -> None:
+        default_yaml = tmp_path / DEFAULT_CI_CONFIG
+        default_yaml.parent.mkdir(parents=True, exist_ok=True)
+        default_yaml.write_text("remote: origin\ntiers: [system]\n")
+        with (
+            patch(
+                "ami.scripts.update.argparse.ArgumentParser.parse_args",
+                return_value=_ns(ci=True),
+            ),
+            patch("ami.scripts.update.find_ami_root", return_value=tmp_path),
+            patch("ami.scripts.update.discover_repos", return_value=[]),
+            patch("ami.scripts.update.run_from_defaults", return_value=0) as mock_run,
+        ):
+            _main_impl()
+        assert mock_run.call_args.kwargs["cli_scope_tiers"] is None

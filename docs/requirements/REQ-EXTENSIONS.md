@@ -10,7 +10,7 @@
 
 ## Background
 
-The current extension system uses a single centralized `extensions.yaml` file listing all 33 CLI tools. This doesn't scale — adding a new extension requires editing a shared config file, there's no dependency tracking, and tools in external submodules (AMI-STREAMS, AMI-DATAOPS) have no way to self-register.
+The previous extension system used a single centralized `extensions.yaml` file listing all CLI tools. That didn't scale — adding an extension required editing a shared config file, there was no dependency tracking, and tools in external submodules (AMI-STREAMS, AMI-DATAOPS) had no way to self-register. Discovery is now per-component `extension.manifest.yaml` files (see SPEC-EXTENSIONS).
 
 ---
 
@@ -20,7 +20,7 @@ The current extension system uses a single centralized `extensions.yaml` file li
 
 - **REQ-EXT-001**: Each component shall declare its extensions via an `extension.manifest.yaml` file alongside its code
 - **REQ-EXT-002**: A manifest may declare one or more extensions
-- **REQ-EXT-003**: The centralized `extensions.yaml` and `extensions.template.yaml` shall be removed and replaced by manifest discovery
+- **REQ-EXT-003**: The centralized `extensions.yaml` and `extensions.template.yaml` are removed (DONE — files no longer present on disk; replaced by per-manifest discovery)
 - **REQ-EXT-004**: Manifests shall be validated against a schema — missing required fields or unknown fields shall be reported as errors and the entry skipped
 - **REQ-EXT-005**: Malformed YAML in a manifest shall be reported and the manifest skipped — not crash the process
 

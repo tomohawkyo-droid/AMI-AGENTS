@@ -9,7 +9,7 @@
 
 ## Implementation Status (2026-04-14)
 
-NOT BUILT. This spec replaces the current centralized `extensions.yaml` system.
+BUILT. This spec replaced the previous centralized `extensions.yaml` system; discovery is now via per-component `extension.manifest.yaml` files (see § 4 Discovery Algorithm).
 
 ---
 
@@ -656,9 +656,8 @@ The wrapper script (`ami/scripts/bin/ami-kcadm`) always exists in the repo, so `
 | `ami/scripts/shell/banner_helper.py` | NEW: imports from extension_registry, --mode banner\|extras\|doctor, --quiet |
 | `ami/scripts/shell/ami-banner.sh` | Simplify: call banner_helper.py --mode banner |
 | `ami/scripts/bin/ami-run` | Dispatches `ami extras` / `ami doctor` subcommands to banner_helper.py |
-| `ami/config/extensions.yaml` | DELETE |
-| `ami/config/extensions.template.yaml` | DELETE |
-| ~10 `extension.manifest.yaml` files | NEW: one per component group |
+| `ami/config/extensions.yaml`, `extensions.template.yaml` | DELETED (no longer present on disk) |
+| ~10 `extension.manifest.yaml` files | One per component group, discovered dynamically |
 | `tests/unit/test_register_extensions.py` | Rewrite for manifest discovery + validation |
 | `tests/integration/test_extensions_help.py` | Rewrite for manifest discovery |
 
@@ -671,6 +670,6 @@ The wrapper script (`ami/scripts/bin/ami-kcadm`) always exists in the repo, so `
 3. Rewrite `register_extensions.py` to use manifest discovery
 4. Simplify `ami-banner.sh` to call `banner_helper.py --mode banner`
 5. Wire `ami extras` and `ami doctor` subcommands into `ami-run`
-6. Delete `extensions.yaml` and `extensions.template.yaml`
+6. Delete `extensions.yaml` and `extensions.template.yaml` (done — files no longer exist)
 7. Update tests
 8. Diff test: verify banner output matches current output (minus countdown animation)

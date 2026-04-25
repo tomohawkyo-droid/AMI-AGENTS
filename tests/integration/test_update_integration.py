@@ -9,13 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from ami.scripts.update import (
-    RepoInfo,
-    _run_from_defaults,
-    analyze_repo,
-    check_dirty,
-    pull_updates,
-)
+from ami.scripts.update_ci import run_from_defaults
+from ami.scripts.update_git import analyze_repo, check_dirty, pull_updates
+from ami.scripts.update_types import RepoInfo
 
 pytestmark = pytest.mark.integration
 
@@ -127,7 +123,7 @@ class TestRunFromDefaultsReal:
             "fail_on_diverge: true\n"
             "fail_on_dirty: true\n",
         )
-        rc = _run_from_defaults(defaults, [], [repo], tmp_path)
+        rc = run_from_defaults(defaults, [], [repo], tmp_path)
         assert rc == 0
 
     def test_ci_mode_fails_on_diverge(
@@ -145,7 +141,7 @@ class TestRunFromDefaultsReal:
             "fail_on_diverge: true\n"
             "fail_on_dirty: true\n",
         )
-        rc = _run_from_defaults(defaults, [], [repo], tmp_path)
+        rc = run_from_defaults(defaults, [], [repo], tmp_path)
         assert rc == 1
 
 
@@ -163,16 +159,16 @@ class TestCliCiFlag:
             "remote: origin\ntiers: []\nfail_on_diverge: true\nfail_on_dirty: true\n",
         )
 
-        update_script = project_root / "ami" / "scripts" / "update.py"
         env = os.environ.copy()
         env["AMI_ROOT"] = str(fake_root)
-        env["AMI_PROJECT_ROOT"] = str(project_root)
+        env["PYTHONPATH"] = str(project_root) + os.pathsep + env.get("PYTHONPATH", "")
         result = subprocess.run(
-            [sys.executable, str(update_script), "--ci"],
+            [sys.executable, "-m", "ami.scripts.update", "--ci"],
             check=False,
             capture_output=True,
             text=True,
             env=env,
+            cwd=str(project_root),
             timeout=30,
         )
         # Empty tiers => nothing to pull => exit 0.

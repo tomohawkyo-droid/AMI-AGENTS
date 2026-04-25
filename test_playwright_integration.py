@@ -77,22 +77,19 @@ def check_browser_scripts(root: Path) -> bool:
 
 
 def check_extensions_config(root: Path) -> bool:
-    """Check extensions configuration."""
-    print("\n5. Checking extensions configuration...")
-    extensions_config = root / "ami" / "config" / "extensions.template.yaml"
-    if extensions_config.exists():
-        with open(extensions_config) as f:
-            content = f.read()
-            if (
-                "ami-browser" in content
-                and "Browser automation (Playwright)" in content
-            ):
-                print("   ✓ ami-browser properly configured in extensions")
-                return True
-            print("   ✗ ami-browser not properly configured in extensions")
-            return False
-
-    print(f"   ✗ Extensions config not found at {extensions_config}")
+    """Verify ami-browser is registered via the manifest registry."""
+    print("\n5. Checking extensions manifest...")
+    manifest = (
+        root / "ami" / "scripts" / "bin" / "enterprise" / "extension.manifest.yaml"
+    )
+    if not manifest.exists():
+        print(f"   ✗ Manifest not found at {manifest}")
+        return False
+    content = manifest.read_text()
+    if "ami-browser" in content and "Browser automation (Playwright)" in content:
+        print("   ✓ ami-browser properly configured in enterprise manifest")
+        return True
+    print("   ✗ ami-browser not registered in enterprise manifest")
     return False
 
 

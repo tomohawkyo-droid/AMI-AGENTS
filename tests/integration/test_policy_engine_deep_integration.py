@@ -168,7 +168,7 @@ class TestGetPolicyPath:
 
     def test_single_level_tiers(self):
         engine = PolicyEngine()
-        # "tiers" is a string path, not a dict -- should return a Path
+        # "tiers" is a string path, not a dict, so should return a Path
         path = engine._get_policy_path("tiers")
         assert path is None or isinstance(path, Path)
 

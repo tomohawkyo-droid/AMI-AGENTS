@@ -3,8 +3,9 @@
 # Same pattern as install-defaults.yaml for bootstrap.
 
 remote: origin
+# Default scope: SYSTEM only (AMI-CI, AMI-DATAOPS, AMI-AGENTS).
+# Use `ami-update --projects` or `--all` (or override `tiers:` here) for APPS.
 tiers:
   - system
-  - apps
 fail_on_diverge: true
 fail_on_dirty: true

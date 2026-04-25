@@ -29,7 +29,7 @@ Tools are installed to `.boot-linux/bin/` without requiring `sudo`. The TUI inst
 
 ## Extensions
 
-CLI extensions are registered in `ami/config/extensions.yaml` (gitignored; template at `extensions.template.yaml`). Categories: core, enterprise, dev, infra, docs, agents.
+CLI extensions are discovered dynamically from per-component `extension.manifest.yaml` files (see `ami/scripts/shell/extension_registry.py::discover_manifests`). Each component group ships its own manifest under `ami/scripts/bin/*/extension.manifest.yaml` or `projects/*/extension.manifest.yaml`. Categories: core, enterprise, dev, infra, docs, agents.
 
 Run `ami-welcome` to see the banner with all available extensions.
 
@@ -58,8 +58,7 @@ Run all checks manually: `make check`
 
 | File | Purpose |
 |------|---------|
-| `ami/config/extensions.yaml` | CLI extension registry (gitignored) |
-| `ami/config/extensions.template.yaml` | Extension registry template (tracked) |
+| `*/extension.manifest.yaml` | Per-component extension manifests (discovered dynamically) |
 | `ami/config/automation.yaml` | Agent CLI settings, logging, hooks |
 | `ami/config/hooks.yaml` | Hook validation pipeline (v4.0.0) |
 | `ami/config/policies/command_tiers.yaml` | Command access tiers |

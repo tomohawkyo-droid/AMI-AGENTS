@@ -432,7 +432,7 @@ Uses `dns.resolver` (dnspython) or subprocess `dig`/`nslookup`:
 | File | Purpose |
 |------|---------|
 | `ami/scripts/bin/ami_mail.py` | CLI entry point (309 lines, stdlib) |
-| `ami/config/extensions.yaml` | Extension registration (enterprise category) |
+| `projects/AMI-STREAMS/extension.manifest.yaml` | Extension registration (enterprise category) |
 
 ### Target (v2)
 

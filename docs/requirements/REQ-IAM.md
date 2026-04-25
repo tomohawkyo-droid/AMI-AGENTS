@@ -494,7 +494,7 @@ The `resolvePermissions()` function MUST accept both legacy and new role names. 
 
 | ID | Requirement |
 |----|-------------|
-| FR-17.1 | `ami-kcadm` CLI wrapper SHALL be documented as an extension and registered in `extensions.yaml`. |
+| FR-17.1 | `ami-kcadm` CLI wrapper SHALL be documented as an extension and registered via an `extension.manifest.yaml` (manifest discovery). |
 | FR-17.2 | `bootstrap-keycloak.sh` (PORTAL) SHALL be consolidated with DATAOPS Ansible provisioning to avoid duplication. |
 | FR-17.3 | A `make bootstrap-iam` target SHALL automate the full IAM stack setup (Keycloak realm + clients + OpenBao init + cross-system wiring). |
 | FR-17.4 | All bootstrap and provisioning operations SHALL be idempotent. |

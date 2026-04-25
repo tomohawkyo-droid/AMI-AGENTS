@@ -156,7 +156,7 @@ def cmd_search(args: argparse.Namespace) -> int:
         for result in results:
             print(
                 f"Session {result.session_id[:12]}... "
-                f"({result.summary or 'no summary'}) -- {len(result.hits)} hits"
+                f"({result.summary or 'no summary'}): {len(result.hits)} hits"
             )
             for hit in result.hits[:_MAX_HITS_SHOWN]:
                 print(f"    {hit.keyword}: {hit.context_snippet}")
